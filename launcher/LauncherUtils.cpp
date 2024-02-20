@@ -44,7 +44,8 @@ static QVector<QByteArray> internalDependenciesGetter(const QString &elfPath, bo
 }
 
 namespace launcher::utils {
-QVector<QByteArray> getDependenciesForExecutable(const QString &elfPath) {
+QVector<QByteArray> getDependenciesForExecutable(const QString &elfPath) noexcept
+{
     return internalDependenciesGetter(elfPath);
 }
 }

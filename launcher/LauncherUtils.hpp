@@ -6,5 +6,5 @@ class QByteArray;
 class QString;
 
 namespace launcher::utils {
-QVector<QByteArray> getDependenciesForExecutable(const QString &elfPath);
+QVector<QByteArray> getDependenciesForExecutable(const QString &elfPath) noexcept;
 }

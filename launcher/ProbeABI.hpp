@@ -1,3 +1,5 @@
+#pragma once
+
 #include <QString>
 
 namespace launcher::probe {
@@ -11,6 +13,8 @@ public:
     bool hasQtVersion() const noexcept;
     bool hasArchitecture() const noexcept;
     bool isValid() const noexcept;
+
+    QString getProbeDllPath() const noexcept;
 private:
     struct {
         int majorVersion = -1;

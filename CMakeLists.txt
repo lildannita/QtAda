@@ -9,7 +9,10 @@ set(QtAda_VERSION_PATCH 1)
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 set(QT_MIN_VERSION 5.15.2)
 
-add_subdirectory(hooks)
+set(QTADA_BIN_DIR ${CMAKE_BINARY_DIR}/bin)
+set(QTADA_LIB_DIR ${CMAKE_BINARY_DIR}/libs)
+
+add_subdirectory(probe)
 
 find_package(Qt5 ${QT_MIN_VERSION} COMPONENTS
     Core
@@ -61,4 +64,8 @@ target_link_libraries(launcher
 add_executable(QtAda ${qtada_SRCS})
 target_link_libraries(QtAda
     PRIVATE #[[core]] launcher
+)
+
+set_target_properties(QtAda PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY ${QTADA_BIN_DIR}
 )

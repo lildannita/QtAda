@@ -158,16 +158,19 @@ static QString getArchitectureFromElf(const QString &elfPath)
 }
 
 namespace launcher::probe {
-ProbeABI detectProbeAbiForExecutable(const QString &elfPath)
+ProbeABI detectProbeAbiForExecutable(const QString &elfPath) noexcept
 {
     ProbeABI probe;
+    if (elfPath.isEmpty()) {
+        return probe;
+    }
 
     const auto corePath = getQtCoreLibFromLdd(elfPath);
     if (corePath.isEmpty()) {
         return probe;
     }
 
-    QFileInfo coreFileInfo(corePath);
+    const QFileInfo coreFileInfo(corePath);
     if (!coreFileInfo.exists()) {
         return probe;
     }
