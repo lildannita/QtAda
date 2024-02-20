@@ -1,11 +1,3 @@
-/*
-* get/set version (minor + major)
-* get/set architecture
-* get/set id
-*
-* check valid (hasQtVersion + qtversion = 5.15 + !arch.empty())
-*/
-
 #include <QString>
 
 namespace launcher::probe {

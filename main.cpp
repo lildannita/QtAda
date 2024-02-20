@@ -14,7 +14,7 @@ int main(int argc, char *argv[])
     for (int i = 1; i < argc; ++i)
         args.push_back(QString::fromLocal8Bit(argv[i]));
 
-//    const auto test = launcher::probe::detectProbeAbiForExecutable("/files/mgtu/android_currencyconverter/build-client-Desktop-Debug/client");
+    const auto test = launcher::probe::detectProbeAbiForExecutable("/files/mgtu/android_currencyconverter/build-client-Desktop-Debug/client");
 
     return 0;
 }

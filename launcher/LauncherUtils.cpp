@@ -3,16 +3,16 @@
 #include <QProcess>
 #include <QRegularExpression>
 
-static QVector<QByteArray> internalDependenciesGetter(const QString &exePath, bool isRetry = false) {
+static QVector<QByteArray> internalDependenciesGetter(const QString &elfPath, bool isRetry = false) {
     QProcess ldProc;
     ldProc.setProcessChannelMode(QProcess::SeparateChannels);
     ldProc.setReadChannel(QProcess::StandardOutput);
 
     if (!isRetry) {
         // Сначала пробуем использовать ldd
-        ldProc.start(QStringLiteral("ldd"), QStringList(exePath));
+        ldProc.start(QStringLiteral("ldd"), QStringList(elfPath));
         if (!ldProc.waitForStarted()) {
-            return internalDependenciesGetter(exePath, true);
+            return internalDependenciesGetter(elfPath, true);
         }
     }
     else {
@@ -22,7 +22,7 @@ static QVector<QByteArray> internalDependenciesGetter(const QString &exePath, bo
         QProcessEnvironment ldEnv = ldProc.processEnvironment();
         ldEnv.insert(QStringLiteral("LD_TRACE_LOADED_OBJECTS"), QStringLiteral("1"));
         ldProc.setProcessEnvironment(ldEnv);
-        ldProc.start(exePath, QStringList(), QProcess::ReadOnly);
+        ldProc.start(elfPath, QStringList(), QProcess::ReadOnly);
     }
     ldProc.waitForFinished();
 
@@ -44,7 +44,7 @@ static QVector<QByteArray> internalDependenciesGetter(const QString &exePath, bo
 }
 
 namespace launcher::utils {
-QVector<QByteArray> getDependenciesForExecutable(const QString &exePath) {
-    return internalDependenciesGetter(exePath);
+QVector<QByteArray> getDependenciesForExecutable(const QString &elfPath) {
+    return internalDependenciesGetter(elfPath);
 }
 }

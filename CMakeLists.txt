@@ -23,10 +23,8 @@ if(HAVE_ELF_H OR HAVE_SYS_ELF_H)
 endif()
 
 #set(core_HDRS
-##    core/Launcher.hpp
 #)
 #set(core_SRCS
-##    core/Launcher.cpp
 #)
 
 set(launcher_HDRS
@@ -47,6 +45,8 @@ set(launcher_SRCS
 set(qtada_SRCS
     main.cpp
 )
+
+configure_file(${CMAKE_CURRENT_SOURCE_DIR}/config.h.cmake ${CMAKE_CURRENT_BINARY_DIR}/config.h)
 
 #add_library(core OBJECT ${core_SRCS} ${core_HDRS})
 #target_link_libraries(core
