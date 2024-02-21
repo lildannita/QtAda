@@ -48,7 +48,7 @@ QString ProbeABI::probeId() const noexcept
         return QString();
     }
 
-    return QStringLiteral("qt%1_%2 (%3)")
+    return QStringLiteral("Qt %1.%2 (%3)")
         .arg(info_.majorVersion)
         .arg(info_.minorQtVersion)
         .arg(info_.architecture);
