@@ -27,19 +27,14 @@ bool ProbeABI::hasQtVersion() const noexcept
     return info_.majorVersion > 0 && info_.minorQtVersion >= 0;
 }
 
-bool ProbeABI::hasArchitecture() const noexcept
-{
-    return !info_.architecture.isEmpty();
-}
+bool ProbeABI::hasArchitecture() const noexcept { return !info_.architecture.isEmpty(); }
 
-bool ProbeABI::isValid() const noexcept
-{
-    return hasQtVersion() && hasArchitecture();
-}
+bool ProbeABI::isValid() const noexcept { return hasQtVersion() && hasArchitecture(); }
 
 QString ProbeABI::probeDllPath() const noexcept
 {
-    const auto probePath = QLatin1String(QTADA_LIB_DIR "/" QTADA_LIB_PREFIX QTADA_PROBE_BASENAME ".so");
+    const auto probePath
+        = QLatin1String(QTADA_LIB_DIR "/" QTADA_LIB_PREFIX QTADA_PROBE_BASENAME ".so");
     QFileInfo probeInfo(probePath);
     if (probeInfo.isFile() && probeInfo.isReadable()) {
         return probeInfo.canonicalFilePath();
@@ -53,6 +48,9 @@ QString ProbeABI::probeId() const noexcept
         return QString();
     }
 
-    return QStringLiteral("qt%1_%2 (%3)").arg(info_.majorVersion).arg(info_.minorQtVersion).arg(info_.architecture);
+    return QStringLiteral("qt%1_%2 (%3)")
+        .arg(info_.majorVersion)
+        .arg(info_.minorQtVersion)
+        .arg(info_.architecture);
 }
-}
+} // namespace launcher::probe

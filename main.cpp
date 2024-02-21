@@ -35,7 +35,8 @@ int main(int argc, char *argv[])
 
     launcher.setLaunchAppArguments(args);
     if (!launcher.launch()) {
-        qInfo() << qPrintable(QStringLiteral("Failed to launch target: %1").arg(args.constFirst()));
+        qInfo() << qPrintable(
+            QStringLiteral("Failed to launch target: %1").arg(args.constFirst()));
     }
 
     return 0;

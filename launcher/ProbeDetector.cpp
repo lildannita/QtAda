@@ -53,26 +53,26 @@ static std::optional<std::pair<int, int>> qtVersionFromLibName(const QString &li
 
 static std::optional<std::pair<int, int>> qtVersionFromLibExec(const QString &libPath)
 {
-/*
- * TODO: По идее библиотеку .so можно запустить как обычный исполняемый файл,
- * но почему-то на моих машинах выдает ошибку `segmentation fault (core dumped)`
- *
- *  Код для запуска библиотеки как исполняемый файл:
- *
-    QProcess proc;
-    proc.setProcessChannelMode(QProcess::SeparateChannels);
-    proc.setReadChannel(QProcess::StandardOutput);
-    proc.start(libPath, {}, QProcess::ReadOnly);
-    proc.waitForFinished();
+    /*
+     * TODO: По идее библиотеку .so можно запустить как обычный исполняемый файл,
+     * но почему-то на моих машинах выдает ошибку `segmentation fault (core dumped)`
+     *
+     *  Код для запуска библиотеки как исполняемый файл:
+     *
+        QProcess proc;
+        proc.setProcessChannelMode(QProcess::SeparateChannels);
+        proc.setReadChannel(QProcess::StandardOutput);
+        proc.start(libPath, {}, QProcess::ReadOnly);
+        proc.waitForFinished();
 
-    const QByteArray line = proc.readLine();
-    const int pos = line.indexOf("Qt ");
-    const QList<QByteArray> version = line.mid(pos + 2).split('.');
-    if (version.size() < 3)
-        return std::nullopt;
+        const QByteArray line = proc.readLine();
+        const int pos = line.indexOf("Qt ");
+        const QList<QByteArray> version = line.mid(pos + 2).split('.');
+        if (version.size() < 3)
+            return std::nullopt;
 
-    return std::make_pair(version.at(0).toInt(), version.at(1).toInt());
-*/
+        return std::make_pair(version.at(0).toInt(), version.at(1).toInt());
+    */
 
     // Если ldd не доступен, то на текущий момент надеемся, что доступна
     //  команда strings, возвращающая текстовые строки из исполняемого файла
@@ -103,7 +103,7 @@ static std::optional<std::pair<int, int>> qtVersionFromLibExec(const QString &li
 }
 
 #ifdef HAVE_ELF
-template<typename ElfHeader>
+template <typename ElfHeader>
 static QString getArchitectureFromElfHeader(const uchar *elfData, quint64 size)
 {
     if (size <= sizeof(ElfHeader))
@@ -124,7 +124,8 @@ static QString getArchitectureFromElfHeader(const uchar *elfData, quint64 size)
         return QStringLiteral("aarch64");
 #endif
     default:
-        qWarning(launcher::LauncherLog) << "unsupported architecture:" << elfHeader->e_machine;
+        qWarning(launcher::LauncherLog)
+            << "unsupported architecture:" << elfHeader->e_machine;
         return QString();
     }
 }
@@ -151,7 +152,8 @@ static QString getArchitectureFromElf(const QString &elfPath)
         return getArchitectureFromElfHeader<Elf64_Ehdr>(elfData, elf.size());
     }
 #else
-    qWarning(launcher::LauncherLog, "сan't determine the architecture due to missing elf.h");
+    qWarning(launcher::LauncherLog,
+             "сan't determine the architecture due to missing elf.h");
     Q_UNUSED(path);
 #endif
     return QString();
@@ -190,4 +192,4 @@ ProbeABI detectProbeAbiForExecutable(const QString &elfPath) noexcept
     probe.setArchitecture(getArchitectureFromElf(elfPath));
     return probe;
 }
-}
+} // namespace launcher::probe

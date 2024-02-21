@@ -3,7 +3,9 @@
 #include <QProcess>
 #include <QRegularExpression>
 
-static QVector<QByteArray> internalDependenciesGetter(const QString &elfPath, bool isRetry = false) {
+static QVector<QByteArray> internalDependenciesGetter(const QString &elfPath,
+                                                      bool isRetry = false)
+{
     QProcess ldProc;
     ldProc.setProcessChannelMode(QProcess::SeparateChannels);
     ldProc.setReadChannel(QProcess::StandardOutput);
@@ -16,7 +18,8 @@ static QVector<QByteArray> internalDependenciesGetter(const QString &elfPath, bo
         }
     }
     else {
-        // Если ldd недоступен - то устанавливаем переменную окружения LD_TRACE_LOADED_OBJECTS
+        // Если ldd недоступен - то устанавливаем переменную окружения
+        // LD_TRACE_LOADED_OBJECTS
         //  в единицу, тогда загрузчик Linux (ld.so) будет вести себя как ldd и отобразит
         //   нужные зависимости
         QProcessEnvironment ldEnv = ldProc.processEnvironment();
@@ -48,4 +51,4 @@ QVector<QByteArray> getDependenciesForExecutable(const QString &elfPath) noexcep
 {
     return internalDependenciesGetter(elfPath);
 }
-}
+} // namespace launcher::utils

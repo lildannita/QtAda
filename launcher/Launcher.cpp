@@ -29,7 +29,8 @@ QString Launcher::absoluteExecutablePath() const noexcept
         return exeFileInfo.absoluteFilePath();
     }
 
-    const auto exePath = QStandardPaths::findExecutable(options_.launchAppArguments.first());
+    const auto exePath
+        = QStandardPaths::findExecutable(options_.launchAppArguments.first());
     if (!exePath.isEmpty()) {
         return exePath;
     }
@@ -39,11 +40,13 @@ QString Launcher::absoluteExecutablePath() const noexcept
 
 bool Launcher::launch() noexcept
 {
-    // AbstractInjector -> ProcessInjector -> PreloadInjector (get signals and exit Launcher)
+    // AbstractInjector -> ProcessInjector -> PreloadInjector (get signals and exit
+    // Launcher)
 
     const auto exePath = absoluteExecutablePath();
     if (exePath.isEmpty()) {
-        qInfo() << qPrintable(QStringLiteral("Error! %1: No such executable file.").arg(options_.launchAppArguments.constFirst()));
+        qInfo() << qPrintable(QStringLiteral("Error! %1: No such executable file.")
+                                  .arg(options_.launchAppArguments.constFirst()));
         return false;
     }
 
@@ -57,10 +60,13 @@ bool Launcher::launch() noexcept
 
     const auto probeDll = options_.probe.probeDllPath();
     if (probeDll.isEmpty()) {
-        qInfo() << qPrintable(QStringLiteral("Error! Can't locate probe for ABI '%1'.").arg(options_.probe.probeId()).toUtf8().constData());
+        qInfo() << qPrintable(QStringLiteral("Error! Can't locate probe for ABI '%1'.")
+                                  .arg(options_.probe.probeId())
+                                  .toUtf8()
+                                  .constData());
         return false;
     }
 
     return true;
 }
-}
+} // namespace launcher

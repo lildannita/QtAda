@@ -3,8 +3,7 @@
 #include <QString>
 
 namespace launcher::probe {
-class ProbeABI
-{
+class ProbeABI {
 public:
     void setQtVersion(int major, int minor) noexcept;
     void setQtVersion(std::pair<int, int> version) noexcept;
@@ -16,6 +15,7 @@ public:
 
     QString probeDllPath() const noexcept;
     QString probeId() const noexcept;
+
 private:
     struct {
         int majorVersion = -1;
@@ -23,4 +23,4 @@ private:
         QString architecture;
     } info_;
 };
-}
+} // namespace launcher::probe

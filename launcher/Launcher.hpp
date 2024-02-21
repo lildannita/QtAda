@@ -19,5 +19,4 @@ private:
         probe::ProbeABI probe;
     } options_;
 };
-}
-
+} // namespace launcher
