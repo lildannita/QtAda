@@ -14,7 +14,8 @@ public:
     bool hasArchitecture() const noexcept;
     bool isValid() const noexcept;
 
-    QString getProbeDllPath() const noexcept;
+    QString probeDllPath() const noexcept;
+    QString probeId() const noexcept;
 private:
     struct {
         int majorVersion = -1;

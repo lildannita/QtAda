@@ -12,6 +12,8 @@ set(QT_MIN_VERSION 5.15.2)
 set(QTADA_BIN_DIR ${CMAKE_BINARY_DIR}/bin)
 set(QTADA_LIB_DIR ${CMAKE_BINARY_DIR}/libs)
 
+set(QTADA_LIB_PREFIX "lib")
+
 add_subdirectory(probe)
 
 find_package(Qt5 ${QT_MIN_VERSION} COMPONENTS

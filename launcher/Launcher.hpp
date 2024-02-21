@@ -7,16 +7,12 @@
 namespace launcher {
 class Launcher {
 public:
-    void launch() const noexcept;
-
-    void setProbeAbi(const probe::ProbeABI &probe) noexcept;
     void setLaunchAppArguments(const QStringList &args) noexcept;
+    bool launch() noexcept;
 
 private:
-    QString getAbsoluteExecutablePath() const noexcept;
-    QString getProbePath() const noexcept;
-
-    bool optionsValid() const noexcept;
+    void setProbeAbi(const probe::ProbeABI &probe) noexcept;
+    QString absoluteExecutablePath() const noexcept;
 
     struct {
         QStringList launchAppArguments;

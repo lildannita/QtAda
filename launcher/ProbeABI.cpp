@@ -1,5 +1,10 @@
 #include "ProbeABI.hpp"
 
+#include <QFileInfo>
+#include <QDebug>
+
+#include "config.h"
+
 namespace launcher::probe {
 void ProbeABI::setQtVersion(int major, int minor) noexcept
 {
@@ -30,5 +35,24 @@ bool ProbeABI::hasArchitecture() const noexcept
 bool ProbeABI::isValid() const noexcept
 {
     return hasQtVersion() && hasArchitecture();
+}
+
+QString ProbeABI::probeDllPath() const noexcept
+{
+    const auto probePath = QLatin1String(QTADA_LIB_DIR "/" QTADA_LIB_PREFIX QTADA_PROBE_BASENAME ".so");
+    QFileInfo probeInfo(probePath);
+    if (probeInfo.isFile() && probeInfo.isReadable()) {
+        return probeInfo.canonicalFilePath();
+    }
+    return QString();
+}
+
+QString ProbeABI::probeId() const noexcept
+{
+    if (!isValid()) {
+        return QString();
+    }
+
+    return QStringLiteral("qt%1_%2 (%3)").arg(info_.majorVersion).arg(info_.minorQtVersion).arg(info_.architecture);
 }
 }

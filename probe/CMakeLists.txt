@@ -21,6 +21,7 @@ set(probe_SRCS
 add_library(probe SHARED ${probe_SRCS})
 target_sources(probe PRIVATE ${probe_HDRS})
 set_target_properties(probe PROPERTIES
+                            PREFIX ${QTADA_LIB_PREFIX}
                             OUTPUT_NAME ${QTADA_PROBE_BASENAME}
                             LIBRARY_OUTPUT_DIRECTORY ${QTADA_LIB_DIR}
                             RUNTIME_OUTPUT_DIRECTORY ${QTADA_LIB_DIR}

@@ -1,5 +1,4 @@
 #include "launcher/Launcher.hpp"
-#include "launcher/ProbeDetector.hpp"
 
 #include <QDebug>
 #include <QStringList>
@@ -15,6 +14,11 @@ void printUsage(const char *appPath)
 
 int main(int argc, char *argv[])
 {
+    if (argc <= 1) {
+        printUsage(*argv);
+        return 1;
+    }
+
     launcher::Launcher launcher;
 
     QStringList args;
@@ -30,9 +34,9 @@ int main(int argc, char *argv[])
     }
 
     launcher.setLaunchAppArguments(args);
-
-
-    const auto test = launcher::probe::detectProbeAbiForExecutable("/files/mgtu/android_currencyconverter/build-client-Desktop-Debug/client");
+    if (!launcher.launch()) {
+        qInfo() << qPrintable(QStringLiteral("Failed to launch target: %1").arg(args.constFirst()));
+    }
 
     return 0;
 }
