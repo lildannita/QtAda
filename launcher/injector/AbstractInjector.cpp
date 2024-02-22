@@ -3,12 +3,12 @@
 #include <QDir>
 
 namespace launcher::injector {
-AbstractInjector::~AbstractInjector() = default;
-
-bool AbstractInjector::launch(const QStringList &launchArgs, const QString &probeDllPath)
+bool AbstractInjector::launch(const QStringList &launchArgs, const QString &probeDllPath,
+                              const QProcessEnvironment &env) noexcept
 {
     Q_UNUSED(launchArgs);
     Q_UNUSED(probeDllPath);
+    Q_UNUSED(env);
     return false;
 }
 
@@ -24,4 +24,4 @@ QString AbstractInjector::workingDirectory() const noexcept
     }
     return workingDirectory_;
 }
-}
+} // namespace launcher::injector

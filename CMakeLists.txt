@@ -18,7 +18,10 @@ add_subdirectory(probe)
 
 find_package(Qt5 ${QT_MIN_VERSION} COMPONENTS
     Core
+#    LinguistTools
 REQUIRED)
+
+#set(TS_FILES resources/qtada_ru.ts)
 
 # For ABI detection
 find_file(HAVE_ELF_H elf.h)
@@ -49,6 +52,7 @@ set(launcher_HDRS
     launcher/ProbeABI.hpp
     launcher/ProbeDetector.hpp
     launcher/LauncherLog.hpp
+    launcher/LaunchOptions.hpp
     ${injector_HDRS}
 )
 set(launcher_SRCS
@@ -57,8 +61,11 @@ set(launcher_SRCS
     launcher/ProbeABI.cpp
     launcher/ProbeDetector.cpp
     launcher/LauncherLog.cpp
+    launcher/LaunchOptions.cpp
     ${injector_SRCS}
 )
+
+qt5_wrap_cpp(launcher_SRCS ${launcher_HDRS} TARGET launcher)
 
 set(qtada_SRCS
     main.cpp
@@ -71,7 +78,7 @@ configure_file(${CMAKE_CURRENT_SOURCE_DIR}/config.h.cmake ${CMAKE_CURRENT_BINARY
 #    PUBLIC Qt5::Core
 #)
 
-add_library(launcher OBJECT ${launcher_SRCS} ${launcher_HDRS})
+add_library(launcher OBJECT ${launcher_SRCS} ${launcher_MOC_SRCS} ${launcher_HDRS})
 target_link_libraries(launcher
     PUBLIC Qt5::Core
 )

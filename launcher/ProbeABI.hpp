@@ -3,7 +3,7 @@
 #include <QString>
 
 namespace launcher::probe {
-class ProbeABI {
+class ProbeABI final {
 public:
     void setQtVersion(int major, int minor) noexcept;
     void setQtVersion(std::pair<int, int> version) noexcept;

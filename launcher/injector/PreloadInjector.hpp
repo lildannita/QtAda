@@ -1,11 +1,14 @@
 #pragma once
 
-class QString;
+#include "ProcessInjector.hpp"
 
 namespace launcher::injector {
-class PreloadInjector {
+class PreloadInjector final : public ProcessInjector {
+    Q_OBJECT
 public:
-    bool launch(const QString &launchAppArguments, const QString &probeDllPath);
+    bool launch(const QStringList &launchArgs, const QString &probeDllPath,
+                const QProcessEnvironment &env) noexcept override;
+
 private:
 };
-}
+} // namespace launcher::injector

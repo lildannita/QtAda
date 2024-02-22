@@ -1,22 +1,46 @@
 #pragma once
 
 #include "ProbeABI.hpp"
+#include "LaunchOptions.hpp"
 
-#include <QStringList>
+#include <QObject>
+#include <QTimer>
+#include <memory>
 
 namespace launcher {
-class Launcher {
+namespace injector {
+    class AbstractInjector;
+} // namespace injector
+
+class Launcher final : public QObject {
+    Q_OBJECT
+signals:
+    void launcherFinished();
+
 public:
-    void setLaunchAppArguments(const QStringList &args) noexcept;
+    explicit Launcher(const UserLaunchOptions &options,
+                      QObject *parent = nullptr) noexcept;
+    ~Launcher() noexcept override;
+
     bool launch() noexcept;
+    int exitCode() const noexcept { return options_.exitCode; }
+
+private slots:
+    void restartTimer() noexcept;
+    void timeout() noexcept;
+
+    void injectorFinished() noexcept;
+    void printStdOutMessage(const QString &msg) const noexcept;
+    void printStdErrMessage(const QString &msg) const noexcept;
 
 private:
-    void setProbeAbi(const probe::ProbeABI &probe) noexcept;
-    QString absoluteExecutablePath() const noexcept;
+    LaunchOptions options_;
+    std::unique_ptr<injector::AbstractInjector> injector_;
 
-    struct {
-        QStringList launchAppArguments;
-        probe::ProbeABI probe;
-    } options_;
+    QTimer waitingTimer_;
+    int waitingTimeoutValue_ = 0;
+
+    void checkIfLauncherIsFinished() noexcept;
+    void handleLauncherFailure(int exitCode, const QString &errorMessage) noexcept;
 };
 } // namespace launcher
