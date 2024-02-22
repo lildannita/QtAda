@@ -32,12 +32,24 @@ endif()
 #set(core_SRCS
 #)
 
+set(injector_HDRS
+    launcher/injector/AbstractInjector.hpp
+    launcher/injector/ProcessInjector.hpp
+    launcher/injector/PreloadInjector.hpp
+)
+set(injector_SRCS
+    launcher/injector/AbstractInjector.cpp
+    launcher/injector/ProcessInjector.cpp
+    launcher/injector/PreloadInjector.cpp
+)
+
 set(launcher_HDRS
     launcher/Launcher.hpp
     launcher/LauncherUtils.hpp
     launcher/ProbeABI.hpp
     launcher/ProbeDetector.hpp
     launcher/LauncherLog.hpp
+    ${injector_HDRS}
 )
 set(launcher_SRCS
     launcher/Launcher.cpp
@@ -45,6 +57,7 @@ set(launcher_SRCS
     launcher/ProbeABI.cpp
     launcher/ProbeDetector.cpp
     launcher/LauncherLog.cpp
+    ${injector_SRCS}
 )
 
 set(qtada_SRCS
