@@ -9,85 +9,27 @@ set(QtAda_VERSION_PATCH 1)
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 set(QT_MIN_VERSION 5.15.2)
 
+set(QTADA_LIB_PREFIX "lib")
 set(QTADA_BIN_DIR ${CMAKE_BINARY_DIR}/bin)
 set(QTADA_LIB_DIR ${CMAKE_BINARY_DIR}/libs)
 
-set(QTADA_LIB_PREFIX "lib")
-
-add_subdirectory(probe)
-
-find_package(Qt5 ${QT_MIN_VERSION} COMPONENTS
-    Core
-#    LinguistTools
-REQUIRED)
-
-#set(TS_FILES resources/qtada_ru.ts)
+find_package(
+  Qt5 ${QT_MIN_VERSION}
+  COMPONENTS Core
+  REQUIRED)
 
 # For ABI detection
 find_file(HAVE_ELF_H elf.h)
 find_file(HAVE_SYS_ELF_H sys/elf.h)
 if(HAVE_ELF_H OR HAVE_SYS_ELF_H)
-    set(HAVE_ELF TRUE)
+  set(HAVE_ELF TRUE)
 endif()
 
-#set(core_HDRS
-#)
-#set(core_SRCS
-#)
+include_directories(${CMAKE_CURRENT_BINARY_DIR})
 
-set(injector_HDRS
-    launcher/injector/AbstractInjector.hpp
-    launcher/injector/ProcessInjector.hpp
-    launcher/injector/PreloadInjector.hpp
-)
-set(injector_SRCS
-    launcher/injector/AbstractInjector.cpp
-    launcher/injector/ProcessInjector.cpp
-    launcher/injector/PreloadInjector.cpp
-)
+add_subdirectory(core)
+add_subdirectory(probe)
+add_subdirectory(launcher)
 
-set(launcher_HDRS
-    launcher/Launcher.hpp
-    launcher/LauncherUtils.hpp
-    launcher/ProbeABI.hpp
-    launcher/ProbeDetector.hpp
-    launcher/LauncherLog.hpp
-    launcher/LaunchOptions.hpp
-    ${injector_HDRS}
-)
-set(launcher_SRCS
-    launcher/Launcher.cpp
-    launcher/LauncherUtils.cpp
-    launcher/ProbeABI.cpp
-    launcher/ProbeDetector.cpp
-    launcher/LauncherLog.cpp
-    launcher/LaunchOptions.cpp
-    ${injector_SRCS}
-)
-
-qt5_wrap_cpp(launcher_SRCS ${launcher_HDRS} TARGET launcher)
-
-set(qtada_SRCS
-    main.cpp
-)
-
-configure_file(${CMAKE_CURRENT_SOURCE_DIR}/config.h.cmake ${CMAKE_CURRENT_BINARY_DIR}/config.h)
-
-#add_library(core OBJECT ${core_SRCS} ${core_HDRS})
-#target_link_libraries(core
-#    PUBLIC Qt5::Core
-#)
-
-add_library(launcher OBJECT ${launcher_SRCS} ${launcher_MOC_SRCS} ${launcher_HDRS})
-target_link_libraries(launcher
-    PUBLIC Qt5::Core
-)
-
-add_executable(QtAda ${qtada_SRCS})
-target_link_libraries(QtAda
-    PRIVATE #[[core]] launcher
-)
-
-set_target_properties(QtAda PROPERTIES
-    RUNTIME_OUTPUT_DIRECTORY ${QTADA_BIN_DIR}
-)
+configure_file(${CMAKE_SOURCE_DIR}/config.h.cmake
+               ${CMAKE_CURRENT_BINARY_DIR}/config.h)

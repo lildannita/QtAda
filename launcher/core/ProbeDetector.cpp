@@ -2,7 +2,7 @@
 
 #include "LauncherLog.hpp"
 #include "LauncherUtils.hpp"
-#include "config.h"
+#include <config.h>
 
 #include <QDebug>
 #include <QFileInfo>

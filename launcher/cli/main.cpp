@@ -1,9 +1,8 @@
-#include "launcher/Launcher.hpp"
+#include "core/Launcher.hpp"
 
 #include <QDebug>
 #include <QStringList>
 #include <QCoreApplication>
-
 #include <csignal>
 
 void shutdown(int sig)

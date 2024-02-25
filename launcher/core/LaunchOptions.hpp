@@ -1,9 +1,9 @@
 #pragma once
 
+#include "ProbeABI.hpp"
+
 #include <QStringList>
 #include <QProcessEnvironment>
-
-#include "ProbeABI.hpp"
 
 namespace launcher {
 enum LauncherState {

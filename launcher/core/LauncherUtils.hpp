@@ -2,8 +2,10 @@
 
 #include <QVector>
 
+QT_BEGIN_NAMESPACE
 class QByteArray;
 class QString;
+QT_END_NAMESPACE
 
 namespace launcher::utils {
 QVector<QByteArray> getDependenciesForExecutable(const QString &elfPath) noexcept;

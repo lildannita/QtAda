@@ -1,8 +1,8 @@
 #include "Hooks.hpp"
 
-#include <private/qhooks_p.h>
-
 #include <QObject>
+#include <QCoreApplication>
+#include <private/qhooks_p.h>
 
 static void (*next_startupHook)() = nullptr;
 static void (*next_objectAddedHook)(QObject *) = nullptr;
@@ -54,7 +54,7 @@ static bool hooksInstalled()
     return qtHookData[QHooks::Startup] == reinterpret_cast<quintptr>(&startupHook);
 }
 
-namespace hooks {
+namespace probe {
 void installHooks()
 {
     if (hooksInstalled()) {
@@ -62,4 +62,5 @@ void installHooks()
     }
     internalHooksInstall();
 }
-} // namespace hooks
+Q_COREAPP_STARTUP_FUNCTION(installHooks)
+} // namespace probe

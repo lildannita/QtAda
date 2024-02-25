@@ -1,7 +1,6 @@
 #include "PreloadInjector.hpp"
 
-#include "launcher/LauncherUtils.hpp"
-#include <iostream>
+#include "core/LauncherUtils.hpp"
 
 namespace launcher::injector {
 bool PreloadInjector::launch(const QStringList &launchArgs, const QString &probeDllPath,
