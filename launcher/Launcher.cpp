@@ -1,9 +1,9 @@
 #include "Launcher.hpp"
 
 #include "injector/PreloadInjector.hpp"
-#include "launcher/LauncherLog.hpp"
 
 #include <QDebug>
+#include <iostream>
 
 static constexpr int DEFAULT_WAITING_TIMER_VALUE = 60;
 static constexpr char ENV_TIMER_VAR_NAME[] = "QTADA_LAUNCHER_TIMEOUT";
@@ -13,10 +13,10 @@ Launcher::Launcher(const UserLaunchOptions &userOptions, QObject *parent) noexce
     : options_(std::move(userOptions))
 {
     const auto userTimeoutValue = qgetenv(ENV_TIMER_VAR_NAME).toInt();
-    //    waitingTimeoutValue_ = std::max(DEFAULT_WAITING_TIMER_VALUE, userTimeoutValue);
-    //    waitingTimer_.setInterval(waitingTimeoutValue_ * 1000);
-    //    waitingTimer_.setSingleShot(true);
-    //    connect(&waitingTimer_, &QTimer::timeout, this, &Launcher::timeout);
+    waitingTimeoutValue_ = std::max(DEFAULT_WAITING_TIMER_VALUE, userTimeoutValue);
+    waitingTimer_.setInterval(waitingTimeoutValue_ * 1000);
+    waitingTimer_.setSingleShot(true);
+    connect(&waitingTimer_, &QTimer::timeout, this, &Launcher::timeout);
 
     injector_ = std::make_unique<injector::PreloadInjector>();
     connect(injector_.get(), &injector::AbstractInjector::started, this,
@@ -50,8 +50,8 @@ void Launcher::timeout() noexcept
 
 void Launcher::restartTimer() noexcept
 {
-    //    waitingTimer_.stop();
-    //    waitingTimer_.start();
+    waitingTimer_.stop();
+    waitingTimer_.start();
 }
 
 void Launcher::injectorFinished() noexcept
@@ -135,11 +135,11 @@ void Launcher::checkIfLauncherIsFinished() noexcept
 
 void Launcher::printStdOutMessage(const QString &msg) const noexcept
 {
-    qInfo(LauncherLog) << msg;
+    std::cout << qPrintable(msg);
 }
 
 void Launcher::printStdErrMessage(const QString &msg) const noexcept
 {
-    qCritical(LauncherLog) << msg;
+    std::cerr << qPrintable(msg);
 }
 } // namespace launcher

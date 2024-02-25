@@ -21,9 +21,8 @@ static QVector<QByteArray> internalDependenciesGetter(const QString &elfPath,
     }
     else {
         // Если ldd недоступен - то устанавливаем переменную окружения
-        // LD_TRACE_LOADED_OBJECTS
-        //  в единицу, тогда загрузчик Linux (ld.so) будет вести себя как ldd и отобразит
-        //   нужные зависимости
+        // LD_TRACE_LOADED_OBJECTS в единицу, тогда загрузчик Linux (ld.so) будет вести
+        // себя как ldd и отобразит нужные зависимости
         QProcessEnvironment ldEnv = ldProc.processEnvironment();
         ldEnv.insert(QStringLiteral("LD_TRACE_LOADED_OBJECTS"), QStringLiteral("1"));
         ldProc.setProcessEnvironment(ldEnv);

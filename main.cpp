@@ -6,19 +6,18 @@
 
 #include <csignal>
 
-void shutdownGracefully(int sig)
+void shutdown(int sig)
 {
     static volatile std::sig_atomic_t handlingSignal = 0;
 
     if (!handlingSignal) {
         handlingSignal = 1;
-        qDebug() << "Signal" << sig << "received, shutting down gracefully.";
+        qInfo() << "Signal" << sig << "received, shutting down.";
         QCoreApplication *app = QCoreApplication::instance();
         app->quit();
         return;
     }
 
-    // re-raise signal with default handler and trigger program termination
     std::signal(sig, SIG_DFL);
     std::raise(sig);
 }
@@ -26,13 +25,13 @@ void shutdownGracefully(int sig)
 void installSignalHandler()
 {
 #ifdef SIGHUP
-    std::signal(SIGHUP, shutdownGracefully);
+    std::signal(SIGHUP, shutdown);
 #endif
 #ifdef SIGINT
-    std::signal(SIGINT, shutdownGracefully);
+    std::signal(SIGINT, shutdown);
 #endif
 #ifdef SIGTERM
-    std::signal(SIGTERM, shutdownGracefully);
+    std::signal(SIGTERM, shutdown);
 #endif
 }
 
@@ -48,12 +47,13 @@ void printUsage(const char *appPath)
 
 int main(int argc, char *argv[])
 {
-    //    if (argc <= 1) {
-    //        printUsage(*argv);
-    //        return 1;
-    //    }
+    if (argc <= 1) {
+        printUsage(*argv);
+        return 1;
+    }
 
     QCoreApplication app(argc, argv);
+    installSignalHandler();
 
     QStringList args;
     args.reserve(argc);
@@ -71,16 +71,15 @@ int main(int argc, char *argv[])
             options.workingDirectory = std::move(args.takeFirst());
         }
     }
-    //    args.push_back("/files/mgtu/android_currencyconverter/build-client-Desktop-Debug/client");
     options.launchAppArguments = std::move(args);
 
     launcher::Launcher launcher(options);
     if (launcher.launch()) {
         QObject::connect(&launcher, &launcher::Launcher::launcherFinished, &app,
                          &QCoreApplication::quit);
-        //        qInfo() << qPrintable(
-        //            QStringLiteral("Failed to launch target:
-        //            %1").arg(options.launchAppArguments.constFirst());
+    }
+    else {
+        return launcher.exitCode();
     }
     auto exec = app.exec();
 

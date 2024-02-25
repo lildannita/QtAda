@@ -7,11 +7,12 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 
 set(QTADA_PROBE_BASENAME "QtAda_probe")
 set(QTADA_PROBE_BASENAME ${QTADA_PROBE_BASENAME} PARENT_SCOPE)
-#find_package(Qt5 ${QT_MIN_VERSION} COMPONENTS
-#    Core
-#REQUIRED)
+find_package(Qt5 ${QT_MIN_VERSION} COMPONENTS
+    Core
+REQUIRED)
 
 set(probe_HDRS
+    HooksLauncher.cpp
     Hooks.hpp
 )
 set(probe_SRCS
@@ -26,5 +27,6 @@ set_target_properties(probe PROPERTIES
                             LIBRARY_OUTPUT_DIRECTORY ${QTADA_LIB_DIR}
                             RUNTIME_OUTPUT_DIRECTORY ${QTADA_LIB_DIR}
 )
+target_link_libraries(probe Qt::CorePrivate)
 
 install(TARGETS probe LIBRARY DESTINATION ${QTADA_LIB_DIR})

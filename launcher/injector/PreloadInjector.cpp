@@ -1,6 +1,7 @@
 #include "PreloadInjector.hpp"
 
-#include "../LauncherUtils.hpp"
+#include "launcher/LauncherUtils.hpp"
+#include <iostream>
 
 namespace launcher::injector {
 bool PreloadInjector::launch(const QStringList &launchArgs, const QString &probeDllPath,
@@ -11,6 +12,7 @@ bool PreloadInjector::launch(const QStringList &launchArgs, const QString &probe
 
     QStringList preloadLibs;
     const auto exePath = launchArgs.constFirst();
+
     // AddressSanitizer необходимо загрузить перед всеми остальными библиотеками
     for (const auto &lib : utils::getDependenciesForExecutable(exePath)) {
         if (lib.contains("libasan.so") || lib.contains("libclang_rt.asan")) {
@@ -22,6 +24,13 @@ bool PreloadInjector::launch(const QStringList &launchArgs, const QString &probe
 
     QProcessEnvironment _env(env);
     _env.insert(QStringLiteral("LD_PRELOAD"), preloadLibs.join(QLatin1String(":")));
-    return injectAndLaunch(launchArgs, env);
+    /*
+     * Эта переменная указывает динамической библиотеке, что нам больше не нужно
+     * иметь LD_PRELOAD в окружении, чтобы не использовать Hooks для дочерних
+     * процессов, которые может запустить тестируемое приложение
+     */
+    _env.insert(QStringLiteral("QTADA_NEED_TO_UNSET_PRELOAD"), QStringLiteral("1"));
+
+    return injectAndLaunch(launchArgs, _env);
 }
 } // namespace launcher::injector

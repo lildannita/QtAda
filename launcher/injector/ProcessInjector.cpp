@@ -1,5 +1,4 @@
 #include "ProcessInjector.hpp"
-#include "qdebug.h"
 
 namespace launcher::injector {
 ProcessInjector::ProcessInjector() noexcept
@@ -34,9 +33,6 @@ bool ProcessInjector::injectAndLaunch(const QStringList &launchArgs,
     QStringList args(launchArgs);
     const auto program = args.takeFirst();
 
-    for (const auto &line : env.toStringList()) {
-        qInfo() << "++ " << line;
-    }
     process_.start(program, args);
     bool isStarted = process_.waitForStarted(-1);
     if (isStarted) {
