@@ -92,6 +92,8 @@ bool Launcher::launch() noexcept
         return false;
     }
 
+    injector_->setWorkingDirectory(options_.userOptions.workingDirectory);
+
     assert(injector_ != nullptr);
     // TODO: добавить в env Qt библиотеки, если их не обнаружено
     if (!injector_->launch(options_.userOptions.launchAppArguments, probeDll,

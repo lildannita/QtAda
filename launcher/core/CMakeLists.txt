@@ -1,4 +1,4 @@
-set(QTADA_LAUNCHER_BASENAME "QtAda_launcher")
+set(QTADA_LAUNCHER_BASENAME "launcher")
 
 set(injector_HDRS injector/AbstractInjector.hpp injector/ProcessInjector.hpp
                   injector/PreloadInjector.hpp)

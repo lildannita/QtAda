@@ -1,5 +1,7 @@
 #include "Hooks.hpp"
 
+//#include "ProbeInitializer.hpp"
+
 #include <QObject>
 #include <QCoreApplication>
 #include <private/qhooks_p.h>
@@ -10,7 +12,9 @@ static void (*next_objectRemovedHook)(QObject *) = nullptr;
 
 extern Q_DECL_EXPORT void startupHook()
 {
-    // Hooks::create
+    // Probe::startupHook
+//    new probe::ProbeInitializer();
+
     if (next_startupHook != nullptr) {
         next_startupHook();
     }
@@ -54,8 +58,7 @@ static bool hooksInstalled()
     return qtHookData[QHooks::Startup] == reinterpret_cast<quintptr>(&startupHook);
 }
 
-namespace probe {
-void installHooks()
+static void installHooks()
 {
     if (hooksInstalled()) {
         return;
@@ -63,4 +66,3 @@ void installHooks()
     internalHooksInstall();
 }
 Q_COREAPP_STARTUP_FUNCTION(installHooks)
-} // namespace probe
