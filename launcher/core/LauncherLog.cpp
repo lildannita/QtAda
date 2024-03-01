@@ -1,5 +1,5 @@
 #include "LauncherLog.hpp"
 
-namespace launcher {
+namespace QtAda::launcher {
 Q_LOGGING_CATEGORY(LauncherLog, "Launcher", QtInfoMsg)
 }

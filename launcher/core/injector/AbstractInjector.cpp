@@ -2,7 +2,7 @@
 
 #include <QDir>
 
-namespace launcher::injector {
+namespace QtAda::launcher::injector {
 bool AbstractInjector::launch(const QStringList &launchArgs, const QString &probeDllPath,
                               const QProcessEnvironment &env) noexcept
 {
@@ -12,10 +12,7 @@ bool AbstractInjector::launch(const QStringList &launchArgs, const QString &prob
     return false;
 }
 
-void AbstractInjector::setWorkingDirectory(const QString &dirPath) noexcept
-{
-    workingDirectory_ = dirPath;
-}
+void AbstractInjector::setWorkingDirectory(const QString &dirPath) noexcept { workingDirectory_ = dirPath; }
 
 QString AbstractInjector::workingDirectory() const noexcept
 {
@@ -24,4 +21,4 @@ QString AbstractInjector::workingDirectory() const noexcept
     }
     return workingDirectory_;
 }
-} // namespace launcher::injector
+} // namespace QtAda::launcher::injector

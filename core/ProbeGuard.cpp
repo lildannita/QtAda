@@ -4,7 +4,7 @@
 
 static QThreadStorage<bool> s_lockStorage;
 
-namespace core {
+namespace QtAda::core {
 ProbeGuard::ProbeGuard() noexcept
     : previosState_(locked())
 {
@@ -13,10 +13,7 @@ ProbeGuard::ProbeGuard() noexcept
 
 ProbeGuard::~ProbeGuard() noexcept { setLocked(previosState_); }
 
-void ProbeGuard::setLocked(bool isLocked) noexcept
-{
-    s_lockStorage.localData() = isLocked;
-}
+void ProbeGuard::setLocked(bool isLocked) noexcept { s_lockStorage.localData() = isLocked; }
 
 bool ProbeGuard::locked() noexcept
 {
@@ -25,4 +22,4 @@ bool ProbeGuard::locked() noexcept
     }
     return s_lockStorage.localData();
 }
-} // namespace core
+} // namespace QtAda::core

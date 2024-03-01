@@ -7,7 +7,7 @@
 #include <QTimer>
 #include <memory>
 
-namespace launcher {
+namespace QtAda::launcher {
 namespace injector {
     class AbstractInjector;
 } // namespace injector
@@ -18,8 +18,7 @@ signals:
     void launcherFinished();
 
 public:
-    explicit Launcher(const UserLaunchOptions &options,
-                      QObject *parent = nullptr) noexcept;
+    explicit Launcher(const UserLaunchOptions &options, QObject *parent = nullptr) noexcept;
     ~Launcher() noexcept override;
 
     bool launch() noexcept;
@@ -43,4 +42,4 @@ private:
     void checkIfLauncherIsFinished() noexcept;
     void handleLauncherFailure(int exitCode, const QString &errorMessage) noexcept;
 };
-} // namespace launcher
+} // namespace QtAda::launcher

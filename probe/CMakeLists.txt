@@ -16,3 +16,4 @@ set_target_properties(
              LIBRARY_OUTPUT_DIRECTORY ${QTADA_LIB_DIR}
              RUNTIME_OUTPUT_DIRECTORY ${QTADA_LIB_DIR})
 target_link_libraries(probe PRIVATE core Qt5::CorePrivate)
+target_include_directories(probe PRIVATE ${QTADA_CORE_INCLUDE_DIR})

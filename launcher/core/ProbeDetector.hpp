@@ -6,6 +6,6 @@ QT_BEGIN_NAMESPACE
 class QString;
 QT_END_NAMESPACE
 
-namespace launcher::probe {
+namespace QtAda::launcher::probe {
 ProbeABI detectProbeAbiForExecutable(const QString &elfPath) noexcept;
 }

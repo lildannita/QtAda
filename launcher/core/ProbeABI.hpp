@@ -2,7 +2,7 @@
 
 #include <QString>
 
-namespace launcher::probe {
+namespace QtAda::launcher::probe {
 class ProbeABI final {
 public:
     void setQtVersion(int major, int minor) noexcept;
@@ -23,4 +23,4 @@ private:
         QString architecture;
     } info_;
 };
-} // namespace launcher::probe
+} // namespace QtAda::launcher::probe

@@ -1,12 +1,9 @@
 #include "ExampleObject.hpp"
 
-#include <QCoreApplication>
-
 int main(int argc, char *argv[])
 {
-    QCoreApplication app(argc, argv);
-    auto *obj = new qobj_example::ExampleObject(&app);
-    obj->deleteLater();
+    qobj_example::MyCoreApplication app(argc, argv);
+    qobj_example::ExampleObject obj(&app);
     auto result = app.exec();
-    return result;
+    return 0;
 }

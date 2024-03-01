@@ -1,6 +1,6 @@
 #pragma once
 
-namespace core {
+namespace QtAda::core {
 class ProbeGuard {
 public:
     ProbeGuard() noexcept;
@@ -12,4 +12,4 @@ public:
 private:
     bool previosState_;
 };
-} // namespace core
+} // namespace QtAda::core

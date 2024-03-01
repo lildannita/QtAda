@@ -5,7 +5,7 @@
 #include <QStringList>
 #include <QProcessEnvironment>
 
-namespace launcher {
+namespace QtAda::launcher {
 enum LauncherState {
     Initial = 0,
     InjectorFinished = 1,
@@ -32,4 +32,4 @@ struct LaunchOptions final {
 
     explicit LaunchOptions(const UserLaunchOptions &options) noexcept;
 };
-} // namespace launcher
+} // namespace QtAda::launcher

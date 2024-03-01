@@ -9,7 +9,7 @@
  * поведение инъекторов через абстрактный класс.
  */
 
-namespace launcher::injector {
+namespace QtAda::launcher::injector {
 class AbstractInjector : public QObject {
     Q_OBJECT
 public:

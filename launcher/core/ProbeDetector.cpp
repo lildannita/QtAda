@@ -17,10 +17,11 @@
 #include <sys/elf.h>
 #endif
 
+namespace QtAda {
 static bool libIsQtCore(const QByteArray &line)
 {
-    // TODO: в будущем необходимо учесть, что в разных ОС обозначение библиотек
-    //  отличается. Сейчас ориентируемся только на Linux.
+    //! TODO: в будущем необходимо учесть, что в разных ОС обозначение библиотек
+    //!  отличается. Сейчас ориентируемся только на Linux.
     QRegularExpression regex("^(.*)libQt(\\d+)Core\\.so(.*)$");
     QRegularExpressionMatch match = regex.match(line);
     return match.hasMatch();
@@ -28,7 +29,7 @@ static bool libIsQtCore(const QByteArray &line)
 
 static QString getQtCoreLibFromLdd(const QString &elfPath)
 {
-    const auto depLibs = launcher::utils::getDependenciesForExecutable(elfPath);
+    const auto depLibs = QtAda::launcher::utils::getDependenciesForExecutable(elfPath);
     for (const auto &lib : depLibs) {
         if (libIsQtCore(lib)) {
             return QString::fromUtf8(lib);
@@ -53,7 +54,7 @@ static std::optional<std::pair<int, int>> qtVersionFromLibName(const QString &li
 
 static std::optional<std::pair<int, int>> qtVersionFromLibExec(const QString &libPath)
 {
-    /*
+    /*!
      * TODO: По идее библиотеку .so можно запустить как обычный исполняемый файл,
      * но почему-то на моих машинах выдает ошибку `segmentation fault (core dumped)`
      *
@@ -80,9 +81,7 @@ static std::optional<std::pair<int, int>> qtVersionFromLibExec(const QString &li
     proc.setProcessChannelMode(QProcess::SeparateChannels);
     proc.setReadChannel(QProcess::StandardOutput);
     proc.start(QStringLiteral("strings"),
-               QStringList() << libPath
-                             << QStringLiteral("| grep -E \"Qt [0-9]+\\.[0-9]+\""),
-               QProcess::ReadOnly);
+               QStringList() << libPath << QStringLiteral("| grep -E \"Qt [0-9]+\\.[0-9]+\""), QProcess::ReadOnly);
     proc.waitForFinished();
 
     while (proc.canReadLine()) {
@@ -103,8 +102,7 @@ static std::optional<std::pair<int, int>> qtVersionFromLibExec(const QString &li
 }
 
 #ifdef HAVE_ELF
-template <typename ElfHeader>
-static QString getArchitectureFromElfHeader(const uchar *elfData, quint64 size)
+template <typename ElfHeader> static QString getArchitectureFromElfHeader(const uchar *elfData, quint64 size)
 {
     if (size <= sizeof(ElfHeader))
         return QString();
@@ -124,8 +122,7 @@ static QString getArchitectureFromElfHeader(const uchar *elfData, quint64 size)
         return QStringLiteral("aarch64");
 #endif
     default:
-        qWarning(launcher::LauncherLog)
-            << "unsupported architecture:" << elfHeader->e_machine;
+        qWarning(QtAda::launcher::LauncherLog) << "unsupported architecture:" << elfHeader->e_machine;
         return QString();
     }
 }
@@ -152,44 +149,44 @@ static QString getArchitectureFromElf(const QString &elfPath)
         return getArchitectureFromElfHeader<Elf64_Ehdr>(elfData, elf.size());
     }
 #else
-    qWarning(launcher::LauncherLog,
-             "сan't determine the architecture due to missing elf.h");
+    qWarning(launcher::LauncherLog, "сan't determine the architecture due to missing elf.h");
     Q_UNUSED(path);
 #endif
     return QString();
 }
 
 namespace launcher::probe {
-ProbeABI detectProbeAbiForExecutable(const QString &elfPath) noexcept
-{
-    ProbeABI probe;
-    if (elfPath.isEmpty()) {
+    ProbeABI detectProbeAbiForExecutable(const QString &elfPath) noexcept
+    {
+        ProbeABI probe;
+        if (elfPath.isEmpty()) {
+            return probe;
+        }
+
+        const auto corePath = getQtCoreLibFromLdd(elfPath);
+        if (corePath.isEmpty()) {
+            return probe;
+        }
+
+        const QFileInfo coreFileInfo(corePath);
+        if (!coreFileInfo.exists()) {
+            return probe;
+        }
+
+        const auto canonicalCorePath = coreFileInfo.canonicalFilePath();
+        auto qtVersion = qtVersionFromLibName(canonicalCorePath);
+        if (!qtVersion.has_value()) {
+            qtVersion = qtVersionFromLibExec(canonicalCorePath);
+        }
+
+        if (!qtVersion.has_value()) {
+            qWarning(LauncherLog) << "сan't determine the Qt version of" << elfPath;
+            return probe;
+        }
+
+        probe.setQtVersion(qtVersion.value());
+        probe.setArchitecture(getArchitectureFromElf(elfPath));
         return probe;
     }
-
-    const auto corePath = getQtCoreLibFromLdd(elfPath);
-    if (corePath.isEmpty()) {
-        return probe;
-    }
-
-    const QFileInfo coreFileInfo(corePath);
-    if (!coreFileInfo.exists()) {
-        return probe;
-    }
-
-    const auto canonicalCorePath = coreFileInfo.canonicalFilePath();
-    auto qtVersion = qtVersionFromLibName(canonicalCorePath);
-    if (!qtVersion.has_value()) {
-        qtVersion = qtVersionFromLibExec(canonicalCorePath);
-    }
-
-    if (!qtVersion.has_value()) {
-        qWarning(LauncherLog) << "сan't determine the Qt version of" << elfPath;
-        return probe;
-    }
-
-    probe.setQtVersion(qtVersion.value());
-    probe.setArchitecture(getArchitectureFromElf(elfPath));
-    return probe;
-}
 } // namespace launcher::probe
+} // namespace QtAda

@@ -2,7 +2,7 @@
 
 #include <QObject>
 
-namespace probe {
+namespace QtAda::probe {
 class ProbeInitializer final : public QObject {
     Q_OBJECT
 public:
@@ -10,4 +10,4 @@ public:
 private slots:
     void initProbe() noexcept;
 };
-}
+} // namespace QtAda::probe

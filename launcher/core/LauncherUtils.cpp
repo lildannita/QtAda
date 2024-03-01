@@ -5,8 +5,8 @@
 #include <QRegularExpression>
 #include <QStandardPaths>
 
-static QVector<QByteArray> internalDependenciesGetter(const QString &elfPath,
-                                                      bool isRetry = false)
+namespace QtAda {
+static QVector<QByteArray> internalDependenciesGetter(const QString &elfPath, bool isRetry = false)
 {
     QProcess ldProc;
     ldProc.setProcessChannelMode(QProcess::SeparateChannels);
@@ -48,27 +48,28 @@ static QVector<QByteArray> internalDependenciesGetter(const QString &elfPath,
 }
 
 namespace launcher::utils {
-QVector<QByteArray> getDependenciesForExecutable(const QString &elfPath) noexcept
-{
-    return internalDependenciesGetter(elfPath);
-}
+    QVector<QByteArray> getDependenciesForExecutable(const QString &elfPath) noexcept
+    {
+        return internalDependenciesGetter(elfPath);
+    }
 
-QString absoluteExecutablePath(const QString &path) noexcept
-{
-    if (path.isEmpty()) {
+    QString absoluteExecutablePath(const QString &path) noexcept
+    {
+        if (path.isEmpty()) {
+            return QString();
+        }
+
+        const QFileInfo exeFileInfo(path);
+        if (exeFileInfo.isFile() && exeFileInfo.isExecutable()) {
+            return exeFileInfo.absoluteFilePath();
+        }
+
+        const auto exePath = QStandardPaths::findExecutable(path);
+        if (!exePath.isEmpty()) {
+            return exePath;
+        }
+
         return QString();
     }
-
-    const QFileInfo exeFileInfo(path);
-    if (exeFileInfo.isFile() && exeFileInfo.isExecutable()) {
-        return exeFileInfo.absoluteFilePath();
-    }
-
-    const auto exePath = QStandardPaths::findExecutable(path);
-    if (!exePath.isEmpty()) {
-        return exePath;
-    }
-
-    return QString();
-}
 } // namespace launcher::utils
+} // namespace QtAda

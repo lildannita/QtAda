@@ -2,7 +2,7 @@
 
 #include "ProcessInjector.hpp"
 
-namespace launcher::injector {
+namespace QtAda::launcher::injector {
 class PreloadInjector final : public ProcessInjector {
     Q_OBJECT
 public:

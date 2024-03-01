@@ -3,7 +3,7 @@
 #include "LauncherUtils.hpp"
 #include "ProbeDetector.hpp"
 
-namespace launcher {
+namespace QtAda::launcher {
 bool UserLaunchOptions::isValid() { return !launchAppArguments.isEmpty(); }
 
 LaunchOptions::LaunchOptions(const UserLaunchOptions &options) noexcept
@@ -12,8 +12,7 @@ LaunchOptions::LaunchOptions(const UserLaunchOptions &options) noexcept
 {
     assert(!options.launchAppArguments.isEmpty());
 
-    absoluteExecutablePath
-        = utils::absoluteExecutablePath(options.launchAppArguments.constFirst());
+    absoluteExecutablePath = utils::absoluteExecutablePath(options.launchAppArguments.constFirst());
     probe = probe::detectProbeAbiForExecutable(absoluteExecutablePath);
 }
-} // namespace launcher
+} // namespace QtAda::launcher

@@ -1,6 +1,6 @@
 #include "ProcessInjector.hpp"
 
-namespace launcher::injector {
+namespace QtAda::launcher::injector {
 ProcessInjector::ProcessInjector() noexcept
 {
     // Для того, чтобы не наршуть работу обработки ввода тестируемого приложения
@@ -9,23 +9,18 @@ ProcessInjector::ProcessInjector() noexcept
 #if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
     connect(&process_, &QProcess::finished, this, &ProcessInjector::processFinished);
 #else
-    connect(
-        &process_,
-        static_cast<void (QProcess::*)(int, QProcess::ExitStatus)>(&QProcess::finished),
-        this, &ProcessInjector::processFinished);
+    connect(&process_, static_cast<void (QProcess::*)(int, QProcess::ExitStatus)>(&QProcess::finished), this,
+            &ProcessInjector::processFinished);
 #endif
     connect(&process_, &QProcess::errorOccurred, this, &ProcessInjector::processFailed);
 
-    connect(&process_, &QProcess::readyReadStandardError, this,
-            &ProcessInjector::readStdErrMessage);
-    connect(&process_, &QProcess::readyReadStandardOutput, this,
-            &ProcessInjector::readStdOutMessage);
+    connect(&process_, &QProcess::readyReadStandardError, this, &ProcessInjector::readStdErrMessage);
+    connect(&process_, &QProcess::readyReadStandardOutput, this, &ProcessInjector::readStdOutMessage);
 }
 
 ProcessInjector::~ProcessInjector() noexcept { stop(); }
 
-bool ProcessInjector::injectAndLaunch(const QStringList &launchArgs,
-                                      const QProcessEnvironment &env)
+bool ProcessInjector::injectAndLaunch(const QStringList &launchArgs, const QProcessEnvironment &env)
 {
     process_.setProcessEnvironment(env);
     process_.setWorkingDirectory(workingDirectory());
@@ -45,8 +40,7 @@ bool ProcessInjector::injectAndLaunch(const QStringList &launchArgs,
 void ProcessInjector::stop() noexcept
 {
     // Так как останавливаем "вручную", то нам не важна обработка ошибок
-    disconnect(&process_, &QProcess::errorOccurred, this,
-               &ProcessInjector::processFailed);
+    disconnect(&process_, &QProcess::errorOccurred, this, &ProcessInjector::processFailed);
 
     if (process_.state() != QProcess::Running)
         return;
@@ -64,8 +58,7 @@ void ProcessInjector::processFinished() noexcept
     exitCode_ = process_.exitCode();
 
     if (processError_ == QProcess::FailedToStart) {
-        errorMessage_.prepend(QStringLiteral("Failed to launch target '%1'.\nError: ")
-                                  .arg(process_.program()));
+        errorMessage_.prepend(QStringLiteral("Failed to launch target '%1'.\nError: ").arg(process_.program()));
     }
 
     emit finished();
@@ -88,4 +81,4 @@ void ProcessInjector::readStdErrMessage() noexcept
     const auto msg = process_.readAllStandardError();
     emit stdErrMessage(msg);
 }
-} // namespace launcher::injector
+} // namespace QtAda::launcher::injector

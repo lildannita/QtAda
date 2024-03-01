@@ -44,6 +44,8 @@ void printUsage(const char *appPath)
     qInfo() << "";
 }
 
+using namespace QtAda;
+
 int main(int argc, char *argv[])
 {
     if (argc <= 1) {
@@ -74,8 +76,7 @@ int main(int argc, char *argv[])
 
     launcher::Launcher launcher(options);
     if (launcher.launch()) {
-        QObject::connect(&launcher, &launcher::Launcher::launcherFinished, &app,
-                         &QCoreApplication::quit);
+        QObject::connect(&launcher, &launcher::Launcher::launcherFinished, &app, &QCoreApplication::quit);
     }
     else {
         return launcher.exitCode();

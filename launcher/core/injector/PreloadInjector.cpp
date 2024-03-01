@@ -2,7 +2,7 @@
 
 #include "core/LauncherUtils.hpp"
 
-namespace launcher::injector {
+namespace QtAda::launcher::injector {
 bool PreloadInjector::launch(const QStringList &launchArgs, const QString &probeDllPath,
                              const QProcessEnvironment &env) noexcept
 {
@@ -32,4 +32,4 @@ bool PreloadInjector::launch(const QStringList &launchArgs, const QString &probe
 
     return injectAndLaunch(launchArgs, _env);
 }
-} // namespace launcher::injector
+} // namespace QtAda::launcher::injector

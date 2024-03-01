@@ -2,7 +2,7 @@
 
 #include "AbstractInjector.hpp"
 
-namespace launcher::injector {
+namespace QtAda::launcher::injector {
 class ProcessInjector : public AbstractInjector {
     Q_OBJECT
 public:
