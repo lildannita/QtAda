@@ -1,9 +1,10 @@
 set(QTADA_CORE_BASENAME "core")
 
-set(core_HDRS Probe.hpp)
-set(core_SRCS Probe.cpp)
+set(core_MOC_HDRS Probe.hpp)
+set(core_HDRS ${core_MOC_HDRS} ProbeGuard.hpp)
+set(core_SRCS Probe.cpp ProbeGuard.cpp)
 
-qt5_wrap_cpp(core_SRCS ${core_HDRS} TARGET core)
+qt5_wrap_cpp(core_SRCS ${core_MOC_HDRS} TARGET core)
 
 add_library(core SHARED ${core_SRCS} ${core_HDRS})
 set_target_properties(

@@ -3,8 +3,7 @@
 #include <QObject>
 
 namespace core {
-class Probe : public QObject
-{
+class Probe : public QObject {
     Q_OBJECT
 };
-}
+} // namespace core
