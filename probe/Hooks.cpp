@@ -1,36 +1,41 @@
 #include "Hooks.hpp"
 
-//#include "ProbeInitializer.hpp"
+#include "ProbeInitializer.hpp"
 
 #include <QObject>
 #include <QCoreApplication>
 #include <private/qhooks_p.h>
 
+#include <iostream>
+
 static void (*next_startupHook)() = nullptr;
 static void (*next_objectAddedHook)(QObject *) = nullptr;
 static void (*next_objectRemovedHook)(QObject *) = nullptr;
 
-extern Q_DECL_EXPORT void startupHook()
+extern "C" Q_DECL_EXPORT void startupHook()
 {
     // Probe::startupHook
-//    new probe::ProbeInitializer();
+    std::cout << "Hooks::startupHook" << std::endl;
+    new probe::ProbeInitializer();
 
     if (next_startupHook != nullptr) {
         next_startupHook();
     }
 }
 
-extern Q_DECL_EXPORT void objectAddedHook(QObject *obj)
+extern "C" Q_DECL_EXPORT void objectAddedHook(QObject *obj)
 {
-    // Hooks::added
+    // Probe::added
+    std::cout << "Hooks::added" << std::endl;
     if (next_objectAddedHook != nullptr) {
         next_objectAddedHook(obj);
     }
 }
 
-extern Q_DECL_EXPORT void objectRemovedHook(QObject *obj)
+extern "C" Q_DECL_EXPORT void objectRemovedHook(QObject *obj)
 {
-    // Hooks::removed
+    // Probe::removed
+    std::cout << "Hooks::removed" << std::endl;
     if (next_objectRemovedHook != nullptr) {
         next_objectRemovedHook(obj);
     }

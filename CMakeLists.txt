@@ -12,10 +12,11 @@ set(QT_MIN_VERSION 5.15.2)
 set(QTADA_LIB_PREFIX "libQtAda_")
 set(QTADA_BIN_DIR ${CMAKE_BINARY_DIR}/bin)
 set(QTADA_LIB_DIR ${CMAKE_BINARY_DIR}/libs)
+set(QTADA_EXAMPLES_BIN_DIR ${QTADA_BIN_DIR}/examples)
 
 find_package(
   Qt5 ${QT_MIN_VERSION}
-  COMPONENTS Core
+  COMPONENTS Core Quick Widgets #[[Qml]]
   REQUIRED)
 
 # For ABI detection
@@ -33,3 +34,5 @@ add_subdirectory(launcher)
 
 configure_file(${CMAKE_SOURCE_DIR}/config.h.cmake
                ${CMAKE_CURRENT_BINARY_DIR}/config.h)
+
+add_subdirectory(examples)

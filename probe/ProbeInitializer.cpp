@@ -2,6 +2,7 @@
 
 #include <QCoreApplication>
 #include <QThread>
+#include <QDebug>
 
 namespace probe {
 ProbeInitializer::ProbeInitializer() noexcept

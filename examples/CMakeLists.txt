@@ -1,0 +1,2 @@
+add_subdirectory(simple_qt_quick_example)
+add_subdirectory(simple_qt_widget_example)
