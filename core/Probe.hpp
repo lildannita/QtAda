@@ -1,7 +1,7 @@
 #pragma once
 
 #include <QObject>
-// #include <QSet>
+#include <vector>
 #include <set>
 
 namespace QtAda::core {
@@ -23,6 +23,20 @@ private slots:
     void kill() noexcept;
 
 private:
+    // Очень важно, что построение дерева объектов должно происходить
+    // в одном потоке из экземпляров, которые мы сохраняем в knownObjects_
+    struct QueuedObject {
+        QObject *obj;
+        enum Type { Create, Destroy } type;
+
+        QueuedObject(QObject *o, Type t)
+            : obj(o)
+            , type(t)
+        {
+        }
+    };
+    std::vector<QueuedObject> queuedObjects_;
+
     static QAtomicPointer<Probe> s_probeInstance;
     std::set<const QObject *> knownObjects_;
 
@@ -30,6 +44,9 @@ private:
 
     void discoverObject(QObject *obj) noexcept;
     void findObjectsFromCoreApp() noexcept;
+
+    void addObjectCreationToQueue(QObject *obj) noexcept;
+    void addObjectDestroyToQueue(QObject *obj) noexcept;
 
     void installEventFilter() noexcept;
     bool isIternalObjectCreated(QObject *obj) const noexcept;

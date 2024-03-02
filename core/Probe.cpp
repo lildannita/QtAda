@@ -8,7 +8,6 @@
 #include <QRecursiveMutex>
 #include <QWindow>
 
-#include <vector>
 #include <private/qhooks_p.h>
 
 #include <iostream>
@@ -29,7 +28,7 @@ struct LilProbe {
 
     //! TODO: нужно добавить структуру отслеживания стека вызовов,
     //! создавшего объект для понимания, чтобы отследить код, который
-    //! создает структуру
+    //! создает структуру (StackTrace)
 };
 Q_GLOBAL_STATIC(LilProbe, s_lilProbe)
 
@@ -155,8 +154,7 @@ void Probe::addObject(QObject *obj) noexcept
     assert(!parent || probeInstance()->knownObjects_.find(parent) != probeInstance()->knownObjects_.end());
 
     probeInstance()->knownObjects_.insert(obj);
-
-    //! TODO: добавляем в очередь инициализацию нового объекта
+    probeInstance()->addObjectToQueue(obj);
 }
 
 bool Probe::isIternalObjectCreated(QObject *obj) const noexcept
@@ -189,8 +187,9 @@ void Probe::removeObject(QObject *obj) noexcept
     QMutexLocker lock(s_mutex());
 
     if (!initialized()) {
-        if (!s_lilProbe())
+        if (!s_lilProbe()) {
             return;
+        }
 
         auto &beforeObjects = s_lilProbe()->objsAddedBeforeProbeInit;
         auto eraseStart = std::remove(beforeObjects.begin(), beforeObjects.end(), obj);
@@ -203,10 +202,24 @@ void Probe::removeObject(QObject *obj) noexcept
         // Удаляемый объект не успели добавить в knownObjects, так что скорее
         // всего это объект QtAda, но дополнительно нужно проверить, что объект
         // не находится в очереди для инициализации
-        //! TODO: проверка объекта на нахождение в очереди
+        //! TODO: проверка, что объект не находится в очереди
         return;
     }
 
     //! TODO: удаление объекта из очереди на инициализацию
+}
+
+void Probe::addObjectCreationToQueue(QObject *obj) noexcept
+{
+    //! TODO: проверка, что объект не находится в очереди
+
+    queuedObjects_.push_back({ obj, QueuedObject::Create });
+    //! TODO: сигнал о перезапуске таймера
+}
+
+void Probe::addObjectDestroyToQueue(QObject *obj) noexcept
+{
+    queuedObjects_.push_back({ obj, QueuedObject::Destroy });
+    //! TODO: сигнал о перезапуске таймера
 }
 } // namespace QtAda::core
