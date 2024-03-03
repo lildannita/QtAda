@@ -22,7 +22,10 @@ public:
     ~Launcher() noexcept override;
 
     bool launch() noexcept;
-    int exitCode() const noexcept { return options_.exitCode; }
+    int exitCode() const noexcept
+    {
+        return options_.exitCode;
+    }
 
 private slots:
     void restartTimer() noexcept;

@@ -18,7 +18,10 @@ ProcessInjector::ProcessInjector() noexcept
     connect(&process_, &QProcess::readyReadStandardOutput, this, &ProcessInjector::readStdOutMessage);
 }
 
-ProcessInjector::~ProcessInjector() noexcept { stop(); }
+ProcessInjector::~ProcessInjector() noexcept
+{
+    stop();
+}
 
 bool ProcessInjector::injectAndLaunch(const QStringList &launchArgs, const QProcessEnvironment &env)
 {

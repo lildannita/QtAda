@@ -50,7 +50,10 @@ static void internalHooksInstall()
     qtHookData[QHooks::RemoveQObject] = reinterpret_cast<quintptr>(&objectRemovedHook);
 }
 
-static bool hooksInstalled() { return qtHookData[QHooks::Startup] == reinterpret_cast<quintptr>(&startupHook); }
+static bool hooksInstalled()
+{
+    return qtHookData[QHooks::Startup] == reinterpret_cast<quintptr>(&startupHook);
+}
 
 static void installHooks()
 {

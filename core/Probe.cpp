@@ -57,11 +57,20 @@ Probe::~Probe() noexcept
     s_probeInstance = QAtomicPointer<Probe>(nullptr);
 }
 
-Probe *Probe::probeInstance() noexcept { return s_probeInstance.loadRelaxed(); }
+Probe *Probe::probeInstance() noexcept
+{
+    return s_probeInstance.loadRelaxed();
+}
 
-bool Probe::initialized() noexcept { return probeInstance(); }
+bool Probe::initialized() noexcept
+{
+    return probeInstance();
+}
 
-void Probe::kill() noexcept { delete this; }
+void Probe::kill() noexcept
+{
+    delete this;
+}
 
 void Probe::initProbe() noexcept
 {
@@ -92,9 +101,15 @@ void Probe::initProbe() noexcept
     QMetaObject::invokeMethod(probe, "installInternalEventFilter", Qt::QueuedConnection);
 }
 
-void Probe::startup() noexcept { s_lilProbe()->hooksInstalled = true; }
+void Probe::startup() noexcept
+{
+    s_lilProbe()->hooksInstalled = true;
+}
 
-void Probe::installInternalEventFilter() noexcept { QCoreApplication::instance()->installEventFilter(this); }
+void Probe::installInternalEventFilter() noexcept
+{
+    QCoreApplication::instance()->installEventFilter(this);
+}
 
 void Probe::installEventFilter(QObject *filter) noexcept
 {
@@ -296,7 +311,10 @@ bool Probe::isIternalObject(QObject *obj) const noexcept
     return false;
 }
 
-bool Probe::isKnownObject(QObject *obj) const noexcept { return knownObjects_.find(obj) != knownObjects_.end(); }
+bool Probe::isKnownObject(QObject *obj) const noexcept
+{
+    return knownObjects_.find(obj) != knownObjects_.end();
+}
 
 void Probe::removeObject(QObject *obj) noexcept
 {

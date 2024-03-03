@@ -35,4 +35,4 @@ signals:
 private:
     QString workingDirectory_;
 };
-} // namespace launcher::injector
+} // namespace QtAda::launcher::injector

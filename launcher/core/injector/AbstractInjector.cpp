@@ -12,7 +12,10 @@ bool AbstractInjector::launch(const QStringList &launchArgs, const QString &prob
     return false;
 }
 
-void AbstractInjector::setWorkingDirectory(const QString &dirPath) noexcept { workingDirectory_ = dirPath; }
+void AbstractInjector::setWorkingDirectory(const QString &dirPath) noexcept
+{
+    workingDirectory_ = dirPath;
+}
 
 QString AbstractInjector::workingDirectory() const noexcept
 {

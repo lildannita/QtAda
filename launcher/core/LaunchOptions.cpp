@@ -4,7 +4,10 @@
 #include "ProbeDetector.hpp"
 
 namespace QtAda::launcher {
-bool UserLaunchOptions::isValid() { return !launchAppArguments.isEmpty(); }
+bool UserLaunchOptions::isValid()
+{
+    return !launchAppArguments.isEmpty();
+}
 
 LaunchOptions::LaunchOptions(const UserLaunchOptions &options) noexcept
     : userOptions(std::move(options))

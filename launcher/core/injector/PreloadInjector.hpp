@@ -11,4 +11,4 @@ public:
 
 private:
 };
-} // namespace launcher::injector
+} // namespace QtAda::launcher::injector

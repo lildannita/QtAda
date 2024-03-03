@@ -10,10 +10,22 @@ public:
     ~ProcessInjector() noexcept override;
 
     void stop() noexcept override;
-    int exitCode() noexcept override { return exitCode_; }
-    QProcess::ExitStatus exitStatus() noexcept override { return exitStatus_; }
-    QProcess::ProcessError processError() noexcept override { return processError_; }
-    QString errorMessage() noexcept override { return errorMessage_; }
+    int exitCode() noexcept override
+    {
+        return exitCode_;
+    }
+    QProcess::ExitStatus exitStatus() noexcept override
+    {
+        return exitStatus_;
+    }
+    QProcess::ProcessError processError() noexcept override
+    {
+        return processError_;
+    }
+    QString errorMessage() noexcept override
+    {
+        return errorMessage_;
+    }
 
 protected:
     bool injectAndLaunch(const QStringList &launchArgs, const QProcessEnvironment &env);
@@ -32,4 +44,4 @@ private:
     QString errorMessage_;
     int exitCode_ = -1;
 };
-} // namespace launcher::injector
+} // namespace QtAda::launcher::injector

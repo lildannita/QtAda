@@ -11,9 +11,15 @@ ProbeGuard::ProbeGuard() noexcept
     setLocked(true);
 }
 
-ProbeGuard::~ProbeGuard() noexcept { setLocked(previosState_); }
+ProbeGuard::~ProbeGuard() noexcept
+{
+    setLocked(previosState_);
+}
 
-void ProbeGuard::setLocked(bool isLocked) noexcept { s_lockStorage.localData() = isLocked; }
+void ProbeGuard::setLocked(bool isLocked) noexcept
+{
+    s_lockStorage.localData() = isLocked;
+}
 
 bool ProbeGuard::locked() noexcept
 {

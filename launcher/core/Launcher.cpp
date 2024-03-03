@@ -127,7 +127,13 @@ void Launcher::checkIfLauncherIsFinished() noexcept
     }
 }
 
-void Launcher::printStdOutMessage(const QString &msg) const noexcept { std::cout << qPrintable(msg); }
+void Launcher::printStdOutMessage(const QString &msg) const noexcept
+{
+    std::cout << qPrintable(msg);
+}
 
-void Launcher::printStdErrMessage(const QString &msg) const noexcept { std::cerr << qPrintable(msg); }
+void Launcher::printStdErrMessage(const QString &msg) const noexcept
+{
+    std::cerr << qPrintable(msg);
+}
 } // namespace QtAda::launcher
