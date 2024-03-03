@@ -13,6 +13,7 @@ static void (*next_objectRemovedHook)(QObject *) = nullptr;
 
 extern "C" Q_DECL_EXPORT void startupHook()
 {
+    QtAda::core::Probe::startup();
     new QtAda::probe::ProbeInitializer();
     if (next_startupHook != nullptr) {
         next_startupHook();

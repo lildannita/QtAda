@@ -1,5 +1,6 @@
 #pragma once
 
+#include <QTimer>
 #include <QObject>
 #include <vector>
 #include <set>
@@ -14,15 +15,28 @@ public:
 
     static bool initialized() noexcept;
     static void initProbe() noexcept;
+
+    static void startup() noexcept;
     static void addObject(QObject *obj) noexcept;
     static void removeObject(QObject *obj) noexcept;
 
-    //    bool eventFilter(QObject *watched, QEvent *event) override ;
+    bool eventFilter(QObject *reciever, QEvent *event) override;
+    void installEventFilter(QObject *filter) noexcept;
+
+signals:
+    void objectCreated(QObject *obj);
+    void objectDestroyed(QObject *obj);
+    void objectReparanted(QObject *obj);
 
 private slots:
+    void installInternalEventFilter() noexcept;
+    void handleObjectsQueue() noexcept;
     void kill() noexcept;
 
 private:
+    static QAtomicPointer<Probe> s_probeInstance;
+    std::vector<QObject *> eventFilters_;
+
     // Очень важно, что построение дерева объектов должно происходить
     // в одном потоке из экземпляров, которые мы сохраняем в knownObjects_
     struct QueuedObject {
@@ -36,19 +50,24 @@ private:
         }
     };
     std::vector<QueuedObject> queuedObjects_;
-
-    static QAtomicPointer<Probe> s_probeInstance;
     std::set<const QObject *> knownObjects_;
+    std::vector<QObject *> reparentedObjects_;
+
+    QTimer *queueTimer_ = nullptr;
 
     static Probe *probeInstance() noexcept;
 
-    void discoverObject(QObject *obj) noexcept;
+    void addObjectAndParentsToKnown(QObject *obj) noexcept;
     void findObjectsFromCoreApp() noexcept;
 
     void addObjectCreationToQueue(QObject *obj) noexcept;
     void addObjectDestroyToQueue(QObject *obj) noexcept;
+    void removeObjectCreationFromQueue(QObject *obj) noexcept;
+    bool isObjectInCreationQueue(QObject *obj) const noexcept;
+    void explicitObjectCreation(QObject *obj) noexcept;
+    void notifyQueueTimer() noexcept;
 
-    void installEventFilter() noexcept;
-    bool isIternalObjectCreated(QObject *obj) const noexcept;
+    bool isIternalObject(QObject *obj) const noexcept;
+    bool isKnownObject(QObject *obj) const noexcept;
 };
 } // namespace QtAda::core

@@ -8,6 +8,8 @@
 #include <QRecursiveMutex>
 #include <QWindow>
 
+#include <QMetaMethod>
+
 #include <private/qhooks_p.h>
 
 #include <iostream>
@@ -24,7 +26,7 @@ Q_GLOBAL_STATIC(QRecursiveMutex, s_mutex)
 struct LilProbe {
     LilProbe() = default;
     std::vector<QObject *> objsAddedBeforeProbeInit;
-    // bool trackDestroyed = true;
+    bool hooksInstalled = false;
 
     //! TODO: нужно добавить структуру отслеживания стека вызовов,
     //! создавшего объект для понимания, чтобы отследить код, который
@@ -34,8 +36,16 @@ Q_GLOBAL_STATIC(LilProbe, s_lilProbe)
 
 Probe::Probe(QObject *parent) noexcept
     : QObject{ parent }
+    , queueTimer_{ new QTimer(this) }
 {
     Q_ASSERT(thread() == qApp->thread());
+
+    queueTimer_->setSingleShot(true);
+    queueTimer_->setInterval(0);
+    connect(queueTimer_, &QTimer::timeout, this, &Probe::handleObjectsQueue);
+
+    //    connect(this, &Probe::objectCreated, );
+    //    connect(this, &Probe::objectDestroyed, );
 }
 
 Probe::~Probe() noexcept
@@ -79,35 +89,139 @@ void Probe::initProbe() noexcept
         probe->findObjectsFromCoreApp();
     }
 
-    QMetaObject::invokeMethod(probe, "installEventFilter", Qt::QueuedConnection);
+    QMetaObject::invokeMethod(probe, "installInternalEventFilter", Qt::QueuedConnection);
 }
 
-void Probe::installEventFilter() noexcept { QCoreApplication::instance()->installEventFilter(this); }
+void Probe::startup() noexcept { s_lilProbe()->hooksInstalled = true; }
 
-void Probe::discoverObject(QObject *obj) noexcept
+void Probe::installInternalEventFilter() noexcept { QCoreApplication::instance()->installEventFilter(this); }
+
+void Probe::installEventFilter(QObject *filter) noexcept
+{
+    assert(std::find(eventFilters_.begin(), eventFilters_.end(), filter) != eventFilters_.end());
+    eventFilters_.push_back(filter);
+}
+
+bool Probe::eventFilter(QObject *reciever, QEvent *event)
+{
+    if (ProbeGuard::locked() && reciever->thread() == QThread::currentThread()) {
+        return QObject::eventFilter(reciever, event);
+    }
+
+    if (event->type() == QEvent::ChildAdded || event->type() == QEvent::ChildRemoved) {
+        QChildEvent *childEvent = static_cast<QChildEvent *>(event);
+        QObject *childObj = childEvent->child();
+
+        QMutexLocker lock(s_mutex());
+        if (!isIternalObject(childObj) && childEvent->added()) {
+            if (!isKnownObject(childObj)) {
+                // Ситуация, когда мы узнаем о новом объекте раньше, чем при перехвате хука
+                // QHooks::AddQObject, возникает из-за того, что событие QEvent::ChildAdded
+                // возникает раньше хука
+                addObject(childObj);
+            }
+            else if (!isObjectInCreationQueue(childObj) && !isObjectInCreationQueue(childObj->parent())
+                     && isKnownObject(childObj->parent())) {
+                // Данная ситуация возникает в случае, если мы уже проинициализировали объект
+                // и его нового родителя. Соответственно, нам остается только поменять позицию
+                // этого объекта в дереве элементов
+                reparentedObjects_.erase(std::remove(reparentedObjects_.begin(), reparentedObjects_.end(), childObj),
+                                         reparentedObjects_.end());
+                emit objectReparanted(childObj);
+            }
+            else if (!isKnownObject(childObj->parent())) {
+                // Данная ситуация возникает, когда у рассматриваемого объекта появился новый родитель,
+                // о котором мы до этого ничего не знали. Соответственно, нужно добавить нового родителя
+                // и обновить положение рассматриваемого объекта в дереве
+                addObject(childObj->parent());
+                reparentedObjects_.push_back(childObj);
+                notifyQueueTimer();
+            }
+        }
+        else if (isKnownObject(childObj)) {
+            // Пока не можем понять конечное положение объекта в дереве - "откладываем его"
+            reparentedObjects_.push_back(childObj);
+            notifyQueueTimer();
+        }
+    }
+
+    // Работает только для QWidgets
+    if (event->type() == QEvent::ParentChange) {
+        QMutexLocker lock(s_mutex());
+        if (!isIternalObject(reciever) && isKnownObject(reciever) && isKnownObject(reciever->parent())
+            && !isObjectInCreationQueue(reciever) && !isObjectInCreationQueue(reciever->parent())) {
+            // Данная ситуация возникает в случае, если мы уже проинициализировали объект
+            // и его нового родителя. Соответственно, нам остается только поменять позицию
+            // этого объекта в дереве элементов
+            reparentedObjects_.erase(std::remove(reparentedObjects_.begin(), reparentedObjects_.end(), reciever),
+                                     reparentedObjects_.end());
+            emit objectReparanted(reciever);
+        }
+        else if (!isKnownObject(reciever->parent())) {
+            // Данная ситуация возникает, когда у рассматриваемого объекта появился новый родитель,
+            // о котором мы до этого ничего не знали. Соответственно, нужно добавить нового родителя
+            // и обновить положение рассматриваемого объекта в дереве
+            addObject(reciever->parent());
+            reparentedObjects_.push_back(reciever);
+            notifyQueueTimer();
+        }
+    }
+
+    /*!
+     * Если переопределение хуков не установлено, то и addObject/removeObject не работает,
+     * из-за чего приходится на основе получаемых сигналов строить дерево элементов. Но такая
+     * ситуация теоретически не может быть, однако это может быть полезно в будущем при
+     * написании unit-тестов.
+     */
+    if (!s_lilProbe()->hooksInstalled
+        // Уже обработанные события
+        && event->type() != QEvent::ChildAdded && event->type() != QEvent::ChildRemoved
+        && event->type() != QEvent::ParentChange
+        // Сигналы, вызываемые деструкторами, которые нет смысла обрабатывать
+        && event->type() != QEvent::Destroy
+        && event->type() != QEvent::WinIdChange
+        // Как обычно, не обрабатываем "внутренние" объекты
+        && !isIternalObject(reciever)) {
+        QMutexLocker lock(s_mutex());
+        if (!isKnownObject(reciever)) {
+            addObjectAndParentsToKnown(reciever);
+        }
+    }
+
+    if (!isIternalObject(reciever)) {
+        const auto filters = eventFilters_;
+        for (QObject *filter : filters) {
+            filter->eventFilter(reciever, event);
+        }
+    }
+
+    return QObject::eventFilter(reciever, event);
+}
+
+void Probe::addObjectAndParentsToKnown(QObject *obj) noexcept
 {
     if (!obj) {
         return;
     }
 
     QMutexLocker lock(s_mutex());
-    if (knownObjects_.find(obj) != knownObjects_.end()) {
+    if (isKnownObject(obj)) {
         return;
     }
 
     addObject(obj);
     for (auto *childObj : obj->children()) {
-        discoverObject(childObj);
+        addObjectAndParentsToKnown(childObj);
     }
 }
 
 void Probe::findObjectsFromCoreApp() noexcept
 {
-    discoverObject(QCoreApplication::instance());
+    addObjectAndParentsToKnown(QCoreApplication::instance());
 
     if (auto guiApp = qobject_cast<QGuiApplication *>(QCoreApplication::instance())) {
         for (auto *window : guiApp->allWindows()) {
-            discoverObject(window);
+            addObjectAndParentsToKnown(window);
         }
     }
 }
@@ -134,30 +248,30 @@ void Probe::addObject(QObject *obj) noexcept
     }
 
     // Игнорируем объекты, имеющие сигнатуру QtAda
-    if (probeInstance()->isIternalObjectCreated(obj)) {
+    if (probeInstance()->isIternalObject(obj)) {
         return;
     }
 
     // Убеждаемся, что уже не обработали этот объект. Это может произойти,
     // если мы уже добавили объект из s_lilProbe->objsAddedBeforeProbeInit
-    if (probeInstance()->knownObjects_.find(obj) != probeInstance()->knownObjects_.end()) {
+    if (probeInstance()->isKnownObject(obj)) {
         return;
     }
 
     // Если у объекта есть непроинициализированные родители, то сразу
     // инициаилизируем их
     QObject *parent = obj->parent();
-    if (parent && probeInstance()->knownObjects_.find(parent) == probeInstance()->knownObjects_.end()) {
+    if (parent && !probeInstance()->isKnownObject(parent)) {
         addObject(parent);
     }
     // Убеждаемся, что уже знаем о родителе объекта
-    assert(!parent || probeInstance()->knownObjects_.find(parent) != probeInstance()->knownObjects_.end());
+    assert(!parent || probeInstance()->isKnownObject(parent));
 
     probeInstance()->knownObjects_.insert(obj);
-    probeInstance()->addObjectToQueue(obj);
+    probeInstance()->addObjectCreationToQueue(obj);
 }
 
-bool Probe::isIternalObjectCreated(QObject *obj) const noexcept
+bool Probe::isIternalObject(QObject *obj) const noexcept
 {
     std::set<QObject *> checkedObjects;
     int iteration = 0;
@@ -166,7 +280,7 @@ bool Probe::isIternalObjectCreated(QObject *obj) const noexcept
         if (iteration > LOOP_DETECTION_COUNT) {
             // Возможно закицливание в дереве, поэтому если мы уже проверяли
             // текущий объект, то считаем, что он создан QtAda
-            if (knownObjects_.find(obj) != knownObjects_.end()) {
+            if (checkedObjects.find(obj) != checkedObjects.end()) {
                 return true;
             }
             checkedObjects.insert(o);
@@ -181,6 +295,8 @@ bool Probe::isIternalObjectCreated(QObject *obj) const noexcept
     } while (o);
     return false;
 }
+
+bool Probe::isKnownObject(QObject *obj) const noexcept { return knownObjects_.find(obj) != knownObjects_.end(); }
 
 void Probe::removeObject(QObject *obj) noexcept
 {
@@ -197,29 +313,140 @@ void Probe::removeObject(QObject *obj) noexcept
         return;
     }
 
-    bool success = probeInstance()->knownObjects_.erase(obj);
-    if (!success) {
+    bool successErase = probeInstance()->knownObjects_.erase(obj);
+    if (!successErase) {
         // Удаляемый объект не успели добавить в knownObjects, так что скорее
         // всего это объект QtAda, но дополнительно нужно проверить, что объект
         // не находится в очереди для инициализации
-        //! TODO: проверка, что объект не находится в очереди
+        assert(!probeInstance()->isObjectInCreationQueue(obj));
         return;
     }
 
-    //! TODO: удаление объекта из очереди на инициализацию
+    probeInstance()->removeObjectCreationFromQueue(obj);
+    assert(!probeInstance()->isObjectInCreationQueue(obj));
+
+    if (probeInstance()->thread() == QThread::currentThread()) {
+        emit probeInstance()->objectDestroyed(obj);
+    }
+    else {
+        probeInstance()->addObjectDestroyToQueue(obj);
+    }
 }
 
 void Probe::addObjectCreationToQueue(QObject *obj) noexcept
 {
-    //! TODO: проверка, что объект не находится в очереди
+    assert(!isObjectInCreationQueue(obj));
 
     queuedObjects_.push_back({ obj, QueuedObject::Create });
-    //! TODO: сигнал о перезапуске таймера
+    notifyQueueTimer();
 }
 
 void Probe::addObjectDestroyToQueue(QObject *obj) noexcept
 {
     queuedObjects_.push_back({ obj, QueuedObject::Destroy });
-    //! TODO: сигнал о перезапуске таймера
+    notifyQueueTimer();
+}
+
+void Probe::removeObjectCreationFromQueue(QObject *obj) noexcept
+{
+    auto it = std::find_if(queuedObjects_.begin(), queuedObjects_.end(), [obj](const QueuedObject &qObj) {
+        return qObj.obj == obj && qObj.type == QueuedObject::Create;
+    });
+    if (it != queuedObjects_.end()) {
+        queuedObjects_.erase(it);
+    }
+}
+
+bool Probe::isObjectInCreationQueue(QObject *obj) const noexcept
+{
+    auto it = std::find_if(queuedObjects_.begin(), queuedObjects_.end(), [obj](const QueuedObject &qObj) {
+        return qObj.obj == obj && qObj.type == QueuedObject::Create;
+    });
+    return it != queuedObjects_.end();
+}
+
+void Probe::notifyQueueTimer() noexcept
+{
+    if (queueTimer_->isActive()) {
+        return;
+    }
+
+    // Нам важно начать обработку отложенных объектов в одном потоке
+    if (thread() == QThread::currentThread()) {
+        queueTimer_->start();
+    }
+    else {
+        // Если находимся не в текущем потоке, то откладываем запуск таймера с помощью invoke
+        // (поэтому и используем таймер с нулевым интервалом, так как можем отложить
+        // выполнение функции старта таймера)
+        static QMetaMethod startMethod;
+        if (startMethod.methodIndex() < 0) {
+            const auto methodIdx = QTimer::staticMetaObject.indexOfMethod("start()");
+            assert(methodIdx >= 0);
+            startMethod = QTimer::staticMetaObject.method(methodIdx);
+            assert(startMethod.methodIndex() >= 0);
+        }
+        startMethod.invoke(queueTimer_, Qt::QueuedConnection);
+    }
+}
+
+void Probe::handleObjectsQueue() noexcept
+{
+    QMutexLocker lock(s_mutex());
+    assert(thread() == QThread::currentThread());
+
+    const auto queuedObjects = queuedObjects_;
+    for (const auto &o : queuedObjects) {
+        switch (o.type) {
+        case QueuedObject::Create:
+            explicitObjectCreation(o.obj);
+            break;
+        case QueuedObject::Destroy:
+            emit objectDestroyed(o.obj);
+            break;
+        default:
+            Q_UNREACHABLE();
+        }
+    }
+    queuedObjects_.clear();
+
+    const auto reparentedObjects = reparentedObjects_;
+    for (QObject *obj : reparentedObjects_) {
+        if (!isKnownObject(obj)) {
+            continue;
+        }
+        if (isIternalObject(obj)) {
+            removeObject(obj);
+        }
+        else {
+            emit objectReparanted(obj);
+        }
+    }
+    reparentedObjects_.clear();
+}
+
+void Probe::explicitObjectCreation(QObject *obj) noexcept
+{
+    assert(thread() == QThread::currentThread());
+
+    if (!isKnownObject(obj)) {
+        return;
+    }
+
+    if (isIternalObject(obj)) {
+        bool successErase = knownObjects_.erase(obj);
+        assert(successErase);
+        return;
+    }
+
+    for (QObject *parent = obj->parent(); parent != nullptr; parent = parent->parent()) {
+        if (!isKnownObject(parent)) {
+            addObject(parent);
+            break;
+        }
+    }
+    assert(!obj->parent() || isKnownObject(obj->parent()));
+
+    emit objectCreated(obj);
 }
 } // namespace QtAda::core
