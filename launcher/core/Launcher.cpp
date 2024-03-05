@@ -16,10 +16,13 @@ Launcher::Launcher(const UserLaunchOptions &userOptions, QObject *parent) noexce
     waitingTimeoutValue_ = std::max(DEFAULT_WAITING_TIMER_VALUE, userTimeoutValue);
     waitingTimer_.setInterval(waitingTimeoutValue_ * 1000);
     waitingTimer_.setSingleShot(true);
-    connect(&waitingTimer_, &QTimer::timeout, this, &Launcher::timeout);
+
+    //! TODO: необходимо понять, как точно определить то, что приложение запущено,
+    //! чтобы останавливать таймер
+    // connect(&waitingTimer_, &QTimer::timeout, this, &Launcher::timeout);
 
     injector_ = std::make_unique<injector::PreloadInjector>();
-    connect(injector_.get(), &injector::AbstractInjector::started, this, &Launcher::restartTimer);
+    // connect(injector_.get(), &injector::AbstractInjector::started, this, &Launcher::restartTimer);
     connect(injector_.get(), &injector::AbstractInjector::finished, this, &Launcher::injectorFinished,
             Qt::QueuedConnection);
     connect(injector_.get(), &injector::AbstractInjector::stdErrMessage, this, &Launcher::printStdErrMessage);

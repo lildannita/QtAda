@@ -2,9 +2,16 @@ set(QTADA_CORE_BASENAME "core")
 
 set(QTADA_CORE_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR} PARENT_SCOPE)
 
-set(core_MOC_HDRS Probe.hpp)
-set(core_HDRS ${core_MOC_HDRS} ProbeGuard.hpp)
-set(core_SRCS Probe.cpp ProbeGuard.cpp)
+set(core_MOC_HDRS
+  Probe.hpp
+  MetaObjectHandler.hpp)
+set(core_HDRS
+  ${core_MOC_HDRS}
+  ProbeGuard.hpp)
+set(core_SRCS
+  Probe.cpp
+  ProbeGuard.cpp
+  MetaObjectHandler.cpp)
 
 qt5_wrap_cpp(core_SRCS ${core_MOC_HDRS} TARGET core)
 
