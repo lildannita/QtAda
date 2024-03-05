@@ -1,17 +1,14 @@
 set(QTADA_CORE_BASENAME "core")
 
-set(QTADA_CORE_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR} PARENT_SCOPE)
+set(QTADA_CORE_INCLUDE_DIR
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    PARENT_SCOPE)
 
-set(core_MOC_HDRS
-  Probe.hpp
-  MetaObjectHandler.hpp)
-set(core_HDRS
-  ${core_MOC_HDRS}
-  ProbeGuard.hpp)
-set(core_SRCS
-  Probe.cpp
-  ProbeGuard.cpp
-  MetaObjectHandler.cpp)
+set(core_MOC_HDRS Probe.hpp MetaObjectHandler.hpp)
+set(core_HDRS ${core_MOC_HDRS} ProbeGuard.hpp MetaTypeDeclarations.hpp
+              utils/Execution.hpp)
+set(core_SRCS Probe.cpp ProbeGuard.cpp MetaObjectHandler.cpp
+              utils/Execution.cpp)
 
 qt5_wrap_cpp(core_SRCS ${core_MOC_HDRS} TARGET core)
 
@@ -22,4 +19,5 @@ set_target_properties(
              OUTPUT_NAME ${QTADA_CORE_BASENAME}
              LIBRARY_OUTPUT_DIRECTORY ${QTADA_LIB_DIR}
              RUNTIME_OUTPUT_DIRECTORY ${QTADA_LIB_DIR})
-target_link_libraries(core PRIVATE Qt5::Core Qt5::CorePrivate Qt5::Gui)
+target_link_libraries(core PRIVATE Qt5::Core Qt5::CorePrivate Qt5::Gui
+                                   Qt5::Quick)

@@ -1,0 +1,15 @@
+Как можно будет симулировать нажатие на объект:
+    QByteArray subString = "mousearea";
+    QByteArray teststr = metaObj->className();
+    bool containsSubstring = teststr.toLower().contains(subString.toLower());
+    if (containsSubstring) {
+        QQuickItem *mouseArea = qobject_cast<QQuickItem*>(obj);
+        qreal width = mouseArea->width();
+        qreal height = mouseArea->height();
+        // Вычисление координат центра
+        QPointF centerPos(width / 2, height / 2);
+        QMouseEvent pressEvent(QEvent::MouseButtonPress, centerPos, Qt::LeftButton, Qt::LeftButton, Qt::NoModifier);
+        QMouseEvent releaseEvent(QEvent::MouseButtonRelease, centerPos, Qt::LeftButton, Qt::LeftButton, Qt::NoModifier);
+        QCoreApplication::sendEvent(mouseArea, &pressEvent);
+        QCoreApplication::sendEvent(mouseArea, &releaseEvent);
+    }

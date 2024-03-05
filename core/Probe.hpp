@@ -1,11 +1,16 @@
 #pragma once
 
-#include <QTimer>
 #include <QObject>
 #include <vector>
 #include <set>
 
+QT_BEGIN_NAMESPACE
+class QTimer;
+QT_END_NAMESPACE
+
 namespace QtAda::core {
+class MetaObjectHandler;
+
 class Probe : public QObject {
     Q_OBJECT
 
@@ -15,10 +20,13 @@ public:
 
     static bool initialized() noexcept;
     static void initProbe() noexcept;
+    static Probe *probeInstance() noexcept;
 
     static void startup() noexcept;
     static void addObject(QObject *obj) noexcept;
     static void removeObject(QObject *obj) noexcept;
+
+    bool isKnownObject(QObject *obj) const noexcept;
 
     bool eventFilter(QObject *reciever, QEvent *event) override;
     void installEventFilter(QObject *filter) noexcept;
@@ -26,7 +34,7 @@ public:
 signals:
     void objectCreated(QObject *obj);
     void objectDestroyed(QObject *obj);
-    void objectReparanted(QObject *obj);
+    void objectReparented(QObject *obj);
 
 private slots:
     void installInternalEventFilter() noexcept;
@@ -54,8 +62,7 @@ private:
     std::vector<QObject *> reparentedObjects_;
 
     QTimer *queueTimer_ = nullptr;
-
-    static Probe *probeInstance() noexcept;
+    MetaObjectHandler *metaObjectHandler_ = nullptr;
 
     void addObjectAndParentsToKnown(QObject *obj) noexcept;
     void findObjectsFromCoreApp() noexcept;
@@ -68,6 +75,5 @@ private:
     void notifyQueueTimer() noexcept;
 
     bool isIternalObject(QObject *obj) const noexcept;
-    bool isKnownObject(QObject *obj) const noexcept;
 };
 } // namespace QtAda::core

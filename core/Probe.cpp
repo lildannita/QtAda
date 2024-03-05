@@ -1,9 +1,11 @@
 #include "Probe.hpp"
 
 #include "ProbeGuard.hpp"
+#include "MetaObjectHandler.hpp"
 
 #include <QCoreApplication>
 #include <QGuiApplication>
+#include <QTimer>
 #include <QThread>
 #include <QRecursiveMutex>
 #include <QWindow>
@@ -37,6 +39,7 @@ Q_GLOBAL_STATIC(LilProbe, s_lilProbe)
 Probe::Probe(QObject *parent) noexcept
     : QObject{ parent }
     , queueTimer_{ new QTimer(this) }
+    , metaObjectHandler_{ new MetaObjectHandler(this) }
 {
     Q_ASSERT(thread() == qApp->thread());
 
@@ -44,8 +47,8 @@ Probe::Probe(QObject *parent) noexcept
     queueTimer_->setInterval(0);
     connect(queueTimer_, &QTimer::timeout, this, &Probe::handleObjectsQueue);
 
-    //    connect(this, &Probe::objectCreated, );
-    //    connect(this, &Probe::objectDestroyed, );
+    connect(this, &Probe::objectCreated, metaObjectHandler_, &MetaObjectHandler::objectCreatedOutside);
+    connect(this, &Probe::objectDestroyed, metaObjectHandler_, &MetaObjectHandler::objectDestroyedOutside);
 }
 
 Probe::~Probe() noexcept
@@ -123,6 +126,15 @@ bool Probe::eventFilter(QObject *reciever, QEvent *event)
         return QObject::eventFilter(reciever, event);
     }
 
+    // const void *address = static_cast<const void*>(reciever);
+    // Получение имени типа события
+    // QEvent::Type eventType = event->type();
+    // const char* eventName = typeid(*event).name(); // Может требовать деманглинга в зависимости от компилятора
+    // Вывод информации
+    // std::cout << "Receiver address: " << address
+    //          << ", Event type: " << eventType
+    //          << ", Event name: " << eventName << std::endl;
+
     if (event->type() == QEvent::ChildAdded || event->type() == QEvent::ChildRemoved) {
         QChildEvent *childEvent = static_cast<QChildEvent *>(event);
         QObject *childObj = childEvent->child();
@@ -142,7 +154,7 @@ bool Probe::eventFilter(QObject *reciever, QEvent *event)
                 // этого объекта в дереве элементов
                 reparentedObjects_.erase(std::remove(reparentedObjects_.begin(), reparentedObjects_.end(), childObj),
                                          reparentedObjects_.end());
-                emit objectReparanted(childObj);
+                emit objectReparented(childObj);
             }
             else if (!isKnownObject(childObj->parent())) {
                 // Данная ситуация возникает, когда у рассматриваемого объекта появился новый родитель,
@@ -170,7 +182,7 @@ bool Probe::eventFilter(QObject *reciever, QEvent *event)
             // этого объекта в дереве элементов
             reparentedObjects_.erase(std::remove(reparentedObjects_.begin(), reparentedObjects_.end(), reciever),
                                      reparentedObjects_.end());
-            emit objectReparanted(reciever);
+            emit objectReparented(reciever);
         }
         else if (!isKnownObject(reciever->parent())) {
             // Данная ситуация возникает, когда у рассматриваемого объекта появился новый родитель,
@@ -437,7 +449,7 @@ void Probe::handleObjectsQueue() noexcept
             removeObject(obj);
         }
         else {
-            emit objectReparanted(obj);
+            emit objectReparented(obj);
         }
     }
     reparentedObjects_.clear();
