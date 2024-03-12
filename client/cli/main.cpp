@@ -1,7 +1,9 @@
 #include "Launcher.hpp"
+#include "MainWindow.hpp"
 
 #include <QDebug>
 #include <QStringList>
+#include <QApplication>
 #include <QCoreApplication>
 #include <csignal>
 
@@ -46,15 +48,20 @@ void printUsage(const char *appPath)
 
 using namespace QtAda;
 
-int main(int argc, char *argv[])
+int guiInitializer(int argc, char *argv[])
 {
-    if (argc <= 1) {
-        printUsage(*argv);
-        return 1;
-    }
+    QApplication app(argc, argv);
 
+    gui::MainWindow mainWin;
+    mainWin.show();
+
+    auto exec = app.exec();
+    return exec;
+}
+
+int cliInitializer(int argc, char *argv[])
+{
     QCoreApplication app(argc, argv);
-    installSignalHandler();
 
     QStringList args;
     args.reserve(argc);
@@ -81,7 +88,13 @@ int main(int argc, char *argv[])
     else {
         return launcher.exitCode();
     }
-    auto exec = app.exec();
 
+    auto exec = app.exec();
     return exec == 0 ? launcher.exitCode() : exec;
+}
+
+int main(int argc, char *argv[])
+{
+    installSignalHandler();
+    return argc <= 1 ? guiInitializer(argc, argv) : cliInitializer(argc, argv);
 }
