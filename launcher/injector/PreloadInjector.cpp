@@ -1,6 +1,6 @@
 #include "PreloadInjector.hpp"
 
-#include "core/LauncherUtils.hpp"
+#include "LauncherUtils.hpp"
 
 namespace QtAda::launcher::injector {
 bool PreloadInjector::launch(const QStringList &launchArgs, const QString &probeDllPath,

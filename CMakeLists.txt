@@ -16,7 +16,9 @@ set(QTADA_EXAMPLES_BIN_DIR ${QTADA_BIN_DIR}/examples)
 
 find_package(
   Qt5 ${QT_MIN_VERSION}
-  COMPONENTS Core Quick Widgets #[[Qml]]
+  COMPONENTS Core
+             Quick
+             Widgets #[[Qml]]
   REQUIRED)
 
 # For ABI detection
@@ -31,6 +33,7 @@ include_directories(${CMAKE_CURRENT_BINARY_DIR})
 add_subdirectory(core)
 add_subdirectory(probe)
 add_subdirectory(launcher)
+add_subdirectory(client)
 
 configure_file(${CMAKE_SOURCE_DIR}/config.h.cmake
                ${CMAKE_CURRENT_BINARY_DIR}/config.h)

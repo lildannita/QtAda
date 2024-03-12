@@ -1,4 +1,4 @@
-#include "core/Launcher.hpp"
+#include "Launcher.hpp"
 
 #include <QDebug>
 #include <QStringList>
