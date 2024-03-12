@@ -81,7 +81,8 @@ static std::optional<std::pair<int, int>> qtVersionFromLibExec(const QString &li
     proc.setProcessChannelMode(QProcess::SeparateChannels);
     proc.setReadChannel(QProcess::StandardOutput);
     proc.start(QStringLiteral("strings"),
-               QStringList() << libPath << QStringLiteral("| grep -E \"Qt [0-9]+\\.[0-9]+\""), QProcess::ReadOnly);
+               QStringList() << libPath << QStringLiteral("| grep -E \"Qt [0-9]+\\.[0-9]+\""),
+               QProcess::ReadOnly);
     proc.waitForFinished();
 
     while (proc.canReadLine()) {
@@ -102,7 +103,8 @@ static std::optional<std::pair<int, int>> qtVersionFromLibExec(const QString &li
 }
 
 #ifdef HAVE_ELF
-template <typename ElfHeader> static QString getArchitectureFromElfHeader(const uchar *elfData, quint64 size)
+template <typename ElfHeader>
+static QString getArchitectureFromElfHeader(const uchar *elfData, quint64 size)
 {
     if (size <= sizeof(ElfHeader))
         return QString();
@@ -122,7 +124,8 @@ template <typename ElfHeader> static QString getArchitectureFromElfHeader(const 
         return QStringLiteral("aarch64");
 #endif
     default:
-        qWarning(QtAda::launcher::LauncherLog) << "unsupported architecture:" << elfHeader->e_machine;
+        qWarning(QtAda::launcher::LauncherLog)
+            << "unsupported architecture:" << elfHeader->e_machine;
         return QString();
     }
 }

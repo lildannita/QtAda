@@ -22,11 +22,14 @@ Launcher::Launcher(const UserLaunchOptions &userOptions, QObject *parent) noexce
     // connect(&waitingTimer_, &QTimer::timeout, this, &Launcher::timeout);
 
     injector_ = std::make_unique<injector::PreloadInjector>();
-    // connect(injector_.get(), &injector::AbstractInjector::started, this, &Launcher::restartTimer);
-    connect(injector_.get(), &injector::AbstractInjector::finished, this, &Launcher::injectorFinished,
-            Qt::QueuedConnection);
-    connect(injector_.get(), &injector::AbstractInjector::stdErrMessage, this, &Launcher::printStdErrMessage);
-    connect(injector_.get(), &injector::AbstractInjector::stdOutMessage, this, &Launcher::printStdOutMessage);
+    // connect(injector_.get(), &injector::AbstractInjector::started, this,
+    // &Launcher::restartTimer);
+    connect(injector_.get(), &injector::AbstractInjector::finished, this,
+            &Launcher::injectorFinished, Qt::QueuedConnection);
+    connect(injector_.get(), &injector::AbstractInjector::stdErrMessage, this,
+            &Launcher::printStdErrMessage);
+    connect(injector_.get(), &injector::AbstractInjector::stdOutMessage, this,
+            &Launcher::printStdOutMessage);
 }
 
 Launcher::~Launcher() noexcept
@@ -39,10 +42,11 @@ Launcher::~Launcher() noexcept
 void Launcher::timeout() noexcept
 {
     options_.state |= LauncherState::InjectorFailed;
-    qWarning() << qPrintable(QStringLiteral("Target not responding for %1 seconds. Try to setting the "
-                                            "env variable '%2' to a bigger value (in seconds).")
-                                 .arg(waitingTimeoutValue_)
-                                 .arg(ENV_TIMER_VAR_NAME));
+    qWarning() << qPrintable(
+        QStringLiteral("Target not responding for %1 seconds. Try to setting the "
+                       "env variable '%2' to a bigger value (in seconds).")
+            .arg(waitingTimeoutValue_)
+            .arg(ENV_TIMER_VAR_NAME));
 
     checkIfLauncherIsFinished();
 }
@@ -84,8 +88,8 @@ bool Launcher::launch() noexcept
 
     const auto probeDll = options_.probe.probeDllPath();
     if (probeDll.isEmpty()) {
-        handleLauncherFailure(-1,
-                              QStringLiteral("Error: can't locate probe for ABI '%1'.").arg(options_.probe.probeId()));
+        handleLauncherFailure(-1, QStringLiteral("Error: can't locate probe for ABI '%1'.")
+                                      .arg(options_.probe.probeId()));
         return false;
     }
 
@@ -94,8 +98,9 @@ bool Launcher::launch() noexcept
     assert(injector_ != nullptr);
     //! TODO: добавить в env Qt библиотеки, если их не обнаружено
     if (!injector_->launch(options_.userOptions.launchAppArguments, probeDll, options_.env)) {
-        QString errorMsg = QStringLiteral("Failed to launch target '%1'.")
-                               .arg(options_.userOptions.launchAppArguments.join(QStringLiteral(" ")));
+        QString errorMsg
+            = QStringLiteral("Failed to launch target '%1'.")
+                  .arg(options_.userOptions.launchAppArguments.join(QStringLiteral(" ")));
         const auto injectorErrorMsg = injector_->errorMessage();
         const auto injectorErrorCode = injector_->exitCode();
         if (!injectorErrorMsg.isEmpty()) {
@@ -132,11 +137,17 @@ void Launcher::checkIfLauncherIsFinished() noexcept
 
 void Launcher::printStdOutMessage(const QString &msg) const noexcept
 {
-    std::cout << qPrintable(msg);
+    //! TODO: почему-то при запуске Launcher из GUI без std::flush
+    //! вывод буфферезируется и отображается на консоли только после
+    //! закрытия GUI
+    std::cout << qPrintable(msg) << std::flush;
 }
 
 void Launcher::printStdErrMessage(const QString &msg) const noexcept
 {
-    std::cerr << qPrintable(msg);
+    //! TODO: почему-то при запуске Launcher из GUI без std::flush
+    //! вывод буфферезируется и отображается на консоли только после
+    //! закрытия GUI
+    std::cerr << qPrintable(msg) << std::flush;
 }
 } // namespace QtAda::launcher

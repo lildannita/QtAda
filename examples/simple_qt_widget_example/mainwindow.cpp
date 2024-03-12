@@ -56,11 +56,16 @@ MainWindow::MainWindow(QWidget *parent)
     ui->treeView->setModel(treeViewModel);
 
     // Инициализация QTreeWidget
-    QTreeWidgetItem *rootWidget0 = new QTreeWidgetItem(ui->treeWidget, QStringList() << "Элемент 0");
-    QTreeWidgetItem *rootWidget1 = new QTreeWidgetItem(ui->treeWidget, QStringList() << "Элемент 1");
-    QTreeWidgetItem *childWidget0 = new QTreeWidgetItem(rootWidget0, QStringList() << "Подэлемент 0");
-    QTreeWidgetItem *childWidget1 = new QTreeWidgetItem(rootWidget1, QStringList() << "Подэлемент 1");
-    QTreeWidgetItem *subChildWidget0 = new QTreeWidgetItem(childWidget0, QStringList() << "Подподэлемент 0");
+    QTreeWidgetItem *rootWidget0
+        = new QTreeWidgetItem(ui->treeWidget, QStringList() << "Элемент 0");
+    QTreeWidgetItem *rootWidget1
+        = new QTreeWidgetItem(ui->treeWidget, QStringList() << "Элемент 1");
+    QTreeWidgetItem *childWidget0
+        = new QTreeWidgetItem(rootWidget0, QStringList() << "Подэлемент 0");
+    QTreeWidgetItem *childWidget1
+        = new QTreeWidgetItem(rootWidget1, QStringList() << "Подэлемент 1");
+    QTreeWidgetItem *subChildWidget0
+        = new QTreeWidgetItem(childWidget0, QStringList() << "Подподэлемент 0");
 
     // Инициализация QListView и QListWidget
     QStringList list;

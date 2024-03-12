@@ -10,6 +10,7 @@ QT_END_NAMESPACE
 
 namespace QtAda::core {
 class MetaObjectHandler;
+class UserEventFilter;
 
 class Probe : public QObject {
     Q_OBJECT
@@ -37,7 +38,7 @@ signals:
     void objectReparented(QObject *obj);
 
 private slots:
-    void installInternalEventFilter() noexcept;
+    void installInternalEventFilters() noexcept;
     void handleObjectsQueue() noexcept;
     void kill() noexcept;
 
@@ -63,6 +64,7 @@ private:
 
     QTimer *queueTimer_ = nullptr;
     MetaObjectHandler *metaObjectHandler_ = nullptr;
+    UserEventFilter *userEventFilter_ = nullptr;
 
     void addObjectAndParentsToKnown(QObject *obj) noexcept;
     void findObjectsFromCoreApp() noexcept;

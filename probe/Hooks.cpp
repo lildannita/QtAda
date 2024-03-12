@@ -42,8 +42,10 @@ static void internalHooksInstall()
     Q_ASSERT(qtHookData[QHooks::HookDataSize] >= 6);
 
     next_startupHook = reinterpret_cast<QHooks::StartupCallback>(qtHookData[QHooks::Startup]);
-    next_objectAddedHook = reinterpret_cast<QHooks::AddQObjectCallback>(qtHookData[QHooks::AddQObject]);
-    next_objectRemovedHook = reinterpret_cast<QHooks::RemoveQObjectCallback>(qtHookData[QHooks::RemoveQObject]);
+    next_objectAddedHook
+        = reinterpret_cast<QHooks::AddQObjectCallback>(qtHookData[QHooks::AddQObject]);
+    next_objectRemovedHook
+        = reinterpret_cast<QHooks::RemoveQObjectCallback>(qtHookData[QHooks::RemoveQObject]);
 
     qtHookData[QHooks::Startup] = reinterpret_cast<quintptr>(&startupHook);
     qtHookData[QHooks::AddQObject] = reinterpret_cast<quintptr>(&objectAddedHook);

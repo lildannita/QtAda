@@ -89,7 +89,8 @@ int cliInitializer(int argc, char *argv[])
     QCoreApplication app(argc, argv);
     launcher::Launcher launcher(options);
     if (launcher.launch()) {
-        QObject::connect(&launcher, &launcher::Launcher::launcherFinished, &app, &QCoreApplication::quit);
+        QObject::connect(&launcher, &launcher::Launcher::launcherFinished, &app,
+                         &QCoreApplication::quit);
     }
     else {
         return launcher.exitCode();

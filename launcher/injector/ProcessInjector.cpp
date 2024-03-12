@@ -9,13 +9,16 @@ ProcessInjector::ProcessInjector() noexcept
 #if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
     connect(&process_, &QProcess::finished, this, &ProcessInjector::processFinished);
 #else
-    connect(&process_, static_cast<void (QProcess::*)(int, QProcess::ExitStatus)>(&QProcess::finished), this,
+    connect(&process_,
+            static_cast<void (QProcess::*)(int, QProcess::ExitStatus)>(&QProcess::finished), this,
             &ProcessInjector::processFinished);
 #endif
     connect(&process_, &QProcess::errorOccurred, this, &ProcessInjector::processFailed);
 
-    connect(&process_, &QProcess::readyReadStandardError, this, &ProcessInjector::readStdErrMessage);
-    connect(&process_, &QProcess::readyReadStandardOutput, this, &ProcessInjector::readStdOutMessage);
+    connect(&process_, &QProcess::readyReadStandardError, this,
+            &ProcessInjector::readStdErrMessage);
+    connect(&process_, &QProcess::readyReadStandardOutput, this,
+            &ProcessInjector::readStdOutMessage);
 }
 
 ProcessInjector::~ProcessInjector() noexcept
@@ -61,7 +64,8 @@ void ProcessInjector::processFinished() noexcept
     exitCode_ = process_.exitCode();
 
     if (processError_ == QProcess::FailedToStart) {
-        errorMessage_.prepend(QStringLiteral("Failed to launch target '%1'.\nError: ").arg(process_.program()));
+        errorMessage_.prepend(
+            QStringLiteral("Failed to launch target '%1'.\nError: ").arg(process_.program()));
     }
 
     emit finished();

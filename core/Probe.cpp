@@ -2,6 +2,7 @@
 
 #include "ProbeGuard.hpp"
 #include "MetaObjectHandler.hpp"
+#include "UserEventFilter.hpp"
 
 #include <QCoreApplication>
 #include <QGuiApplication>
@@ -9,12 +10,8 @@
 #include <QThread>
 #include <QRecursiveMutex>
 #include <QWindow>
-
 #include <QMetaMethod>
-
 #include <private/qhooks_p.h>
-
-#include <iostream>
 
 namespace QtAda::core {
 static constexpr char QTADA_NAMESPACE[] = "QtAda::";
@@ -40,6 +37,7 @@ Probe::Probe(QObject *parent) noexcept
     : QObject{ parent }
     , queueTimer_{ new QTimer(this) }
     , metaObjectHandler_{ new MetaObjectHandler(this) }
+    , userEventFilter_{ new UserEventFilter(this) }
 {
     Q_ASSERT(thread() == qApp->thread());
 
@@ -47,8 +45,10 @@ Probe::Probe(QObject *parent) noexcept
     queueTimer_->setInterval(0);
     connect(queueTimer_, &QTimer::timeout, this, &Probe::handleObjectsQueue);
 
-    connect(this, &Probe::objectCreated, metaObjectHandler_, &MetaObjectHandler::objectCreatedOutside);
-    connect(this, &Probe::objectDestroyed, metaObjectHandler_, &MetaObjectHandler::objectDestroyedOutside);
+    connect(this, &Probe::objectCreated, metaObjectHandler_,
+            &MetaObjectHandler::objectCreatedOutside);
+    connect(this, &Probe::objectDestroyed, metaObjectHandler_,
+            &MetaObjectHandler::objectDestroyedOutside);
 }
 
 Probe::~Probe() noexcept
@@ -101,7 +101,7 @@ void Probe::initProbe() noexcept
         probe->findObjectsFromCoreApp();
     }
 
-    QMetaObject::invokeMethod(probe, "installInternalEventFilter", Qt::QueuedConnection);
+    QMetaObject::invokeMethod(probe, "installInternalEventFilters", Qt::QueuedConnection);
 }
 
 void Probe::startup() noexcept
@@ -109,14 +109,15 @@ void Probe::startup() noexcept
     s_lilProbe()->hooksInstalled = true;
 }
 
-void Probe::installInternalEventFilter() noexcept
+void Probe::installInternalEventFilters() noexcept
 {
     QCoreApplication::instance()->installEventFilter(this);
+    installEventFilter(userEventFilter_);
 }
 
 void Probe::installEventFilter(QObject *filter) noexcept
 {
-    assert(std::find(eventFilters_.begin(), eventFilters_.end(), filter) != eventFilters_.end());
+    assert(std::find(eventFilters_.begin(), eventFilters_.end(), filter) == eventFilters_.end());
     eventFilters_.push_back(filter);
 }
 
@@ -129,9 +130,8 @@ bool Probe::eventFilter(QObject *reciever, QEvent *event)
     // const void *address = static_cast<const void*>(reciever);
     // Получение имени типа события
     // QEvent::Type eventType = event->type();
-    // const char* eventName = typeid(*event).name(); // Может требовать деманглинга в зависимости от компилятора
-    // Вывод информации
-    // std::cout << "Receiver address: " << address
+    // const char* eventName = typeid(*event).name(); // Может требовать деманглинга в зависимости
+    // от компилятора Вывод информации std::cout << "Receiver address: " << address
     //          << ", Event type: " << eventType
     //          << ", Event name: " << eventName << std::endl;
 
@@ -147,19 +147,21 @@ bool Probe::eventFilter(QObject *reciever, QEvent *event)
                 // возникает раньше хука
                 addObject(childObj);
             }
-            else if (!isObjectInCreationQueue(childObj) && !isObjectInCreationQueue(childObj->parent())
+            else if (!isObjectInCreationQueue(childObj)
+                     && !isObjectInCreationQueue(childObj->parent())
                      && isKnownObject(childObj->parent())) {
                 // Данная ситуация возникает в случае, если мы уже проинициализировали объект
                 // и его нового родителя. Соответственно, нам остается только поменять позицию
                 // этого объекта в дереве элементов
-                reparentedObjects_.erase(std::remove(reparentedObjects_.begin(), reparentedObjects_.end(), childObj),
-                                         reparentedObjects_.end());
+                reparentedObjects_.erase(
+                    std::remove(reparentedObjects_.begin(), reparentedObjects_.end(), childObj),
+                    reparentedObjects_.end());
                 emit objectReparented(childObj);
             }
             else if (!isKnownObject(childObj->parent())) {
-                // Данная ситуация возникает, когда у рассматриваемого объекта появился новый родитель,
-                // о котором мы до этого ничего не знали. Соответственно, нужно добавить нового родителя
-                // и обновить положение рассматриваемого объекта в дереве
+                // Данная ситуация возникает, когда у рассматриваемого объекта появился новый
+                // родитель, о котором мы до этого ничего не знали. Соответственно, нужно добавить
+                // нового родителя и обновить положение рассматриваемого объекта в дереве
                 addObject(childObj->parent());
                 reparentedObjects_.push_back(childObj);
                 notifyQueueTimer();
@@ -175,13 +177,15 @@ bool Probe::eventFilter(QObject *reciever, QEvent *event)
     // Работает только для QWidgets
     if (event->type() == QEvent::ParentChange) {
         QMutexLocker lock(s_mutex());
-        if (!isIternalObject(reciever) && isKnownObject(reciever) && isKnownObject(reciever->parent())
-            && !isObjectInCreationQueue(reciever) && !isObjectInCreationQueue(reciever->parent())) {
+        if (!isIternalObject(reciever) && isKnownObject(reciever)
+            && isKnownObject(reciever->parent()) && !isObjectInCreationQueue(reciever)
+            && !isObjectInCreationQueue(reciever->parent())) {
             // Данная ситуация возникает в случае, если мы уже проинициализировали объект
             // и его нового родителя. Соответственно, нам остается только поменять позицию
             // этого объекта в дереве элементов
-            reparentedObjects_.erase(std::remove(reparentedObjects_.begin(), reparentedObjects_.end(), reciever),
-                                     reparentedObjects_.end());
+            reparentedObjects_.erase(
+                std::remove(reparentedObjects_.begin(), reparentedObjects_.end(), reciever),
+                reparentedObjects_.end());
             emit objectReparented(reciever);
         }
         else if (!isKnownObject(reciever->parent())) {
@@ -315,7 +319,9 @@ bool Probe::isIternalObject(QObject *obj) const noexcept
         ++iteration;
 
         //! TODO: добавить проверку на собственный интерфейс, когда он будет готов
-        if (o == this || (qstrncmp(o->metaObject()->className(), QTADA_NAMESPACE, QTADA_NAMESPACE_LEN) == 0)) {
+        if (o == this
+            || (qstrncmp(o->metaObject()->className(), QTADA_NAMESPACE, QTADA_NAMESPACE_LEN)
+                == 0)) {
             return true;
         }
         o = o->parent();
@@ -379,9 +385,10 @@ void Probe::addObjectDestroyToQueue(QObject *obj) noexcept
 
 void Probe::removeObjectCreationFromQueue(QObject *obj) noexcept
 {
-    auto it = std::find_if(queuedObjects_.begin(), queuedObjects_.end(), [obj](const QueuedObject &qObj) {
-        return qObj.obj == obj && qObj.type == QueuedObject::Create;
-    });
+    auto it = std::find_if(queuedObjects_.begin(), queuedObjects_.end(),
+                           [obj](const QueuedObject &qObj) {
+                               return qObj.obj == obj && qObj.type == QueuedObject::Create;
+                           });
     if (it != queuedObjects_.end()) {
         queuedObjects_.erase(it);
     }
@@ -389,9 +396,10 @@ void Probe::removeObjectCreationFromQueue(QObject *obj) noexcept
 
 bool Probe::isObjectInCreationQueue(QObject *obj) const noexcept
 {
-    auto it = std::find_if(queuedObjects_.begin(), queuedObjects_.end(), [obj](const QueuedObject &qObj) {
-        return qObj.obj == obj && qObj.type == QueuedObject::Create;
-    });
+    auto it = std::find_if(queuedObjects_.begin(), queuedObjects_.end(),
+                           [obj](const QueuedObject &qObj) {
+                               return qObj.obj == obj && qObj.type == QueuedObject::Create;
+                           });
     return it != queuedObjects_.end();
 }
 

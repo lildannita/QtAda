@@ -54,7 +54,8 @@ bool MetaObjectHandler::isKnownMetaObject(const QMetaObject *obj) const noexcept
     return childrenAndTheirParents_.contains(obj);
 }
 
-const QMetaObject *MetaObjectHandler::addMetaObject(const QMetaObject *obj, bool needToMergeDynamic) noexcept
+const QMetaObject *MetaObjectHandler::addMetaObject(const QMetaObject *obj,
+                                                    bool needToMergeDynamic) noexcept
 {
     if (isKnownMetaObject(obj)) {
         return obj;
@@ -158,7 +159,8 @@ void MetaObjectHandler::addAliveInstance(QObject *obj, const QMetaObject *canoni
     aliveInstances.insert(it, aliveMetaObj);
 }
 
-void MetaObjectHandler::removeAliveInstance(QObject *obj, const QMetaObject *canonicalMetaObj) noexcept
+void MetaObjectHandler::removeAliveInstance(QObject *obj,
+                                            const QMetaObject *canonicalMetaObj) noexcept
 {
     auto aliveMetaObj = dynamicMetaObjects_.take(obj);
     auto &aliveInstances = aliveMetaObjectInstances_[canonicalMetaObj];

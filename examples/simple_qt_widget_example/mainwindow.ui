@@ -24,7 +24,7 @@
     <item>
      <widget class="QTabWidget" name="tabWidget">
       <property name="currentIndex">
-       <number>2</number>
+       <number>0</number>
       </property>
       <widget class="QWidget" name="tab">
        <attribute name="title">
@@ -65,6 +65,11 @@
                    <layout class="QVBoxLayout" name="verticalLayout_2">
                     <item>
                      <widget class="QComboBox" name="comboBox">
+                      <item>
+                       <property name="text">
+                        <string>Combo1-1</string>
+                       </property>
+                      </item>
                       <item>
                        <property name="text">
                         <string>Combo1-1</string>
@@ -118,7 +123,11 @@
               <item>
                <layout class="QVBoxLayout" name="verticalLayout_5">
                 <item>
-                 <widget class="QSpinBox" name="spinBox"/>
+                 <widget class="QSpinBox" name="spinBox">
+                  <property name="frame">
+                   <bool>false</bool>
+                  </property>
+                 </widget>
                 </item>
                 <item>
                  <widget class="QDoubleSpinBox" name="doubleSpinBox"/>
@@ -133,6 +142,9 @@
                <layout class="QHBoxLayout" name="horizontalLayout_3">
                 <item>
                  <widget class="QRadioButton" name="radioButton_3">
+                  <property name="enabled">
+                   <bool>false</bool>
+                  </property>
                   <property name="text">
                    <string>RadioButton1</string>
                   </property>
@@ -174,6 +186,9 @@
                  <widget class="QCheckBox" name="checkBox_3">
                   <property name="text">
                    <string>CheckBox3</string>
+                  </property>
+                  <property name="checked">
+                   <bool>false</bool>
                   </property>
                  </widget>
                 </item>
@@ -233,7 +248,14 @@
             <item>
              <layout class="QVBoxLayout" name="verticalLayout_13">
               <item>
-               <widget class="QDateTimeEdit" name="dateTimeEdit_2"/>
+               <widget class="QDateTimeEdit" name="dateTimeEdit_2">
+                <property name="readOnly">
+                 <bool>false</bool>
+                </property>
+                <property name="buttonSymbols">
+                 <enum>QAbstractSpinBox::UpDownArrows</enum>
+                </property>
+               </widget>
               </item>
               <item>
                <widget class="QTimeEdit" name="timeEdit_2"/>

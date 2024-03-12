@@ -39,7 +39,8 @@ private:
     QHash<const QMetaObject *, const QMetaObject *> canonicalMetaObjects_;
     //!
 
-    const QMetaObject *addMetaObject(const QMetaObject *obj, bool needToMergeDynamic = false) noexcept;
+    const QMetaObject *addMetaObject(const QMetaObject *obj,
+                                     bool needToMergeDynamic = false) noexcept;
     const QMetaObject *parentOf(const QMetaObject *obj) const noexcept;
 
     void addAliveInstance(QObject *obj, const QMetaObject *canonicalMetaObj) noexcept;
