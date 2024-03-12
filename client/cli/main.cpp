@@ -61,12 +61,17 @@ int guiInitializer(int argc, char *argv[])
 
 int cliInitializer(int argc, char *argv[])
 {
-    QCoreApplication app(argc, argv);
-
     QStringList args;
     args.reserve(argc);
-    for (int i = 1; i < argc; ++i)
-        args.push_back(QString::fromLocal8Bit(argv[i]));
+    for (int i = 1; i < argc; ++i) {
+        QString arg = QString::fromLocal8Bit(argv[i]);
+        if (!arg.startsWith("-qmljsdebugger")) {
+            args.push_back(arg);
+        }
+    }
+    if (args.empty()) {
+        return guiInitializer(argc, argv);
+    }
 
     launcher::UserLaunchOptions options;
     while (!args.isEmpty() && args.first().startsWith('-')) {
@@ -81,6 +86,7 @@ int cliInitializer(int argc, char *argv[])
     }
     options.launchAppArguments = std::move(args);
 
+    QCoreApplication app(argc, argv);
     launcher::Launcher launcher(options);
     if (launcher.launch()) {
         QObject::connect(&launcher, &launcher::Launcher::launcherFinished, &app, &QCoreApplication::quit);
