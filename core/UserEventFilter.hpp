@@ -1,9 +1,13 @@
 #pragma once
 
 #include <QObject>
+#include <QWidget>
 #include <QEvent>
+#include <QMouseEvent>
+
 #include <QDateTime>
 #include <QPoint>
+#include <QTimer>
 
 #include <optional>
 #include <vector>
@@ -11,8 +15,6 @@
 
 QT_BEGIN_NAMESPACE
 class QQuickItem;
-class QWidget;
-class QMouseEvent;
 QT_END_NAMESPACE
 
 namespace QtAda::core {
@@ -46,8 +48,14 @@ private:
     LastMouseEvent lastPressEvent_;
     LastMouseEvent lastReleaseEvent_;
 
+    std::optional<QString> delayedScriptLine_;
+
     bool needToDuplicateMouseEvent = false;
 
+    QTimer doubleClickTimer_;
+    bool doubleClickDetected_ = false;
+
+    QString handleMouseEvent(QString objPath, QWidget *widget, QMouseEvent *event) noexcept;
     QString callWidgetFilters(QWidget *widget, QMouseEvent *event, bool isDelayed) noexcept;
 };
 } // namespace QtAda::core

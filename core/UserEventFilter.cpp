@@ -20,10 +20,17 @@ bool isDelayed(const QString &path, const QMouseEvent *event) noexcept;
 bool UserEventFilter::LastMouseEvent::registerEvent(const QString &path,
                                                     const QMouseEvent *event) noexcept
 {
-    const QDateTime now = QDateTime::currentDateTime();
+    const auto now = QDateTime::currentDateTime();
     if (event->type() == type && std::llabs(now.msecsTo(timestamp)) < EVENT_TIME_DIFF_MS
-        && event->globalPos() == globalPos && event->buttons() == buttons && path == objectPath) {
-        return false;
+        && event->buttons() == buttons) {
+        if (event->globalPos() == globalPos && objectPath == path) {
+            return false;
+        }
+        const auto parentPath = objectPath.left(objectPath.lastIndexOf('/'));
+        if (parentPath == path) {
+            objectPath = path;
+            return false;
+        }
     }
 
     type = event->type();
@@ -37,7 +44,9 @@ bool UserEventFilter::LastMouseEvent::registerEvent(const QString &path,
 
 bool UserEventFilter::LastMouseEvent::isDelayed(const LastMouseEvent &pressEvent) const noexcept
 {
-    if (type == QEvent::MouseButtonRelease && pressEvent.type == QEvent::MouseButtonPress
+    if (type == QEvent::MouseButtonRelease
+        && (pressEvent.type == QEvent::MouseButtonPress
+            || pressEvent.type == QEvent::MouseButtonDblClick)
         && std::llabs(timestamp.msecsTo(pressEvent.timestamp)) > EVENT_TIME_DIFF_MS
         && objectPath == pressEvent.objectPath) {
         return true;
@@ -53,6 +62,15 @@ void UserEventFilter::LastMouseEvent::clearEvent() noexcept
 UserEventFilter::UserEventFilter(QObject *parent) noexcept
     : QObject{ parent }
 {
+    doubleClickTimer_.setSingleShot(true);
+    connect(&doubleClickTimer_, &QTimer::timeout, this, [this]() {
+        if (delayedScriptLine_.has_value()) {
+            assert(!delayedScriptLine_->isEmpty());
+            emit newScriptLine(*delayedScriptLine_);
+            delayedScriptLine_.reset();
+        }
+    });
+
     widgetFilters_ = {
         qComboBoxFilter, qSpinBoxFilter, qCheckBoxFilter,
         qButtonFilter, // Обязательно последним
@@ -61,6 +79,24 @@ UserEventFilter::UserEventFilter(QObject *parent) noexcept
     //! TODO: убрать
     connect(this, &UserEventFilter::newScriptLine, this,
             [](const QString &line) { std::cout << line.toStdString() << std::endl; });
+}
+
+QString UserEventFilter::handleMouseEvent(QString objPath, QWidget *widget,
+                                          QMouseEvent *event) noexcept
+{
+    auto scriptLine
+        = callWidgetFilters(widget, event, lastReleaseEvent_.isDelayed(lastPressEvent_));
+    if (scriptLine.isEmpty()) {
+        scriptLine = qMouseEventFilter(objPath, widget, event);
+    }
+    else if (needToDuplicateMouseEvent) {
+        scriptLine = QStringLiteral("%1\n// %2")
+                         .arg(scriptLine)
+                         .arg(qMouseEventFilter(objPath, widget, event));
+    }
+
+    assert(!scriptLine.isEmpty());
+    return scriptLine;
 }
 
 bool UserEventFilter::eventFilter(QObject *reciever, QEvent *event) noexcept
@@ -82,38 +118,68 @@ bool UserEventFilter::eventFilter(QObject *reciever, QEvent *event) noexcept
     }
 
     switch (event->type()) {
-    case QEvent::MouseButtonPress: {
-        auto *mouseEvent = static_cast<QMouseEvent *>(event);
-        assert(mouseEvent != nullptr);
-        const auto path = utils::objectPath(reciever);
-        lastPressEvent_.registerEvent(path, mouseEvent);
-        lastReleaseEvent_.clearEvent();
-        break;
-    }
+    case QEvent::MouseButtonPress:
     case QEvent::MouseButtonRelease:
     case QEvent::MouseButtonDblClick: {
+        const auto path = utils::objectPath(reciever);
         auto *mouseEvent = static_cast<QMouseEvent *>(event);
         assert(mouseEvent != nullptr);
-        const auto path = utils::objectPath(reciever);
 
-        if (!lastReleaseEvent_.registerEvent(path, mouseEvent)) {
+        switch (event->type()) {
+        case QEvent::MouseButtonPress: {
+            if (!lastPressEvent_.registerEvent(path, mouseEvent)) {
+                break;
+            }
+            lastReleaseEvent_.clearEvent();
+
+            if (doubleClickTimer_.isActive() && delayedScriptLine_.has_value()) {
+                assert(!delayedScriptLine_->isEmpty());
+                emit newScriptLine(*delayedScriptLine_);
+                delayedScriptLine_.reset();
+            }
+            doubleClickTimer_.start(QApplication::doubleClickInterval());
             break;
         }
+        case QEvent::MouseButtonRelease: {
+            if (!lastReleaseEvent_.registerEvent(path, mouseEvent)) {
+                break;
+            }
 
-        auto scriptLine = callWidgetFilters(widgetItem, mouseEvent,
-                                            lastReleaseEvent_.isDelayed(lastPressEvent_));
-        if (scriptLine.isEmpty()) {
-            scriptLine = qMouseEventFilter(path, widgetItem, mouseEvent);
+            if (doubleClickTimer_.isActive()) {
+                delayedScriptLine_ = handleMouseEvent(path, widgetItem, mouseEvent);
+            }
+            else {
+                if (doubleClickDetected_) {
+                    doubleClickDetected_ = false;
+                    if (lastReleaseEvent_.isDelayed(lastPressEvent_)) {
+                        emit newScriptLine(
+                            handleMouseEvent(std::move(path), widgetItem, mouseEvent));
+                    }
+                    else if (delayedScriptLine_.has_value()) {
+                        emit newScriptLine(*delayedScriptLine_);
+                    }
+                }
+                else {
+                    emit newScriptLine(handleMouseEvent(std::move(path), widgetItem, mouseEvent));
+                }
+                delayedScriptLine_.reset();
+            }
+            lastPressEvent_.clearEvent();
+            break;
         }
-        else if (needToDuplicateMouseEvent) {
-            scriptLine = QStringLiteral("%1/n%2// ")
-                             .arg(scriptLine)
-                             .arg(qMouseEventFilter(path, widgetItem, mouseEvent));
+        case QEvent::MouseButtonDblClick: {
+            if (!lastPressEvent_.registerEvent(path, mouseEvent)) {
+                break;
+            }
+            doubleClickTimer_.stop();
+            doubleClickDetected_ = true;
+            delayedScriptLine_ = handleMouseEvent(std::move(path), widgetItem, mouseEvent);
+            lastReleaseEvent_.clearEvent();
+            break;
         }
-
-        assert(!scriptLine.isEmpty());
-        emit newScriptLine(std::move(scriptLine));
-        lastPressEvent_.clearEvent();
+        default:
+            Q_UNREACHABLE();
+        }
         break;
     }
     case QEvent::KeyPress:
