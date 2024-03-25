@@ -12,10 +12,6 @@
 namespace QtAda::core {
 static constexpr qint64 EVENT_TIME_DIFF_MS = 100;
 
-bool alreadyHandled(const QString &path, const QMouseEvent *event) noexcept;
-
-bool isDelayed(const QString &path, const QMouseEvent *event) noexcept;
-
 bool UserEventFilter::LastMouseEvent::registerEvent(const QString &path,
                                                     const QMouseEvent *event) noexcept
 {
@@ -41,21 +37,13 @@ bool UserEventFilter::LastMouseEvent::registerEvent(const QString &path,
     return true;
 }
 
-bool UserEventFilter::LastMouseEvent::isDelayed(const LastMouseEvent &pressEvent) const noexcept
+bool UserEventFilter::LastMouseEvent::isContinuous(const LastMouseEvent &pressEvent) const noexcept
 {
-    if (type == QEvent::MouseButtonRelease
-        && (pressEvent.type == QEvent::MouseButtonPress
-            || pressEvent.type == QEvent::MouseButtonDblClick)
-        && std::llabs(timestamp.msecsTo(pressEvent.timestamp)) > EVENT_TIME_DIFF_MS
-        && objectPath == pressEvent.objectPath) {
-        return true;
-    }
-    return false;
-}
-
-void UserEventFilter::LastMouseEvent::clearEvent() noexcept
-{
-    type = QEvent::None;
+    return type == QEvent::MouseButtonRelease
+           && (pressEvent.type == QEvent::MouseButtonPress
+               || pressEvent.type == QEvent::MouseButtonDblClick)
+           && std::llabs(timestamp.msecsTo(pressEvent.timestamp)) > EVENT_TIME_DIFF_MS
+           && objectPath == pressEvent.objectPath;
 }
 
 UserEventFilter::UserEventFilter(QObject *parent) noexcept
@@ -70,30 +58,24 @@ UserEventFilter::UserEventFilter(QObject *parent) noexcept
         }
     });
 
-    widgetFilters_ = {
-        qComboBoxFilter, qCheckBoxFilter,
-        qButtonFilter, // Обязательно последним
-    };
-
     //! TODO: убрать
     connect(this, &UserEventFilter::newScriptLine, this,
             [](const QString &line) { std::cout << line.toStdString() << std::endl; });
 }
 
-QString UserEventFilter::handleMouseEvent(QString objPath, QWidget *widget,
-                                          QMouseEvent *event) noexcept
+QString UserEventFilter::handleMouseEvent(const QString &objPath, const QWidget *widget,
+                                          const QMouseEvent *event) const noexcept
 {
-    auto scriptLine
-        = callWidgetFilters(widget, event, lastReleaseEvent_.isDelayed(lastPressEvent_));
+    auto scriptLine = widgetFilter_.callWidgetFilters(
+        widget, event, lastReleaseEvent_.isContinuous(lastPressEvent_));
     if (scriptLine.isEmpty()) {
-        scriptLine = qMouseEventFilter(objPath, widget, event);
+        scriptLine = filters::qMouseEventFilter(objPath, widget, event);
     }
-    else if (needToDuplicateMouseEvent) {
+    else if (duplicateMouseEvent_) {
         scriptLine = QStringLiteral("%1\n// %2")
                          .arg(scriptLine)
-                         .arg(qMouseEventFilter(objPath, widget, event));
+                         .arg(filters::qMouseEventFilter(objPath, widget, event));
     }
-
     assert(!scriptLine.isEmpty());
     return scriptLine;
 }
@@ -126,18 +108,17 @@ bool UserEventFilter::eventFilter(QObject *reciever, QEvent *event) noexcept
 
         switch (event->type()) {
         case QEvent::MouseButtonPress: {
-            if (!lastPressEvent_.registerEvent(path, mouseEvent)) {
+            if (!lastPressEvent_.registerEvent(std::move(path), mouseEvent)) {
                 break;
             }
             lastReleaseEvent_.clearEvent();
 
             if (doubleClickTimer_.isActive() && delayedScriptLine_.has_value()) {
-                assert(!delayedScriptLine_->isEmpty());
                 emit newScriptLine(*delayedScriptLine_);
                 delayedScriptLine_.reset();
             }
             doubleClickTimer_.start(QApplication::doubleClickInterval());
-            delayedHandler_.findAndSetDelayedFilter(widgetItem, mouseEvent);
+            widgetFilter_.findAndSetDelayedFilter(widgetItem, mouseEvent);
             break;
         }
         case QEvent::MouseButtonRelease: {
@@ -146,12 +127,12 @@ bool UserEventFilter::eventFilter(QObject *reciever, QEvent *event) noexcept
             }
 
             if (doubleClickTimer_.isActive()) {
-                delayedScriptLine_ = handleMouseEvent(path, widgetItem, mouseEvent);
+                delayedScriptLine_ = handleMouseEvent(std::move(path), widgetItem, mouseEvent);
             }
             else {
                 if (doubleClickDetected_) {
                     doubleClickDetected_ = false;
-                    if (lastReleaseEvent_.isDelayed(lastPressEvent_)) {
+                    if (lastReleaseEvent_.isContinuous(lastPressEvent_)) {
                         emit newScriptLine(
                             handleMouseEvent(std::move(path), widgetItem, mouseEvent));
                     }
@@ -171,7 +152,7 @@ bool UserEventFilter::eventFilter(QObject *reciever, QEvent *event) noexcept
             if (!lastPressEvent_.registerEvent(path, mouseEvent)) {
                 break;
             }
-            delayedHandler_.findAndSetDelayedFilter(widgetItem, mouseEvent);
+            widgetFilter_.findAndSetDelayedFilter(widgetItem, mouseEvent);
             doubleClickTimer_.stop();
             doubleClickDetected_ = true;
             delayedScriptLine_ = handleMouseEvent(std::move(path), widgetItem, mouseEvent);
@@ -192,23 +173,5 @@ bool UserEventFilter::eventFilter(QObject *reciever, QEvent *event) noexcept
     }
 
     return QObject::eventFilter(reciever, event);
-}
-
-QString UserEventFilter::callWidgetFilters(QWidget *widget, QMouseEvent *event,
-                                           bool isDelayed) noexcept
-{
-    const auto delayedResult = delayedHandler_.callDelayedFilter(widget, event, isDelayed);
-    if (delayedResult.has_value() && !(*delayedResult).isEmpty()) {
-        return *delayedResult;
-    }
-
-    QString result;
-    for (auto &filter : widgetFilters_) {
-        result = filter(widget, event, isDelayed);
-        if (!result.isEmpty()) {
-            return result;
-        }
-    }
-    return result;
 }
 } // namespace QtAda::core

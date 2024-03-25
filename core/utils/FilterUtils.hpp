@@ -1,33 +1,34 @@
 #pragma once
 
-#include <QEvent>
-#include <QtGlobal>
 #include <qnamespace.h>
 
+#include "ProcessedObjects.hpp"
+
 QT_BEGIN_NAMESPACE
+class QEvent;
 class QObject;
 class QString;
 class QWidget;
 class QModelIndex;
+class QLatin1String;
 QT_END_NAMESPACE
 
 namespace QtAda::core::utils {
-enum WidgetClass {
-    ComboBox,
-    SpinBox,
-    CheckBox,
-    Button,
-};
-
 QString objectPath(const QObject *obj) noexcept;
-QString mouseButtonToString(Qt::MouseButton mouseButton) noexcept;
+QString mouseButtonToString(const Qt::MouseButton mouseButton) noexcept;
 
-bool mouseEventCanBeFiltered(QWidget *widget, QEvent *event) noexcept;
+bool mouseEventCanBeFiltered(const QWidget *widget, const QEvent *event) noexcept;
 
-QWidget *searchSpecificWidget(QWidget *widget, WidgetClass widgetClass,
-                              size_t limit = size_t(-1)) noexcept;
-std::pair<QWidget *, size_t> searchSpecificWidgetWithIteration(QWidget *widget,
-                                                               WidgetClass widgetClass,
-                                                               size_t limit = size_t(-1)) noexcept;
-QString itemIdInWidgetView(QWidget *widget, QModelIndex index, WidgetClass widgetClass) noexcept;
+QString itemIdInWidgetView(const QWidget *widget, const QModelIndex index,
+                           const WidgetClass widgetClass) noexcept;
+QString setValueStatement(const QString &path, const QString &value,
+                          bool isStringValue = false) noexcept;
+
+const QWidget *searchSpecificWidget(const QWidget *widget,
+                                    const QVector<QLatin1String> &classDesignations,
+                                    size_t limit = 1) noexcept;
+std::pair<const QWidget *, size_t>
+searchSpecificWidgetWithIteration(const QWidget *widget,
+                                  const QVector<QLatin1String> &classDesignations,
+                                  size_t limit = 1) noexcept;
 } // namespace QtAda::core::utils
