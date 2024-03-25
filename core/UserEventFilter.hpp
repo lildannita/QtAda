@@ -13,6 +13,8 @@
 #include <vector>
 #include <queue>
 
+#include "WidgetEventFilters.hpp"
+
 QT_BEGIN_NAMESPACE
 class QQuickItem;
 QT_END_NAMESPACE
@@ -29,7 +31,6 @@ signals:
     void newScriptLine(const QString &scriptLine);
 
 private:
-    using WidgetEventFilter = std::function<QString(QWidget *, QMouseEvent *, bool)>;
     struct LastMouseEvent {
         QEvent::Type type = QEvent::None;
         QDateTime timestamp;
@@ -45,6 +46,7 @@ private:
     };
 
     std::vector<WidgetEventFilter> widgetFilters_;
+    DelayedWidgetFilter delayedHandler_;
     LastMouseEvent lastPressEvent_;
     LastMouseEvent lastReleaseEvent_;
 

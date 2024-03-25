@@ -5,12 +5,12 @@ set(QTADA_CORE_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR} PARENT_SCOPE)
 set(core_MOC_HDRS
   Probe.hpp
   MetaObjectHandler.hpp
-  UserEventFilter.hpp)
+  UserEventFilter.hpp
+  WidgetEventFilters.hpp)
 set(core_HDRS
   ${core_MOC_HDRS}
   ProbeGuard.hpp
   MetaTypeDeclarations.hpp
-  WidgetEventFilters.hpp
   utils/Execution.hpp
   utils/FilterUtils.hpp)
 set(core_SRCS

@@ -4,7 +4,6 @@
 #include <QQuickItem>
 #include <QWidget>
 
-#include "WidgetEventFilters.hpp"
 #include "utils/FilterUtils.hpp"
 
 //! TODO: remove
@@ -72,7 +71,7 @@ UserEventFilter::UserEventFilter(QObject *parent) noexcept
     });
 
     widgetFilters_ = {
-        qComboBoxFilter, qSpinBoxFilter, qCheckBoxFilter,
+        qComboBoxFilter, qCheckBoxFilter,
         qButtonFilter, // Обязательно последним
     };
 
@@ -138,6 +137,7 @@ bool UserEventFilter::eventFilter(QObject *reciever, QEvent *event) noexcept
                 delayedScriptLine_.reset();
             }
             doubleClickTimer_.start(QApplication::doubleClickInterval());
+            delayedHandler_.findAndSetDelayedFilter(widgetItem, mouseEvent);
             break;
         }
         case QEvent::MouseButtonRelease: {
@@ -171,6 +171,7 @@ bool UserEventFilter::eventFilter(QObject *reciever, QEvent *event) noexcept
             if (!lastPressEvent_.registerEvent(path, mouseEvent)) {
                 break;
             }
+            delayedHandler_.findAndSetDelayedFilter(widgetItem, mouseEvent);
             doubleClickTimer_.stop();
             doubleClickDetected_ = true;
             delayedScriptLine_ = handleMouseEvent(std::move(path), widgetItem, mouseEvent);
@@ -196,6 +197,11 @@ bool UserEventFilter::eventFilter(QObject *reciever, QEvent *event) noexcept
 QString UserEventFilter::callWidgetFilters(QWidget *widget, QMouseEvent *event,
                                            bool isDelayed) noexcept
 {
+    const auto delayedResult = delayedHandler_.callDelayedFilter(widget, event, isDelayed);
+    if (delayedResult.has_value() && !(*delayedResult).isEmpty()) {
+        return *delayedResult;
+    }
+
     QString result;
     for (auto &filter : widgetFilters_) {
         result = filter(widget, event, isDelayed);

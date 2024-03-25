@@ -3,6 +3,7 @@
 #include <QString>
 #include <QObject>
 #include <QMouseEvent>
+#include <map>
 
 #include <QComboBox>
 #include <QListView>
@@ -90,7 +91,7 @@ QString qCheckBoxFilter(QWidget *widget, QMouseEvent *event, bool)
     }
 }
 
-QString qSpinBoxFilter(QWidget *widget, QMouseEvent *event, bool isDelayed)
+static QString qSpinBoxFilter(QWidget *widget, QMouseEvent *event, bool isContinuous)
 {
     if (!utils::mouseEventCanBeFiltered(widget, event)) {
         return QString();
@@ -101,19 +102,26 @@ QString qSpinBoxFilter(QWidget *widget, QMouseEvent *event, bool isDelayed)
         return QString();
     }
 
-    if (isDelayed) {
+    bool isDblClick = event->type() == QEvent::MouseButtonDblClick;
+    if (isContinuous || isDblClick) {
         auto *spinBoxWidget = qobject_cast<QSpinBox *>(spinBox);
         if (spinBoxWidget != nullptr) {
             return QStringLiteral("setValue('%1', %2)")
                 .arg(utils::objectPath(spinBox))
-                .arg(spinBoxWidget->value());
+                //! TODO: костыль, так как spinBoxWidget->value() при
+                //! MouseButtonDblClick почему-то не соответствует действительности, что
+                //! странно, так как значение изменяется при событии нажатия, а не
+                //! отпускания, а на этапе обработки MouseButtonDblClick значение должно
+                //! было измениться два раза
+                .arg(spinBoxWidget->value() + (isDblClick ? spinBoxWidget->singleStep() : 0));
         }
 
         auto *doubleSpinBoxWidget = qobject_cast<QDoubleSpinBox *>(spinBox);
         assert(doubleSpinBoxWidget != nullptr);
         return QStringLiteral("setValue('%1', %2)")
             .arg(utils::objectPath(spinBox))
-            .arg(spinBoxWidget->value());
+            //! TODO: костыль (см. выше)
+            .arg(spinBoxWidget->value() + (isDblClick ? spinBoxWidget->singleStep() : 0));
     }
     else {
         const QRect upButtonRect(0, 0, spinBox->width(), spinBox->height() / 2);
@@ -158,5 +166,67 @@ QString qButtonFilter(QWidget *widget, QMouseEvent *event, bool)
             .arg(utils::objectPath(button))
             .arg(buttonText);
     }
+}
+
+static const std::map<utils::WidgetClass, WidgetEventFilter> s_delayedFilters = {
+    { utils::WidgetClass::SpinBox, qSpinBoxFilter },
+};
+
+void DelayedWidgetFilter::findAndSetDelayedFilter(QWidget *widget, QMouseEvent *event) noexcept
+{
+    if (widget == delayedWidget_ && event == causedEvent_
+        && causedEventType_ == QEvent::MouseButtonPress
+        && event->type() == QEvent::MouseButtonDblClick) {
+        return;
+    }
+
+    destroyDelay();
+    if (utils::searchSpecificWidget(widget, utils::WidgetClass::SpinBox, 1) != nullptr) {
+        auto *spinBox = qobject_cast<QSpinBox *>(widget);
+        assert(spinBox != nullptr);
+        QMetaObject::Connection connection = connect(
+            spinBox, static_cast<void (QSpinBox::*)(int)>(&QSpinBox::valueChanged), this, [this] {
+                std::cout << "ValueChanged" << std::endl;
+                emit this->signalDetected();
+            });
+        setDelayedFilter(widget, event, s_delayedFilters.at(utils::WidgetClass::SpinBox),
+                         connection);
+    }
+}
+
+bool DelayedWidgetFilter::delayedFilterCanBeCalledForWidget(const QWidget *widget) const noexcept
+{
+    return needToUseFilter_ && !connection_ && delayedFilter_.has_value()
+           && delayedWidget_ != nullptr && delayedWidget_ == widget;
+}
+
+void DelayedWidgetFilter::setDelayedFilter(QWidget *widget, QMouseEvent *event,
+                                           const WidgetEventFilter &filter,
+                                           QMetaObject::Connection &connection) noexcept
+{
+    causedEvent_ = event;
+    causedEventType_ = event->type();
+    delayedWidget_ = widget;
+    delayedFilter_ = filter;
+    connection_ = connection;
+}
+
+void DelayedWidgetFilter::destroyDelay() noexcept
+{
+    causedEventType_ = QEvent::None;
+    delayedWidget_ = nullptr;
+    delayedFilter_ = std::nullopt;
+    needToUseFilter_ = false;
+    if (connection_) {
+        QObject::disconnect(connection_);
+    }
+}
+
+std::optional<QString> DelayedWidgetFilter::callDelayedFilter(QWidget *widget, QMouseEvent *event,
+                                                              bool isContinuous) noexcept
+{
+    bool callable = delayedFilterCanBeCalledForWidget(widget);
+    return callable ? std::make_optional((*delayedFilter_)(widget, event, isContinuous))
+                    : std::nullopt;
 }
 } // namespace QtAda::core
