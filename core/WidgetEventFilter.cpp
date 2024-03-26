@@ -60,8 +60,11 @@ static QString qButtonFilter(const QWidget *widget, const QMouseEvent *event, bo
 
     auto *button = qobject_cast<const QAbstractButton *>(widget);
     assert(button != nullptr);
+    const auto buttonRect = button->rect();
+    const auto clickPos = button->mapFromGlobal(event->globalPos());
 
-    return QStringLiteral("clickButton('%1')%2")
+    return QStringLiteral("%1Button('%2')%3")
+        .arg(buttonRect.contains(clickPos) ? "click" : "press")
         .arg(utils::objectPath(widget))
         .arg(button->text().isEmpty()
                  ? ""
@@ -141,26 +144,41 @@ static QString qComboBoxFilter(const QWidget *widget, const QMouseEvent *event, 
         return QString();
     }
 
-    auto [comboBox, iteration] = utils::searchSpecificWidgetWithIteration(
+    size_t iteration;
+    std::tie(widget, iteration) = utils::searchSpecificWidgetWithIteration(
         widget, s_widgetMetaMap.at(WidgetClass::ComboBox), 4);
-    if (comboBox == nullptr) {
+    if (widget == nullptr) {
         return QString();
     }
-    if (iteration == 2) {
+    if (iteration <= 2) {
         return QStringLiteral("// Looks like QComboBox expansion\n// %1")
-            .arg(qMouseEventFilter(utils::objectPath(comboBox), comboBox, event));
+            .arg(qMouseEventFilter(utils::objectPath(widget), widget, event));
     }
 
-    auto *comboBoxView = qobject_cast<const QListView *>(widget);
-    if (comboBoxView == nullptr && widget->parent() != nullptr) {
-        comboBoxView = qobject_cast<const QListView *>(widget->parent());
-    }
-    assert(comboBoxView != nullptr);
+    auto *comboBox = qobject_cast<const QComboBox *>(widget);
+    assert(comboBox != nullptr);
 
-    return QStringLiteral("selectItem('%1', '%2')")
-        .arg(utils::objectPath(comboBox))
-        .arg(utils::itemIdInWidgetView(comboBox, comboBoxView->currentIndex(),
-                                       WidgetClass::ComboBox));
+    //! TODO: нужно проверить, если выполнение кода дошло до этого места, то точно ли
+    //! был нажат элемент списка
+    auto *comboBoxView = comboBox->view();
+    const auto containerRect = comboBoxView->rect();
+    const auto clickPos = comboBoxView->mapFromGlobal(event->globalPos());
+
+    if (containerRect.contains(clickPos)) {
+        return QStringLiteral("selectItem('%1', '%2')")
+            .arg(utils::objectPath(comboBox))
+            .arg(utils::itemIdInWidgetView(comboBox, comboBoxView->currentIndex(),
+                                           WidgetClass::ComboBox));
+    }
+    /*
+     * Отпускание мыши не приведет к закрытию QListView, и если мы зарегестрируем событие
+     * обычного "клика", то при воспроизведении это приведет к закрытию QListView. Поэтому
+     * возвращаем комментарий, так как в противном случае, если пользователь выберет элемент
+     * из списка, то это может приведет к ошибке.
+     */
+    return QStringLiteral(
+               "// 'Release' event is outside of QComboBox, so it is still opened\n// %1")
+        .arg(qMouseEventFilter(utils::objectPath(comboBox), comboBox, event));
 }
 
 static QString qSpinBoxFilter(const QWidget *widget, const QMouseEvent *event,
