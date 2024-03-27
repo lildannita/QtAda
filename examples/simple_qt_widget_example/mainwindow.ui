@@ -283,12 +283,18 @@
                   <property name="orientation">
                    <enum>Qt::Horizontal</enum>
                   </property>
+                  <property name="tickPosition">
+                   <enum>QSlider::TicksAbove</enum>
+                  </property>
                  </widget>
                 </item>
                 <item>
                  <widget class="QScrollBar" name="horizontalScrollBar_2">
                   <property name="orientation">
                    <enum>Qt::Horizontal</enum>
+                  </property>
+                  <property name="invertedControls">
+                   <bool>true</bool>
                   </property>
                  </widget>
                 </item>
@@ -701,6 +707,12 @@ li.checked::marker { content: &quot;\2612&quot;; }
      <width>743</width>
      <height>21</height>
     </rect>
+   </property>
+   <property name="defaultUp">
+    <bool>true</bool>
+   </property>
+   <property name="nativeMenuBar">
+    <bool>false</bool>
    </property>
    <widget class="QMenu" name="menuMenu">
     <property name="title">

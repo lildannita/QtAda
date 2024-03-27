@@ -21,8 +21,9 @@ bool mouseEventCanBeFiltered(const QWidget *widget, const QEvent *event) noexcep
 
 QString itemIdInWidgetView(const QWidget *widget, const QModelIndex index,
                            const WidgetClass widgetClass) noexcept;
-QString setValueStatement(const QString &path, const QString &value,
+QString setValueStatement(const QWidget *widget, const QString &value,
                           bool isStringValue = false) noexcept;
+QString changeValueStatement(const QWidget *widget, const QString &type) noexcept;
 
 const QWidget *searchSpecificWidget(const QWidget *widget,
                                     const QVector<QLatin1String> &classDesignations,

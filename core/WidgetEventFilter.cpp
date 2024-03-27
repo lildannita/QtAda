@@ -11,6 +11,7 @@
 #include <QCheckBox>
 #include <QDateTimeEdit>
 #include <QSpinBox>
+#include <QDial>
 #include <QListView>
 
 #include "utils/Common.hpp"
@@ -25,6 +26,7 @@ static const std::map<WidgetClass, QVector<QLatin1String>> s_widgetMetaMap = {
     { Button, { QLatin1String("QAbstractButton") } },
     { RadioButton, { QLatin1String("QRadioButton") } },
     { CheckBox, { QLatin1String("QCheckBox") } },
+    { Slider, { QLatin1String("QAbstractSlider") } },
     { ComboBox, { QLatin1String("QComboBox") } },
     { SpinBox, { QLatin1String("QAbstractSpinBox") } },
 };
@@ -46,7 +48,7 @@ QString qMouseEventFilter(const QString &path, const QWidget *widget,
 }
 
 //! TODO: нужна ли обработка зажатия кастомной кнопки?
-static QString qButtonFilter(const QWidget *widget, const QMouseEvent *event, bool) noexcept
+static QString qButtonFilter(const QWidget *widget, const QMouseEvent *event) noexcept
 {
     if (!utils::mouseEventCanBeFiltered(widget, event)) {
         return QString();
@@ -71,7 +73,7 @@ static QString qButtonFilter(const QWidget *widget, const QMouseEvent *event, bo
                  : QStringLiteral(" // Button text: '%1'").arg(button->text()));
 }
 
-static QString qRadioButtonFilter(const QWidget *widget, const QMouseEvent *event, bool) noexcept
+static QString qRadioButtonFilter(const QWidget *widget, const QMouseEvent *event) noexcept
 {
     if (!utils::mouseEventCanBeFiltered(widget, event)) {
         return QString();
@@ -103,7 +105,7 @@ static QString qRadioButtonFilter(const QWidget *widget, const QMouseEvent *even
     return qMouseEventFilter(utils::objectPath(widget), widget, event);
 }
 
-static QString qCheckBoxFilter(const QWidget *widget, const QMouseEvent *event, bool) noexcept
+static QString qCheckBoxFilter(const QWidget *widget, const QMouseEvent *event) noexcept
 {
     if (!utils::mouseEventCanBeFiltered(widget, event)) {
         return QString();
@@ -138,7 +140,7 @@ static QString qCheckBoxFilter(const QWidget *widget, const QMouseEvent *event, 
     return qMouseEventFilter(utils::objectPath(widget), widget, event);
 }
 
-static QString qComboBoxFilter(const QWidget *widget, const QMouseEvent *event, bool) noexcept
+static QString qComboBoxFilter(const QWidget *widget, const QMouseEvent *event) noexcept
 {
     if (!utils::mouseEventCanBeFiltered(widget, event)) {
         return QString();
@@ -181,8 +183,55 @@ static QString qComboBoxFilter(const QWidget *widget, const QMouseEvent *event, 
         .arg(qMouseEventFilter(utils::objectPath(comboBox), comboBox, event));
 }
 
-static QString qSpinBoxFilter(const QWidget *widget, const QMouseEvent *event,
-                              bool isContinuous) noexcept
+static QString qSliderFilter(const QWidget *widget, const QMouseEvent *event, bool isContinuous,
+                             std::optional<int> actionType)
+{
+    if (!utils::mouseEventCanBeFiltered(widget, event)) {
+        return QString();
+    }
+
+    widget = utils::searchSpecificWidget(widget, s_widgetMetaMap.at(WidgetClass::Slider));
+    if (widget == nullptr) {
+        return QString();
+    }
+
+    assert(actionType.has_value());
+    if (*actionType == QAbstractSlider::SliderNoAction) {
+        return QString();
+    }
+
+    auto *slider = qobject_cast<const QAbstractSlider *>(widget);
+    assert(slider != nullptr);
+
+    // Рассматриваем отдельно, так как любое зарегестрированное нажатие
+    // на QDial приводит к установке значения "под курсором"
+    if (qobject_cast<const QDial *>(widget)) {
+        return utils::setValueStatement(widget, QString::number(slider->value()));
+    }
+
+    //! TODO: надо удостовериться, возможно ли вызвать SliderSingleStepAdd(Sub) нажатием мыши,
+    //! если нет - то убрать эти типы из проверки
+    switch (*actionType) {
+    case QAbstractSlider::SliderSingleStepAdd:
+        return utils::changeValueStatement(widget, "SingleStepAdd");
+    case QAbstractSlider::SliderSingleStepSub:
+        return utils::changeValueStatement(widget, "SingleStepSub");
+    case QAbstractSlider::SliderPageStepAdd:
+        return utils::changeValueStatement(widget, "PageStepAdd");
+    case QAbstractSlider::SliderPageStepSub:
+        return utils::changeValueStatement(widget, "PageStepSub");
+    case QAbstractSlider::SliderToMinimum:
+        return utils::changeValueStatement(widget, "ToMinimum");
+    case QAbstractSlider::SliderToMaximum:
+        return utils::changeValueStatement(widget, "ToMaximum");
+    case QAbstractSlider::SliderMove:
+        return utils::setValueStatement(widget, QString::number(slider->value()));
+    }
+    Q_UNREACHABLE();
+}
+
+static QString qSpinBoxFilter(const QWidget *widget, const QMouseEvent *event, bool isContinuous,
+                              std::optional<int>) noexcept
 {
     if (!utils::mouseEventCanBeFiltered(widget, event)) {
         return QString();
@@ -194,16 +243,14 @@ static QString qSpinBoxFilter(const QWidget *widget, const QMouseEvent *event,
     }
 
     if (auto *dateEdit = qobject_cast<const QDateEdit *>(widget)) {
-        return utils::setValueStatement(utils::objectPath(widget),
-                                        dateEdit->date().toString(Qt::ISODate), true);
+        return utils::setValueStatement(widget, dateEdit->date().toString(Qt::ISODate), true);
     }
     else if (auto *timeEdit = qobject_cast<const QTimeEdit *>(widget)) {
-        return utils::setValueStatement(utils::objectPath(widget),
-                                        timeEdit->time().toString(Qt::ISODate), true);
+        return utils::setValueStatement(widget, timeEdit->time().toString(Qt::ISODate), true);
     }
     else if (auto *dateTimeEdit = qobject_cast<const QDateTimeEdit *>(widget)) {
-        return utils::setValueStatement(utils::objectPath(widget),
-                                        dateTimeEdit->dateTime().toString(Qt::ISODate), true);
+        return utils::setValueStatement(widget, dateTimeEdit->dateTime().toString(Qt::ISODate),
+                                        true);
     }
 
     bool isDblClick = event->type() == QEvent::MouseButtonDblClick;
@@ -215,7 +262,7 @@ static QString qSpinBoxFilter(const QWidget *widget, const QMouseEvent *event,
             //! отпускания, а на этапе обработки MouseButtonDblClick значение должно
             //! было измениться два раза
             return utils::setValueStatement(
-                utils::objectPath(widget),
+                widget,
                 QString::number(spinBox->value() + (isDblClick ? spinBox->singleStep() : 0)));
         };
         if (auto *spinBox = qobject_cast<const QSpinBox *>(widget)) {
@@ -231,10 +278,10 @@ static QString qSpinBoxFilter(const QWidget *widget, const QMouseEvent *event,
         const QRect downButtonRect(0, widget->height() / 2, widget->width(), widget->height() / 2);
 
         if (upButtonRect.contains(event->pos())) {
-            return QStringLiteral("changeValue('%1', 'Up')").arg(utils::objectPath(widget));
+            return utils::changeValueStatement(widget, "Up");
         }
         else if (downButtonRect.contains(event->pos())) {
-            return QStringLiteral("changeValue('%1', 'Down')").arg(utils::objectPath(widget));
+            return utils::changeValueStatement(widget, "Down");
         }
     }
 
@@ -255,6 +302,7 @@ WidgetEventFilter::WidgetEventFilter(QObject *parent) noexcept
     };
 
     delayedFilterFunctions_ = {
+        { WidgetClass::Slider, filters::qSliderFilter },
         { WidgetClass::SpinBox, filters::qSpinBoxFilter },
     };
 }
@@ -269,7 +317,7 @@ QString WidgetEventFilter::callWidgetFilters(const QWidget *widget, const QMouse
 
     QString result;
     for (auto &filter : filterFunctions_) {
-        result = filter(widget, event, isDelayed);
+        result = filter(widget, event);
         if (!result.isEmpty()) {
             return result;
         }
@@ -287,10 +335,14 @@ void WidgetEventFilter::findAndSetDelayedFilter(const QWidget *widget,
     }
 
     destroyDelay();
-    auto slot = [this] { emit this->signalDetected(); };
+    WidgetClass foundWidgetClass = WidgetClass::None;
+    QMetaObject::Connection connection;
+
     if (utils::searchSpecificWidget(widget, filters::s_widgetMetaMap.at(WidgetClass::SpinBox))
         != nullptr) {
-        auto connection = utils::connectIfType<QSpinBox>(
+        auto slot = [this] { emit this->signalDetected(); };
+        foundWidgetClass = WidgetClass::SpinBox;
+        connection = utils::connectIfType<QSpinBox>(
             widget, this, static_cast<void (QSpinBox::*)(int)>(&QSpinBox::valueChanged), slot);
         if (!connection) {
             connection = utils::connectIfType<QDoubleSpinBox>(
@@ -304,8 +356,19 @@ void WidgetEventFilter::findAndSetDelayedFilter(const QWidget *widget,
                     &QDateTimeEdit::dateTimeChanged),
                 slot);
         }
+    }
+    else if (utils::searchSpecificWidget(widget, filters::s_widgetMetaMap.at(WidgetClass::Slider))
+             != nullptr) {
+        auto slot = [this](int type) { emit this->specificSignalDetected(type); };
+        foundWidgetClass = WidgetClass::Slider;
+        connection = utils::connectIfType<QAbstractSlider>(
+            widget, this,
+            static_cast<void (QAbstractSlider::*)(int)>(&QAbstractSlider::actionTriggered), slot);
+    }
 
-        initDelay(widget, event, delayedFilterFunctions_.at(WidgetClass::SpinBox), connection);
+    if (foundWidgetClass != WidgetClass::None) {
+        assert(connection);
+        initDelay(widget, event, delayedFilterFunctions_.at(foundWidgetClass), connection);
     }
 }
 
@@ -316,7 +379,7 @@ bool WidgetEventFilter::delayedFilterCanBeCalledForWidget(const QWidget *widget)
 }
 
 void WidgetEventFilter::initDelay(const QWidget *widget, const QMouseEvent *event,
-                                  const WidgetFilterFunction &filter,
+                                  const DelayedWidgetFilterFunction &filter,
                                   QMetaObject::Connection &connection) noexcept
 {
     causedEvent_ = event;
@@ -331,6 +394,7 @@ void WidgetEventFilter::destroyDelay() noexcept
     causedEventType_ = QEvent::None;
     delayedWidget_ = nullptr;
     delayedFilter_ = std::nullopt;
+    delayedActionType_ = std::nullopt;
     needToUseFilter_ = false;
     if (connection_) {
         QObject::disconnect(connection_);
@@ -342,7 +406,8 @@ std::optional<QString> WidgetEventFilter::callDelayedFilter(const QWidget *widge
                                                             bool isContinuous) const noexcept
 {
     bool callable = delayedFilterCanBeCalledForWidget(widget);
-    return callable ? std::make_optional((*delayedFilter_)(widget, event, isContinuous))
+    return callable ? std::make_optional(
+               (*delayedFilter_)(widget, event, isContinuous, delayedActionType_))
                     : std::nullopt;
 }
 } // namespace QtAda::core

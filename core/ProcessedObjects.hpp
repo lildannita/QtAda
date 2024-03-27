@@ -5,7 +5,9 @@ enum WidgetClass {
     Button,
     RadioButton,
     CheckBox,
+    Slider,
     ComboBox,
     SpinBox,
+    None,
 };
 }

@@ -153,9 +153,14 @@ QString itemIdInWidgetView(const QWidget *widget, const QModelIndex index,
     }
 }
 
-QString setValueStatement(const QString &path, const QString &value, bool isStringValue) noexcept
+QString setValueStatement(const QWidget *widget, const QString &value, bool isStringValue) noexcept
 {
-    return isStringValue ? QStringLiteral("setValue('%1', '%2')").arg(path, value)
-                         : QStringLiteral("setValue('%1', %2)").arg(path, value);
+    return isStringValue ? QStringLiteral("setValue('%1', '%2')").arg(objectPath(widget), value)
+                         : QStringLiteral("setValue('%1', %2)").arg(objectPath(widget), value);
+}
+
+QString changeValueStatement(const QWidget *widget, const QString &type) noexcept
+{
+    return QStringLiteral("changeValue('%1', '%2')").arg(objectPath(widget), type);
 }
 } // namespace QtAda::core::utils

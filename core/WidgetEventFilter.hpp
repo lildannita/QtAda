@@ -3,6 +3,7 @@
 #include <QtGlobal>
 #include <functional>
 #include <optional>
+#include <variant>
 
 #include <QObject>
 #include <QEvent>
@@ -21,7 +22,9 @@ QString qMouseEventFilter(const QString &path, const QWidget *widget,
 }
 
 namespace QtAda::core {
-using WidgetFilterFunction = std::function<QString(const QWidget *, const QMouseEvent *, bool)>;
+using WidgetFilterFunction = std::function<QString(const QWidget *, const QMouseEvent *)>;
+using DelayedWidgetFilterFunction
+    = std::function<QString(const QWidget *, const QMouseEvent *, bool, std::optional<int>)>;
 class WidgetEventFilter : public QObject {
     Q_OBJECT
 public:
@@ -39,21 +42,30 @@ private slots:
             QObject::disconnect(connection_);
         }
     }
+    void specificSignalDetected(int type)
+    {
+        delayedActionType_ = type;
+        signalDetected();
+    }
 
 private:
     std::vector<WidgetFilterFunction> filterFunctions_;
-    std::map<WidgetClass, WidgetFilterFunction> delayedFilterFunctions_;
+    std::map<WidgetClass, DelayedWidgetFilterFunction> delayedFilterFunctions_;
 
     QEvent::Type causedEventType_ = QEvent::None;
     const QEvent *causedEvent_ = nullptr;
     const QWidget *delayedWidget_ = nullptr;
-    std::optional<WidgetFilterFunction> delayedFilter_ = std::nullopt;
+    std::optional<DelayedWidgetFilterFunction> delayedFilter_ = std::nullopt;
     bool needToUseFilter_ = false;
     QMetaObject::Connection connection_;
 
+    //! TODO: пока используем только std::optional<int>, который нужен только для определения
+    //! действия над QAbstractSlider, но, возможно, позже, нужно будет менять на std::variant
+    std::optional<int> delayedActionType_;
+
     bool delayedFilterCanBeCalledForWidget(const QWidget *widget) const noexcept;
     void initDelay(const QWidget *widget, const QMouseEvent *event,
-                   const WidgetFilterFunction &filter,
+                   const DelayedWidgetFilterFunction &filter,
                    QMetaObject::Connection &connection) noexcept;
     void destroyDelay() noexcept;
     std::optional<QString> callDelayedFilter(const QWidget *widget, const QMouseEvent *event,
