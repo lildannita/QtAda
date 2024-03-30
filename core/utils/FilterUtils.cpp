@@ -1,6 +1,6 @@
 #include "FilterUtils.hpp"
 
-#include <QEvent>
+#include <QMouseEvent>
 #include <QModelIndex>
 
 #include <QComboBox>
@@ -90,10 +90,10 @@ QString mouseButtonToString(const Qt::MouseButton mouseButton) noexcept
     return QLatin1String("<unknown>");
 }
 
-bool mouseEventCanBeFiltered(const QWidget *widget, const QEvent *event) noexcept
+bool mouseEventCanBeFiltered(const QWidget *widget, const QMouseEvent *event) noexcept
 {
     const auto type = event->type();
-    return widget != nullptr && event != nullptr
+    return widget != nullptr && event != nullptr && event->button() == Qt::LeftButton
            && (type == QEvent::MouseButtonRelease || type == QEvent::MouseButtonDblClick);
 }
 

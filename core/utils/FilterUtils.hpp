@@ -17,7 +17,7 @@ namespace QtAda::core::utils {
 QString objectPath(const QObject *obj) noexcept;
 QString mouseButtonToString(const Qt::MouseButton mouseButton) noexcept;
 
-bool mouseEventCanBeFiltered(const QWidget *widget, const QEvent *event) noexcept;
+bool mouseEventCanBeFiltered(const QWidget *widget, const QMouseEvent *event) noexcept;
 
 QString itemIdInWidgetView(const QWidget *widget, const QModelIndex index,
                            const WidgetClass widgetClass) noexcept;
