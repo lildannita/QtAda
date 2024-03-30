@@ -62,6 +62,6 @@ private:
     WidgetEventFilter widgetFilter_;
 
     QString handleMouseEvent(const QString &objPath, const QWidget *widget,
-                             const QMouseEvent *event) const noexcept;
+                             const QMouseEvent *event) noexcept;
 };
 } // namespace QtAda::core

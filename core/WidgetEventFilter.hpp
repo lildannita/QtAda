@@ -22,16 +22,30 @@ QString qMouseEventFilter(const QString &path, const QWidget *widget,
 }
 
 namespace QtAda::core {
+struct ExtraInfoForDelayed final {
+    bool isContinuous = false;
+    //! TODO: пока используем только std::optional<int>, который нужен только для определения
+    //! действия над QAbstractSlider, но, возможно, позже, нужно будет менять на std::variant
+    std::optional<int> changeType = std::nullopt;
+
+    void clear() noexcept
+    {
+        isContinuous = false;
+        changeType = std::nullopt;
+    }
+};
+
 using WidgetFilterFunction = std::function<QString(const QWidget *, const QMouseEvent *)>;
 using DelayedWidgetFilterFunction
-    = std::function<QString(const QWidget *, const QMouseEvent *, bool, std::optional<int>)>;
+    = std::function<QString(const QWidget *, const QMouseEvent *, const ExtraInfoForDelayed &)>;
+
 class WidgetEventFilter : public QObject {
     Q_OBJECT
 public:
     WidgetEventFilter(QObject *parent = nullptr) noexcept;
 
     QString callWidgetFilters(const QWidget *widget, const QMouseEvent *event,
-                              bool isDelayed) const noexcept;
+                              bool isContinuous) noexcept;
     void findAndSetDelayedFilter(const QWidget *widget, const QMouseEvent *event) noexcept;
 
 private slots:
@@ -44,7 +58,7 @@ private slots:
     }
     void specificSignalDetected(int type)
     {
-        delayedActionType_ = type;
+        delayedExtra_.changeType = type;
         signalDetected();
     }
 
@@ -59,9 +73,7 @@ private:
     bool needToUseFilter_ = false;
     QMetaObject::Connection connection_;
 
-    //! TODO: пока используем только std::optional<int>, который нужен только для определения
-    //! действия над QAbstractSlider, но, возможно, позже, нужно будет менять на std::variant
-    std::optional<int> delayedActionType_;
+    ExtraInfoForDelayed delayedExtra_;
 
     bool delayedFilterCanBeCalledForWidget(const QWidget *widget) const noexcept;
     void initDelay(const QWidget *widget, const QMouseEvent *event,
@@ -69,6 +81,6 @@ private:
                    QMetaObject::Connection &connection) noexcept;
     void destroyDelay() noexcept;
     std::optional<QString> callDelayedFilter(const QWidget *widget, const QMouseEvent *event,
-                                             bool isContinuous = false) const noexcept;
+                                             bool isContinuous = false) noexcept;
 };
 } // namespace QtAda::core

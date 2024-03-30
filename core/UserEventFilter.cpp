@@ -64,7 +64,7 @@ UserEventFilter::UserEventFilter(QObject *parent) noexcept
 }
 
 QString UserEventFilter::handleMouseEvent(const QString &objPath, const QWidget *widget,
-                                          const QMouseEvent *event) const noexcept
+                                          const QMouseEvent *event) noexcept
 {
     auto scriptLine = widgetFilter_.callWidgetFilters(
         widget, event, lastReleaseEvent_.isContinuous(lastPressEvent_));

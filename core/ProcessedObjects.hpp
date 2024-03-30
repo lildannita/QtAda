@@ -8,6 +8,7 @@ enum WidgetClass {
     Slider,
     ComboBox,
     SpinBox,
+    Calendar,
     None,
 };
 }

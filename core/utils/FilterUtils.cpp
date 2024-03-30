@@ -1,8 +1,6 @@
 #include "FilterUtils.hpp"
 
 #include <QEvent>
-#include <QString>
-#include <QWidget>
 #include <QModelIndex>
 
 #include <QComboBox>
@@ -99,27 +97,28 @@ bool mouseEventCanBeFiltered(const QWidget *widget, const QEvent *event) noexcep
            && (type == QEvent::MouseButtonRelease || type == QEvent::MouseButtonDblClick);
 }
 
-std::pair<const QWidget *, size_t> searchSpecificWidgetWithIteration(
-    const QWidget *widget, const QVector<QLatin1String> &classDesignations, size_t limit) noexcept
+std::pair<const QWidget *, size_t>
+searchSpecificWidgetWithIteration(const QWidget *widget,
+                                  const std::pair<QLatin1String, size_t> &classDesignation) noexcept
 {
-    for (size_t i = 1; i <= limit && widget != nullptr; i++) {
+    for (size_t i = 1; i <= classDesignation.second && widget != nullptr; i++) {
         const auto *metaObject = widget->metaObject();
         while (metaObject != nullptr) {
-            if (classDesignations.contains(QLatin1String(metaObject->className()))) {
+            if (classDesignation.first == metaObject->className()) {
                 return std::make_pair(widget, i);
             }
             metaObject = metaObject->superClass();
         }
-        widget = qobject_cast<QWidget *>(widget->parent());
+        widget = widget->parentWidget();
     }
     return std::make_pair(nullptr, 0);
 }
 
-const QWidget *searchSpecificWidget(const QWidget *widget,
-                                    const QVector<QLatin1String> &classDesignations,
-                                    size_t limit) noexcept
+const QWidget *
+searchSpecificWidget(const QWidget *widget,
+                     const std::pair<QLatin1String, size_t> &classDesignation) noexcept
 {
-    return searchSpecificWidgetWithIteration(widget, classDesignations, limit).first;
+    return searchSpecificWidgetWithIteration(widget, classDesignation).first;
 }
 
 QString itemIdInWidgetView(const QWidget *widget, const QModelIndex index,
@@ -151,16 +150,5 @@ QString itemIdInWidgetView(const QWidget *widget, const QModelIndex index,
     default:
         return QString();
     }
-}
-
-QString setValueStatement(const QWidget *widget, const QString &value, bool isStringValue) noexcept
-{
-    return isStringValue ? QStringLiteral("setValue('%1', '%2')").arg(objectPath(widget), value)
-                         : QStringLiteral("setValue('%1', %2)").arg(objectPath(widget), value);
-}
-
-QString changeValueStatement(const QWidget *widget, const QString &type) noexcept
-{
-    return QStringLiteral("changeValue('%1', '%2')").arg(objectPath(widget), type);
 }
 } // namespace QtAda::core::utils
