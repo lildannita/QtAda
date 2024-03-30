@@ -17,6 +17,7 @@
 #include <QCalendarWidget>
 #include <QMenu>
 #include <QAction>
+#include <QTabBar>
 
 #include "utils/Common.hpp"
 #include "utils/FilterUtils.hpp"
@@ -43,6 +44,7 @@ static const std::map<WidgetClass, std::pair<QLatin1String, size_t>> s_widgetMet
     { SpinBox, { QLatin1String("QAbstractSpinBox"), 1 } },
     { Calendar, { QLatin1String("QCalendarView"), 2 } },
     { Menu, { QLatin1String("QMenu"), 1 } },
+    { TabBar, { QLatin1String("QTabBar"), 1 } },
 };
 
 QString qMouseEventFilter(const QString &path, const QWidget *widget,
@@ -400,17 +402,39 @@ static QString qMenuFilter(const QWidget *widget, const QMouseEvent *event) noex
     }
     else {
         const auto actionText = action->text();
-        const auto actionIndex = menu->actions().indexOf(action);
         return QStringLiteral("%1activateMenuAction('%2', '%3'%4)%5")
             .arg(action->isSeparator() ? "// Looks like QMenu::Separator clicked\n// " : "")
             .arg(utils::objectPath(widget))
-            .arg(utils::widgetIdInView(menu, actionIndex, WidgetClass::Menu))
+            .arg(utils::widgetIdInView(menu, menu->actions().indexOf(action), WidgetClass::Menu))
             .arg(action->isCheckable()
                      ? QStringLiteral(", %1").arg(action->isChecked() ? "false" : "true")
                      : "")
             .arg(actionText.isEmpty() ? ""
                                       : QStringLiteral(" // Action text: '%1'").arg(actionText));
     }
+}
+
+static QString qTabBarFilter(const QWidget *widget, const QMouseEvent *event) noexcept
+{
+    if (!utils::mouseEventCanBeFiltered(widget, event)) {
+        return QString();
+    }
+
+    widget = utils::searchSpecificWidget(widget, s_widgetMetaMap.at(WidgetClass::TabBar));
+    if (widget == nullptr) {
+        return QString();
+    }
+
+    auto *tabBar = qobject_cast<const QTabBar *>(widget);
+    assert(tabBar != nullptr);
+
+    const auto currentIndex = tabBar->currentIndex();
+    const auto currentText = tabBar->tabText(currentIndex);
+    return QStringLiteral("selectTabItem('%1', '%2')%3")
+        .arg(utils::objectPath(widget))
+        .arg(utils::widgetIdInView(tabBar, currentIndex, WidgetClass::TabBar))
+        .arg(currentText.isEmpty() ? ""
+                                   : QStringLiteral(" // Tab item text: '%1'").arg(currentText));
 }
 } // namespace QtAda::core::filters
 
@@ -423,6 +447,7 @@ WidgetEventFilter::WidgetEventFilter(QObject *parent) noexcept
         filters::qCheckBoxFilter,
         filters::qComboBoxFilter,
         filters::qMenuFilter,
+        filters::qTabBarFilter,
         // Обязательно в таком порядке:
         filters::qButtonFilter,
         /*

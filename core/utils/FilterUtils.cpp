@@ -156,6 +156,20 @@ QString widgetIdInView(const QWidget *widget, const int index,
         }
         Q_UNREACHABLE();
     }
+    case TabBar: {
+        auto *tabBar = qobject_cast<const QTabBar *>(widget);
+        assert(tabBar != nullptr);
+        const auto itemText = tabBar->tabText(index);
+        for (int i = 0, itemIndex = 0; i < tabBar->count(); i++) {
+            if (i == index) {
+                return QStringLiteral("%1_%2").arg(itemText).arg(itemIndex);
+            }
+            if (itemText == tabBar->tabText(i)) {
+                itemIndex++;
+            }
+        }
+        Q_UNREACHABLE();
+    }
     default:
         return QString();
     }

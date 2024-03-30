@@ -639,7 +639,11 @@ li.checked::marker { content: &quot;\2612&quot;; }
          </widget>
         </item>
         <item>
-         <widget class="QListView" name="listView"/>
+         <widget class="QListView" name="listView">
+          <property name="modelColumn">
+           <number>0</number>
+          </property>
+         </widget>
         </item>
         <item>
          <widget class="QLabel" name="label_11">
@@ -693,6 +697,11 @@ li.checked::marker { content: &quot;\2612&quot;; }
          <widget class="QColumnView" name="columnView"/>
         </item>
        </layout>
+      </widget>
+      <widget class="QWidget" name="tab_8">
+       <attribute name="title">
+        <string>ToolBox</string>
+       </attribute>
       </widget>
      </widget>
     </item>

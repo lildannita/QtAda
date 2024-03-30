@@ -10,6 +10,7 @@ enum WidgetClass {
     SpinBox,
     Calendar,
     Menu,
+    TabBar,
     None,
 };
 }
