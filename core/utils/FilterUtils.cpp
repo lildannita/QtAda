@@ -4,6 +4,7 @@
 #include <QModelIndex>
 
 #include <QComboBox>
+#include <QMenu>
 
 //! TODO: remove
 #include <iostream>
@@ -121,28 +122,36 @@ searchSpecificWidget(const QWidget *widget,
     return searchSpecificWidgetWithIteration(widget, classDesignation).first;
 }
 
-QString itemIdInWidgetView(const QWidget *widget, const QModelIndex index,
-                           const WidgetClass widgetClass) noexcept
+QString widgetIdInView(const QWidget *widget, const int index,
+                       const WidgetClass widgetClass) noexcept
 {
-    if (widget == nullptr) {
-        return QString();
-    }
-
     switch (widgetClass) {
     case ComboBox: {
-        const auto *comboBox = qobject_cast<const QComboBox *>(widget);
-        if (comboBox == nullptr) {
-            return QString();
-        }
-        const auto itemText = comboBox->itemText(index.row());
-        const auto itemsCount = comboBox->count();
-        size_t itemIndex = 0;
-        for (size_t i = 0; i < itemsCount; i++) {
-            if (i == index.row()) {
+        auto *comboBox = qobject_cast<const QComboBox *>(widget);
+        assert(comboBox != nullptr);
+        const auto itemText = comboBox->itemText(index);
+        for (int i = 0, itemIndex = 0; i < comboBox->count(); i++) {
+            if (i == index) {
                 return QStringLiteral("%1_%2").arg(itemText).arg(itemIndex);
             }
             if (itemText == comboBox->itemText(i)) {
                 itemIndex++;
+            }
+        }
+        Q_UNREACHABLE();
+    }
+    case Menu: {
+        auto *menu = qobject_cast<const QMenu *>(widget);
+        assert(menu != nullptr);
+        auto *action = menu->actions().at(index);
+        assert(action != nullptr);
+        const auto actionText = action->text();
+        for (int i = 0, actionIndex = 0; i < menu->actions().count(); i++) {
+            if (i == index) {
+                return QStringLiteral("%1_%2").arg(actionText).arg(actionIndex);
+            }
+            if (actionText == menu->actions().at(i)->text()) {
+                actionIndex++;
             }
         }
         Q_UNREACHABLE();

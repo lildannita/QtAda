@@ -9,6 +9,7 @@ enum WidgetClass {
     ComboBox,
     SpinBox,
     Calendar,
+    Menu,
     None,
 };
 }

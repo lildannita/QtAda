@@ -15,6 +15,8 @@
 #include <QListView>
 #include <QTableView>
 #include <QCalendarWidget>
+#include <QMenu>
+#include <QAction>
 
 #include "utils/Common.hpp"
 #include "utils/FilterUtils.hpp"
@@ -40,6 +42,7 @@ static const std::map<WidgetClass, std::pair<QLatin1String, size_t>> s_widgetMet
     { ComboBox, { QLatin1String("QComboBox"), 4 } },
     { SpinBox, { QLatin1String("QAbstractSpinBox"), 1 } },
     { Calendar, { QLatin1String("QCalendarView"), 2 } },
+    { Menu, { QLatin1String("QMenu"), 1 } },
 };
 
 QString qMouseEventFilter(const QString &path, const QWidget *widget,
@@ -180,8 +183,8 @@ static QString qComboBoxFilter(const QWidget *widget, const QMouseEvent *event) 
     if (containerRect.contains(clickPos)) {
         return QStringLiteral("selectItem('%1', '%2')")
             .arg(utils::objectPath(comboBox))
-            .arg(utils::itemIdInWidgetView(comboBox, comboBoxView->currentIndex(),
-                                           WidgetClass::ComboBox));
+            .arg(utils::widgetIdInView(comboBox, comboBoxView->currentIndex().row(),
+                                       WidgetClass::ComboBox));
     }
     /*
      * Отпускание мыши не приведет к закрытию QListView, и если мы зарегестрируем событие
@@ -371,6 +374,44 @@ static QString qCalendarFilter(const QWidget *widget, const QMouseEvent *event) 
     assert(currentDate.isValid());
     return utils::setValueStatement(calendar, currentDate.toString(Qt::ISODate));
 }
+
+static QString qMenuFilter(const QWidget *widget, const QMouseEvent *event) noexcept
+{
+    if (!utils::mouseEventCanBeFiltered(widget, event)) {
+        return QString();
+    }
+
+    widget = utils::searchSpecificWidget(widget, s_widgetMetaMap.at(WidgetClass::Menu));
+    if (widget == nullptr) {
+        return QString();
+    }
+
+    auto *menu = qobject_cast<const QMenu *>(widget);
+    assert(menu != nullptr);
+
+    const auto clickPos = widget->mapFromGlobal(event->globalPos());
+    auto *action = menu->actionAt(clickPos);
+
+    if (action == nullptr) {
+        const auto menuText = menu->title();
+        return QStringLiteral("activateMenu('%1')%2")
+            .arg(utils::objectPath(widget))
+            .arg(menuText.isEmpty() ? "" : QStringLiteral(" // Menu title: '%1'").arg(menuText));
+    }
+    else {
+        const auto actionText = action->text();
+        const auto actionIndex = menu->actions().indexOf(action);
+        return QStringLiteral("%1activateMenuAction('%2', '%3'%4)%5")
+            .arg(action->isSeparator() ? "// Looks like QMenu::Separator clicked\n// " : "")
+            .arg(utils::objectPath(widget))
+            .arg(utils::widgetIdInView(menu, actionIndex, WidgetClass::Menu))
+            .arg(action->isCheckable()
+                     ? QStringLiteral(", %1").arg(action->isChecked() ? "false" : "true")
+                     : "")
+            .arg(actionText.isEmpty() ? ""
+                                      : QStringLiteral(" // Action text: '%1'").arg(actionText));
+    }
+}
 } // namespace QtAda::core::filters
 
 namespace QtAda::core {
@@ -381,6 +422,7 @@ WidgetEventFilter::WidgetEventFilter(QObject *parent) noexcept
         filters::qRadioButtonFilter,
         filters::qCheckBoxFilter,
         filters::qComboBoxFilter,
+        filters::qMenuFilter,
         // Обязательно в таком порядке:
         filters::qButtonFilter,
         /*

@@ -11,6 +11,8 @@ class QEvent;
 class QObject;
 class QModelIndex;
 class QLatin1String;
+class QMenu;
+class QAction;
 QT_END_NAMESPACE
 
 namespace QtAda::core::utils {
@@ -19,8 +21,8 @@ QString mouseButtonToString(const Qt::MouseButton mouseButton) noexcept;
 
 bool mouseEventCanBeFiltered(const QWidget *widget, const QMouseEvent *event) noexcept;
 
-QString itemIdInWidgetView(const QWidget *widget, const QModelIndex index,
-                           const WidgetClass widgetClass) noexcept;
+QString widgetIdInView(const QWidget *widget, const int index,
+                       const WidgetClass widgetClass) noexcept;
 
 std::pair<const QWidget *, size_t> searchSpecificWidgetWithIteration(
     const QWidget *widget, const std::pair<QLatin1String, size_t> &classDesignation) noexcept;
