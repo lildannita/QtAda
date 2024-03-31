@@ -2,7 +2,8 @@ set(example_UI
   mainwindow.ui)
 set(example_MOC_HEADERS
   mainwindow.h
-  dialog.h)
+  dialog.h
+  customDelegate.h)
 set(example_SOURCES
   ${example_MOC_HEADERS}
   main.cpp

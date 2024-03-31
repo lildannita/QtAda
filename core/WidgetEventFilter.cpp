@@ -42,9 +42,10 @@ static const std::map<WidgetClass, std::pair<QLatin1String, size_t>> s_widgetMet
     { Slider, { QLatin1String("QAbstractSlider"), 1 } },
     { ComboBox, { QLatin1String("QComboBox"), 4 } },
     { SpinBox, { QLatin1String("QAbstractSpinBox"), 1 } },
-    { Calendar, { QLatin1String("QCalendarView"), 2 } },
     { Menu, { QLatin1String("QMenu"), 1 } },
     { TabBar, { QLatin1String("QTabBar"), 1 } },
+    { ItemView, { QLatin1String("QAbstractItemView"), 2 } },
+    { Calendar, { QLatin1String("QCalendarView"), 2 } },
 };
 
 QString qMouseEventFilter(const QString &path, const QWidget *widget,
@@ -390,6 +391,64 @@ static QString qCalendarFilter(const QWidget *widget, const QMouseEvent *event,
         .arg(utils::setValueStatement(calendar, currentDate.toString(Qt::ISODate)));
 }
 
+static QString qItemViewFilter(const QWidget *widget, const QMouseEvent *event) noexcept
+{
+    if (!utils::mouseEventCanBeFiltered(widget, event)) {
+        return QString();
+    }
+
+    widget = utils::searchSpecificWidget(widget, s_widgetMetaMap.at(WidgetClass::ItemView));
+    if (widget == nullptr) {
+        return QString();
+    }
+
+    auto *view = qobject_cast<const QAbstractItemView *>(widget);
+    assert(view != nullptr);
+    const auto clickPos = widget->mapFromGlobal(event->globalPos());
+
+    //! TODO:
+    //! 1. Основная проблема в том, что пока что нет четкого понимания, как работать с моделями.
+    //! Чаще бывает так, что данные в модели - далеко не постоянная величина. Также часто бывает,
+    //! что эти данные нельзя представить в виде текста. Поэтому на текущий момент было принято
+    //! решение обращаться к этим данным только по индексу.
+    //!
+    //! 2. Также не очень понятно, обработка каких действий может быть в принципе полезна для
+    //! тестирования. Основное обрабатываемое действие - `клик` по элементу, потому что обычно
+    //! именно это событие и используется в тестируемых приложениях. На всякий случай мы
+    //! пока что также обрабатываем `выбор` элементов, но скорее всего это будет лишним.
+
+    const auto *selectionModel = view->selectionModel();
+    //! TODO: возможна ли ситуация `selectionModel == nullptr`?
+    assert(selectionModel != nullptr);
+    const auto currentIndex = view->currentIndex();
+    const auto selectedIndexes = selectionModel->selectedIndexes();
+    const auto selectedIndex
+        = selectedIndexes.size() == 1 ? selectedIndexes.first() : QModelIndex();
+    if ((view->selectionMode() == QAbstractItemView::NoSelection || currentIndex == selectedIndex)
+        && view->rect().contains(clickPos) && currentIndex.isValid()) {
+        const auto currentItem = view->model()->data(currentIndex);
+        const auto currentItemText
+            = currentItem.canConvert<QString>() ? currentItem.toString() : QString();
+        return QStringLiteral("%1Delegate('%2', (%3, %4))%5")
+            .arg(event->type() == QEvent::MouseButtonDblClick ? "doubleClick" : "click")
+            .arg(utils::objectPath(view))
+            .arg(currentIndex.row())
+            .arg(currentIndex.column())
+            .arg(currentItemText.isEmpty()
+                     ? ""
+                     : QStringLiteral("// Delegate text: '%1'").arg(currentItemText));
+    }
+
+    const auto selectedCellsData = utils::selectedCellsData(selectionModel);
+    //! TODO: на этапе обработки записанных действий скорее всего придется переделать
+    //! запись выбранных ячеек
+    return selectedCellsData.isEmpty()
+               ? QStringLiteral("clearSelection('%1')").arg(utils::objectPath(widget))
+               : QStringLiteral("let selectionData = [%1];\nsetSelection('%2', selectionData)")
+                     .arg(selectedCellsData)
+                     .arg(utils::objectPath(widget));
+}
+
 static QString qMenuFilter(const QWidget *widget, const QMouseEvent *event) noexcept
 {
     if (!utils::mouseEventCanBeFiltered(widget, event)) {
@@ -461,6 +520,7 @@ WidgetEventFilter::WidgetEventFilter(QObject *parent) noexcept
         filters::qComboBoxFilter,
         filters::qMenuFilter,
         filters::qTabBarFilter,
+        filters::qItemViewFilter,
         // Обязательно в таком порядке:
         filters::qButtonFilter,
     };
@@ -531,12 +591,12 @@ void WidgetEventFilter::findAndSetDelayedFilter(const QWidget *widget,
     }
     else if (auto *foundWidget = utils::searchSpecificWidget(
                  widget, filters::s_widgetMetaMap.at(WidgetClass::Calendar))) {
-        auto *calendarView = qobject_cast<const QAbstractItemView *>(foundWidget);
-        assert(calendarView != nullptr);
+        auto *itemView = qobject_cast<const QAbstractItemView *>(foundWidget);
+        assert(itemView != nullptr);
         auto slot = [this] { emit this->signalDetected(); };
         foundWidgetClass = WidgetClass::Calendar;
         connection = utils::connectIfType<QItemSelectionModel>(
-            calendarView->selectionModel(), this,
+            itemView->selectionModel(), this,
             static_cast<void (QItemSelectionModel::*)(const QModelIndex &, const QModelIndex &)>(
                 &QItemSelectionModel::currentChanged),
             slot);

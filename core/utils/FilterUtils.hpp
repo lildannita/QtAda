@@ -13,6 +13,7 @@ class QModelIndex;
 class QLatin1String;
 class QMenu;
 class QAction;
+class QItemSelectionModel;
 QT_END_NAMESPACE
 
 namespace QtAda::core::utils {
@@ -23,6 +24,7 @@ bool mouseEventCanBeFiltered(const QWidget *widget, const QMouseEvent *event) no
 
 QString widgetIdInView(const QWidget *widget, const int index,
                        const WidgetClass widgetClass) noexcept;
+QString selectedCellsData(const QItemSelectionModel *model) noexcept;
 
 std::pair<const QWidget *, size_t> searchSpecificWidgetWithIteration(
     const QWidget *widget, const std::pair<QLatin1String, size_t> &classDesignation) noexcept;

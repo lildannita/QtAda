@@ -5,6 +5,7 @@
 
 #include <QComboBox>
 #include <QMenu>
+#include <QItemSelectionModel>
 
 //! TODO: remove
 #include <iostream>
@@ -173,5 +174,62 @@ QString widgetIdInView(const QWidget *widget, const int index,
     default:
         return QString();
     }
+}
+
+QString selectedCellsData(const QItemSelectionModel *selectionModel) noexcept
+{
+    auto model = selectionModel->model();
+    QMap<int, QSet<int>> rowsToColumns;
+    QSet<int> fullRows, fullColumns;
+
+    for (const QModelIndex &index : selectionModel->selectedIndexes()) {
+        rowsToColumns[index.row()].insert(index.column());
+    }
+
+    for (auto it = rowsToColumns.constBegin(); it != rowsToColumns.constEnd(); ++it) {
+        if (it.value().size() == model->columnCount()) {
+            fullRows.insert(it.key());
+        }
+    }
+    for (int column = 0; column < model->columnCount(); ++column) {
+        bool fullColumn = true;
+        for (int row = 0; row < model->rowCount(); ++row) {
+            if (!rowsToColumns.contains(row) || !rowsToColumns[row].contains(column)) {
+                fullColumn = false;
+                break;
+            }
+        }
+        if (fullColumn) {
+            fullColumns.insert(column);
+        }
+    }
+
+    QString result;
+    for (int row : fullRows) {
+        result += QStringLiteral("[%1, 'ALL'],").arg(row);
+    }
+    for (int column : fullColumns) {
+        result += QStringLiteral("['ALL', %1],").arg(column);
+    }
+    for (auto it = rowsToColumns.constBegin(); it != rowsToColumns.constEnd(); ++it) {
+        if (!fullRows.contains(it.key())) {
+            QString cols = "[";
+            for (int col : it.value()) {
+                if (!fullColumns.contains(col)) {
+                    cols += QStringLiteral("%1,").arg(col);
+                }
+            }
+            if (cols != "[") {
+                cols[cols.length() - 1] = ']';
+                result += QStringLiteral("[%1, %2],").arg(it.key()).arg(cols);
+            }
+        }
+    }
+
+    if (!result.isEmpty()) {
+        result.chop(1);
+    }
+
+    return result;
 }
 } // namespace QtAda::core::utils

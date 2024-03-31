@@ -1,6 +1,8 @@
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
+
 #include "dialog.h"
+#include "customDelegate.h"
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -8,6 +10,7 @@ MainWindow::MainWindow(QWidget *parent)
     , tableViewModel(new QStandardItemModel(5, 3, this))
     , treeViewModel(new QStandardItemModel(this))
     , columnViewModel(new QStandardItemModel(this))
+    , customListViewModel(new QStandardItemModel(this))
     , listViewModel(new QStringListModel(this))
     , undoStack(new QUndoStack(this))
 {
@@ -75,6 +78,16 @@ MainWindow::MainWindow(QWidget *parent)
     }
     listViewModel->setStringList(list);
     ui->listView->setModel(listViewModel);
+
+    ui->custom_listView->setModel(customListViewModel);
+    ui->custom_listView->setItemDelegate(new CustomItemDelegate(this));
+    for (int i = 0; i < 5; ++i) {
+        auto *item = new QStandardItem(QString("Название %1").arg(i));
+        item->setData(QString("Значение %1").arg(i), Qt::UserRole);
+        item->setData(QColor::fromHsv(rand() % 255, 255, 255, 255), Qt::BackgroundRole);
+        customListViewModel->appendRow(item);
+    }
+    connect(ui->custom_listView, &QListView::clicked, this, &MainWindow::openFirstDialog);
 
     // Инициализация QUndoView
     for (int i = 0; i < 5; i++) {

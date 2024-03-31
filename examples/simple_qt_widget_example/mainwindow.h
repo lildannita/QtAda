@@ -64,7 +64,6 @@ private slots:
     void on_buttonBox_rejected();
     void on_buttonBox_helpRequested();
     void on_buttonBox_clicked(QAbstractButton *button);
-
     void on_pushButton_4_clicked();
 
 private:
@@ -72,6 +71,7 @@ private:
 
     QStandardItemModel *tableViewModel;
     QStandardItemModel *treeViewModel;
+    QStandardItemModel *customListViewModel;
     QStringListModel *listViewModel;
     QUndoStack *undoStack;
     QStandardItemModel *columnViewModel;
