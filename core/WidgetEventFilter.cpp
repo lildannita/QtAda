@@ -302,8 +302,10 @@ static QString qSpinBoxFilter(const QWidget *widget, const QMouseEvent *event,
     return QString();
 }
 
-static QString qCalendarFilter(const QWidget *widget, const QMouseEvent *event) noexcept
+static QString qCalendarFilter(const QWidget *widget, const QMouseEvent *event,
+                               const ExtraInfoForDelayed &extra) noexcept
 {
+    Q_UNUSED(extra);
     if (!utils::mouseEventCanBeFiltered(widget, event)) {
         return QString();
     }
@@ -319,20 +321,28 @@ static QString qCalendarFilter(const QWidget *widget, const QMouseEvent *event) 
     //! модели, но не в QCalendarWidget. Поэтому приходится работать с моделью напрямую,
     //! а сам QCalendarWidget получать через родителя модели, что не совсем хорошо...
     //!
-    //! 2. На текущий момент, если произведено нажатие не на клетку, а на "пустое" место
-    //! в QCalendarWidget, то никакого изменения не произойдет, однако мы все равно
-    //! генерируем строку из-за того, что для QCalendarWidget пока непонято как отловить
-    //! сигнал об изменении, как мы это делаем, например, для qSpinBoxFilter.
+    //! 2. Надо ли генерировать строку, если было произведено нажатие на уже выбранную
+    //! дату?
     const auto *calendar = qobject_cast<const QCalendarWidget *>(widget->parentWidget());
     assert(calendar != nullptr);
-    const auto *calendarView = qobject_cast<const QTableView *>(widget);
+    const auto *calendarView = qobject_cast<const QAbstractItemView *>(widget);
     assert(calendarView != nullptr);
 
-    auto currentCellIndex = calendarView->currentIndex();
+    const auto currentCellIndex = calendarView->currentIndex();
+
+    const auto selectedCellIndexes = calendarView->selectionModel()->selectedIndexes();
+    assert(selectedCellIndexes.size() <= 1);
+    const auto selectedCellIndex = selectedCellIndexes.first();
+    const auto clickPos = calendarView->mapFromGlobal(event->globalPos());
+    const auto dateChanged
+        = calendarView->rect().contains(clickPos)
+          && ((currentCellIndex != selectedCellIndex && event->type() == QEvent::MouseButtonRelease)
+              || event->type() == QEvent::MouseButtonDblClick);
+
     assert(currentCellIndex.isValid());
     assert(currentCellIndex.data().canConvert<int>());
 
-    int day = currentCellIndex.data().toInt();
+    const int day = currentCellIndex.data().toInt();
     int month = calendar->monthShown();
     int year = calendar->yearShown();
 
@@ -374,7 +384,10 @@ static QString qCalendarFilter(const QWidget *widget, const QMouseEvent *event) 
     }
     auto currentDate = calendar->calendar().dateFromParts(year, month, day);
     assert(currentDate.isValid());
-    return utils::setValueStatement(calendar, currentDate.toString(Qt::ISODate));
+
+    return QStringLiteral("%1%2")
+        .arg(dateChanged ? "" : "// Looks like this date was not selected\n// ")
+        .arg(utils::setValueStatement(calendar, currentDate.toString(Qt::ISODate)));
 }
 
 static QString qMenuFilter(const QWidget *widget, const QMouseEvent *event) noexcept
@@ -450,17 +463,12 @@ WidgetEventFilter::WidgetEventFilter(QObject *parent) noexcept
         filters::qTabBarFilter,
         // Обязательно в таком порядке:
         filters::qButtonFilter,
-        /*
-         * Этот фильтр последний, так как QCalendarWidget из всех базовых виджетов
-         * самый "богатый" на составные виджеты - в нем есть и QAbstractButton,
-         * и QMenu, и QListView.
-         */
-        filters::qCalendarFilter,
     };
 
     delayedFilterFunctions_ = {
         { WidgetClass::Slider, filters::qSliderFilter },
         { WidgetClass::SpinBox, filters::qSpinBoxFilter },
+        { WidgetClass::Calendar, filters::qCalendarFilter },
     };
 }
 
@@ -520,6 +528,18 @@ void WidgetEventFilter::findAndSetDelayedFilter(const QWidget *widget,
         connection = utils::connectIfType<QAbstractSlider>(
             foundWidget, this,
             static_cast<void (QAbstractSlider::*)(int)>(&QAbstractSlider::actionTriggered), slot);
+    }
+    else if (auto *foundWidget = utils::searchSpecificWidget(
+                 widget, filters::s_widgetMetaMap.at(WidgetClass::Calendar))) {
+        auto *calendarView = qobject_cast<const QAbstractItemView *>(foundWidget);
+        assert(calendarView != nullptr);
+        auto slot = [this] { emit this->signalDetected(); };
+        foundWidgetClass = WidgetClass::Calendar;
+        connection = utils::connectIfType<QItemSelectionModel>(
+            calendarView->selectionModel(), this,
+            static_cast<void (QItemSelectionModel::*)(const QModelIndex &, const QModelIndex &)>(
+                &QItemSelectionModel::currentChanged),
+            slot);
     }
 
     if (foundWidgetClass != WidgetClass::None) {
