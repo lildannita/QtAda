@@ -48,6 +48,10 @@ static const std::map<WidgetClass, std::pair<QLatin1String, size_t>> s_widgetMet
     { ItemView, { QLatin1String("QAbstractItemView"), 2 } },
     { TreeView, { QLatin1String("QTreeView"), 2 } },
     { Calendar, { QLatin1String("QCalendarView"), 2 } },
+    //! TODO: в официальной документации по 5.15 ни слова об этом классе,
+    //! однако он в составе QColumnView. Если его не обрабатывать, то
+    //! для ItemView генерируются неправильные события.
+    { ColumnViewGrip, { QLatin1String("QColumnViewGrip"), 1 } },
 };
 
 QString qMouseEventFilter(const QString &path, const QWidget *widget,
@@ -431,6 +435,13 @@ static QString qItemViewFilter(const QWidget *widget, const QMouseEvent *event) 
 {
     if (!utils::mouseEventCanBeFiltered(widget, event)) {
         return QString();
+    }
+
+    if (utils::searchSpecificWidget(widget, s_widgetMetaMap.at(WidgetClass::ColumnViewGrip))
+        != nullptr) {
+        // Никак дополнительно не обрабатываем это действие, так как оно не влияет
+        // на функционал, а влияет только на визуальное отображение элементов
+        return QLatin1String("// Looks like QColumnViewGrip moved");
     }
 
     widget = utils::searchSpecificWidget(widget, s_widgetMetaMap.at(WidgetClass::ItemView));

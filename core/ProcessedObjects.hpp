@@ -13,6 +13,7 @@ enum WidgetClass {
     TabBar,
     TreeView,
     ItemView,
+    ColumnViewGrip,
     None,
 };
 }
