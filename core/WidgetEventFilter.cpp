@@ -19,6 +19,8 @@
 #include <QAction>
 #include <QTabBar>
 #include <QTreeView>
+#include <QUndoView>
+#include <QUndoStack>
 
 #include "utils/Common.hpp"
 #include "utils/FilterUtils.hpp"
@@ -47,6 +49,7 @@ static const std::map<WidgetClass, std::pair<QLatin1String, size_t>> s_widgetMet
     { TabBar, { QLatin1String("QTabBar"), 1 } },
     { ItemView, { QLatin1String("QAbstractItemView"), 2 } },
     { TreeView, { QLatin1String("QTreeView"), 2 } },
+    { UndoView, { QLatin1String("QUndoView"), 2 } },
     { Calendar, { QLatin1String("QCalendarView"), 2 } },
     //! TODO: в официальной документации по 5.15 ни слова об этом классе,
     //! однако он в составе QColumnView. Если его не обрабатывать, то
@@ -431,6 +434,43 @@ static QString qTreeViewFilter(const QWidget *widget, const QMouseEvent *event,
                  : QStringLiteral(" // Delegate text: '%1'").arg(currentItemText));
 }
 
+static QString qUndoViewFilter(const QWidget *widget, const QMouseEvent *event,
+                               const ExtraInfoForDelayed &extra) noexcept
+{
+    if (!utils::mouseEventCanBeFiltered(widget, event) || extra.collectedIndexes.empty()) {
+        return QString();
+    }
+
+    widget = utils::searchSpecificWidget(widget, s_widgetMetaMap.at(WidgetClass::ItemView));
+    if (widget == nullptr) {
+        return QString();
+    }
+
+    auto *view = qobject_cast<const QAbstractItemView *>(widget);
+    assert(view != nullptr);
+    const auto *model = view->model();
+    assert(model != nullptr);
+
+    QString result;
+    for (const auto &index : extra.collectedIndexes) {
+        if (!result.isEmpty()) {
+            result += '\n';
+        }
+
+        const auto currentItem = model->data(model->index(index, 0));
+        const auto currentItemText
+            = currentItem.canConvert<QString>() ? currentItem.toString() : QString();
+        result += QStringLiteral("undoCommand('%1', %2)%3")
+                      .arg(utils::objectPath(view))
+                      .arg(index)
+                      .arg(currentItemText.isEmpty()
+                               ? ""
+                               : QStringLiteral(" // Delegate text: '%1'").arg(currentItemText));
+    }
+    assert(!result.isEmpty());
+    return result;
+}
+
 static QString qItemViewFilter(const QWidget *widget, const QMouseEvent *event) noexcept
 {
     if (!utils::mouseEventCanBeFiltered(widget, event)) {
@@ -568,7 +608,7 @@ WidgetEventFilter::WidgetEventFilter(QObject *parent) noexcept
         filters::qMenuFilter,
         filters::qTabBarFilter,
         filters::qItemViewFilter,
-        // Обязательно в таком порядке:
+        // Обязательно последним:
         filters::qButtonFilter,
     };
 
@@ -577,6 +617,7 @@ WidgetEventFilter::WidgetEventFilter(QObject *parent) noexcept
         { WidgetClass::SpinBox, filters::qSpinBoxFilter },
         { WidgetClass::Calendar, filters::qCalendarFilter },
         { WidgetClass::TreeView, filters::qTreeViewFilter },
+        { WidgetClass::UndoView, filters::qUndoViewFilter },
     };
 }
 
@@ -612,7 +653,7 @@ void WidgetEventFilter::findAndSetDelayedFilter(const QWidget *widget,
     std::vector<QMetaObject::Connection> connections;
     if (auto *foundWidget
         = utils::searchSpecificWidget(widget, filters::s_widgetMetaMap.at(WidgetClass::SpinBox))) {
-        auto slot = [this] { emit this->signalDetected(); };
+        auto slot = [this] { this->signalDetected(); };
         foundWidgetClass = WidgetClass::SpinBox;
         QMetaObject::Connection spinBoxConnection = utils::connectIfType<QSpinBox>(
             widget, this, static_cast<void (QSpinBox::*)(int)>(&QSpinBox::valueChanged), slot);
@@ -638,7 +679,7 @@ void WidgetEventFilter::findAndSetDelayedFilter(const QWidget *widget,
             static_cast<void (QAbstractSlider::*)(int)>(&QAbstractSlider::actionTriggered),
             [this](int type) {
                 this->delayedExtra_.changeType = type;
-                emit this->signalDetected();
+                this->signalDetected();
             }));
     }
     else if (auto *foundWidget = utils::searchSpecificWidget(
@@ -650,7 +691,7 @@ void WidgetEventFilter::findAndSetDelayedFilter(const QWidget *widget,
             itemView->selectionModel(), this,
             static_cast<void (QItemSelectionModel::*)(const QModelIndex &, const QModelIndex &)>(
                 &QItemSelectionModel::currentChanged),
-            [this] { emit this->signalDetected(); }));
+            [this] { this->signalDetected(); }));
     }
     else if (auto *foundWidget = utils::searchSpecificWidget(
                  widget, filters::s_widgetMetaMap.at(WidgetClass::TreeView))) {
@@ -661,7 +702,7 @@ void WidgetEventFilter::findAndSetDelayedFilter(const QWidget *widget,
             [this](const QModelIndex &index) {
                 this->delayedExtra_.changeIndex = index;
                 this->delayedExtra_.changeType = ExtraInfoForDelayed::TreeViewExtra::Expanded;
-                emit this->signalDetected();
+                this->signalDetected();
             }));
         connections.push_back(utils::connectIfType<QTreeView>(
             foundWidget, this,
@@ -669,7 +710,19 @@ void WidgetEventFilter::findAndSetDelayedFilter(const QWidget *widget,
             [this](const QModelIndex &index) {
                 this->delayedExtra_.changeIndex = index;
                 this->delayedExtra_.changeType = ExtraInfoForDelayed::TreeViewExtra::Collapsed;
-                emit this->signalDetected();
+                this->signalDetected();
+            }));
+    }
+    else if (auto *foundWidget = utils::searchSpecificWidget(
+                 widget, filters::s_widgetMetaMap.at(WidgetClass::UndoView))) {
+        auto *undoView = qobject_cast<const QUndoView *>(foundWidget);
+        assert(undoView != nullptr);
+        foundWidgetClass = WidgetClass::UndoView;
+        connections.push_back(utils::connectIfType<QUndoStack>(
+            undoView->stack(), this,
+            static_cast<void (QUndoStack::*)(int)>(&QUndoStack::indexChanged), [this](int index) {
+                this->delayedExtra_.collectedIndexes.push_back(index);
+                this->signalDetected(false);
             }));
     }
 
@@ -679,9 +732,17 @@ void WidgetEventFilter::findAndSetDelayedFilter(const QWidget *widget,
     }
 }
 
-bool WidgetEventFilter::delayedFilterCanBeCalledForWidget(const QWidget *widget) const noexcept
+void WidgetEventFilter::signalDetected(bool needToDisconnect) noexcept
 {
-    return needToUseFilter_ && !connectionIsInit() && delayedFilter_.has_value()
+    needToUseDelayedFilter_ = true;
+    if (needToDisconnect) {
+        disconnectAll();
+    }
+}
+
+bool WidgetEventFilter::delayedFilterCanBeCalledForWidget(const QWidget *widget) noexcept
+{
+    return needToUseDelayedFilter_ && !connectionIsInit() && delayedFilter_.has_value()
            && delayedWidget_ != nullptr && delayedWidget_ == widget;
 }
 
@@ -702,7 +763,7 @@ void WidgetEventFilter::destroyDelay() noexcept
     delayedWidget_ = nullptr;
     delayedFilter_ = std::nullopt;
     delayedExtra_.clear();
-    needToUseFilter_ = false;
+    needToUseDelayedFilter_ = false;
     disconnectAll();
 }
 
@@ -729,6 +790,7 @@ std::optional<QString> WidgetEventFilter::callDelayedFilter(const QWidget *widge
                                                             const QMouseEvent *event,
                                                             bool isContinuous) noexcept
 {
+    disconnectAll();
     delayedExtra_.isContinuous = isContinuous;
     bool callable = delayedFilterCanBeCalledForWidget(widget);
     return callable ? std::make_optional((*delayedFilter_)(widget, event, delayedExtra_))

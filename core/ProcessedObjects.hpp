@@ -12,6 +12,7 @@ enum WidgetClass {
     Menu,
     TabBar,
     TreeView,
+    UndoView,
     ItemView,
     ColumnViewGrip,
     None,

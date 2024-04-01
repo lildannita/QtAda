@@ -33,11 +33,14 @@ struct ExtraInfoForDelayed final {
     std::optional<int> changeType = std::nullopt;
     QModelIndex changeIndex;
 
+    std::vector<int> collectedIndexes;
+
     void clear() noexcept
     {
         isContinuous = false;
         changeType = std::nullopt;
         changeIndex = QModelIndex();
+        collectedIndexes.clear();
     }
 };
 
@@ -54,13 +57,6 @@ public:
                               bool isContinuous) noexcept;
     void findAndSetDelayedFilter(const QWidget *widget, const QMouseEvent *event) noexcept;
 
-private slots:
-    void signalDetected()
-    {
-        needToUseFilter_ = true;
-        disconnectAll();
-    }
-
 private:
     std::vector<WidgetFilterFunction> filterFunctions_;
     std::map<WidgetClass, DelayedWidgetFilterFunction> delayedFilterFunctions_;
@@ -69,16 +65,16 @@ private:
     const QEvent *causedEvent_ = nullptr;
     const QWidget *delayedWidget_ = nullptr;
     std::optional<DelayedWidgetFilterFunction> delayedFilter_ = std::nullopt;
-    bool needToUseFilter_ = false;
+    bool needToUseDelayedFilter_ = false;
 
     std::vector<QMetaObject::Connection> connections_;
+    ExtraInfoForDelayed delayedExtra_;
+    void signalDetected(bool needToDisconnect = true) noexcept;
     bool connectionIsInit(std::optional<std::vector<QMetaObject::Connection>> connections
                           = std::nullopt) const noexcept;
     void disconnectAll() noexcept;
 
-    ExtraInfoForDelayed delayedExtra_;
-
-    bool delayedFilterCanBeCalledForWidget(const QWidget *widget) const noexcept;
+    bool delayedFilterCanBeCalledForWidget(const QWidget *widget) noexcept;
     void initDelay(const QWidget *widget, const QMouseEvent *event,
                    const DelayedWidgetFilterFunction &filter,
                    std::vector<QMetaObject::Connection> &connections) noexcept;
