@@ -755,8 +755,14 @@ li.checked::marker { content: &quot;\2612&quot;; }
     </property>
     <addaction name="actiontest"/>
    </widget>
+   <widget class="QMenu" name="menuAction">
+    <property name="title">
+     <string>Action</string>
+    </property>
+   </widget>
    <addaction name="menuMenu"/>
    <addaction name="menuSettings"/>
+   <addaction name="menuAction"/>
   </widget>
   <widget class="QToolBar" name="toolBar">
    <property name="windowTitle">

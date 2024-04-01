@@ -59,6 +59,7 @@ public:
 
 private:
     std::vector<WidgetFilterFunction> filterFunctions_;
+    std::vector<WidgetFilterFunction> specificFilterFunctions_;
     std::map<WidgetClass, DelayedWidgetFilterFunction> delayedFilterFunctions_;
 
     QEvent::Type causedEventType_ = QEvent::None;
@@ -66,18 +67,22 @@ private:
     const QWidget *delayedWidget_ = nullptr;
     std::optional<DelayedWidgetFilterFunction> delayedFilter_ = std::nullopt;
     bool needToUseDelayedFilter_ = false;
-
     std::vector<QMetaObject::Connection> connections_;
     ExtraInfoForDelayed delayedExtra_;
+
+    QString specificResult_;
+
     void signalDetected(bool needToDisconnect = true) noexcept;
     bool connectionIsInit(std::optional<std::vector<QMetaObject::Connection>> connections
                           = std::nullopt) const noexcept;
     void disconnectAll() noexcept;
 
-    bool delayedFilterCanBeCalledForWidget(const QWidget *widget) noexcept;
+    bool specificResultCanBeShown(const QWidget *widget) const noexcept;
+    bool delayedFilterCanBeCalledForWidget(const QWidget *widget) const noexcept;
     void initDelay(const QWidget *widget, const QMouseEvent *event,
                    const DelayedWidgetFilterFunction &filter,
                    std::vector<QMetaObject::Connection> &connections) noexcept;
+    void initSpecific(const QWidget *widget, const QEvent *event, const QString &result) noexcept;
     void destroyDelay() noexcept;
 
     std::optional<QString> callDelayedFilter(const QWidget *widget, const QMouseEvent *event,

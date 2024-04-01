@@ -5,6 +5,7 @@
 
 #include <QComboBox>
 #include <QMenu>
+#include <QMenuBar>
 #include <QItemSelectionModel>
 
 //! TODO: remove
@@ -92,11 +93,13 @@ QString mouseButtonToString(const Qt::MouseButton mouseButton) noexcept
     return QLatin1String("<unknown>");
 }
 
-bool mouseEventCanBeFiltered(const QWidget *widget, const QMouseEvent *event) noexcept
+bool mouseEventCanBeFiltered(const QWidget *widget, const QMouseEvent *event,
+                             bool shouldBePressEvent) noexcept
 {
     const auto type = event->type();
     return widget != nullptr && event != nullptr && event->button() == Qt::LeftButton
-           && (type == QEvent::MouseButtonRelease || type == QEvent::MouseButtonDblClick);
+           && (type == (shouldBePressEvent ? QEvent::MouseButtonPress : QEvent::MouseButtonRelease)
+               || type == QEvent::MouseButtonDblClick);
 }
 
 std::pair<const QWidget *, size_t>
@@ -152,6 +155,22 @@ QString widgetIdInView(const QWidget *widget, const int index,
                 return QStringLiteral("%1_%2").arg(actionText).arg(actionIndex);
             }
             if (actionText == menu->actions().at(i)->text()) {
+                actionIndex++;
+            }
+        }
+        Q_UNREACHABLE();
+    }
+    case MenuBar: {
+        auto *menuBar = qobject_cast<const QMenuBar *>(widget);
+        assert(menuBar != nullptr);
+        auto *action = menuBar->actions().at(index);
+        assert(action != nullptr);
+        const auto actionText = action->text();
+        for (int i = 0, actionIndex = 0; i < menuBar->actions().count(); i++) {
+            if (i == index) {
+                return QStringLiteral("%1_%2").arg(actionText).arg(actionIndex);
+            }
+            if (actionText == menuBar->actions().at(i)->text()) {
                 actionIndex++;
             }
         }

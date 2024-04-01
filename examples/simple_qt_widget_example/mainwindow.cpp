@@ -16,6 +16,8 @@ MainWindow::MainWindow(QWidget *parent)
 {
     ui->setupUi(this);
 
+    ui->menuBar->addAction("Dynamic");
+
     // Инициализация QToolButtons
     for (int i = 0; i < 15; i++) {
         QToolButton *btn = new QToolButton(this);

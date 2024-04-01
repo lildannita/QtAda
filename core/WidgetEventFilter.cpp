@@ -16,6 +16,7 @@
 #include <QTableView>
 #include <QCalendarWidget>
 #include <QMenu>
+#include <QMenuBar>
 #include <QAction>
 #include <QTabBar>
 #include <QTreeView>
@@ -46,6 +47,7 @@ static const std::map<WidgetClass, std::pair<QLatin1String, size_t>> s_widgetMet
     { ComboBox, { QLatin1String("QComboBox"), 4 } },
     { SpinBox, { QLatin1String("QAbstractSpinBox"), 1 } },
     { Menu, { QLatin1String("QMenu"), 1 } },
+    { MenuBar, { QLatin1String("QMenuBar"), 1 } },
     { TabBar, { QLatin1String("QTabBar"), 1 } },
     { ItemView, { QLatin1String("QAbstractItemView"), 2 } },
     { TreeView, { QLatin1String("QTreeView"), 2 } },
@@ -536,6 +538,50 @@ static QString qItemViewFilter(const QWidget *widget, const QMouseEvent *event) 
                      .arg(utils::objectPath(widget));
 }
 
+static QString qMenuBarFilter(const QWidget *widget, const QMouseEvent *event) noexcept
+{
+    if (!utils::mouseEventCanBeFiltered(widget, event, true)) {
+        return QString();
+    }
+
+    widget = utils::searchSpecificWidget(widget, s_widgetMetaMap.at(WidgetClass::MenuBar));
+    if (widget == nullptr) {
+        return QString();
+    }
+
+    auto *menuBar = qobject_cast<const QMenuBar *>(widget);
+    assert(menuBar != nullptr);
+
+    const auto clickPos = menuBar->mapFromGlobal(event->globalPos());
+    auto *action = menuBar->actionAt(clickPos);
+    if (action == nullptr) {
+        return QString();
+    }
+
+    const auto *actionMenu = action->menu();
+    if (actionMenu == nullptr) {
+        const auto actionText = action->text();
+        return QStringLiteral("%1activateMenuAction('%2', '%3'%4)%5")
+            .arg(action->isSeparator() ? "// Looks like QMenu::Separator clicked\n// " : "")
+            .arg(utils::objectPath(widget))
+            .arg(utils::widgetIdInView(menuBar, menuBar->actions().indexOf(action),
+                                       WidgetClass::MenuBar))
+            .arg(action->isCheckable()
+                     ? QStringLiteral(", %1").arg(action->isChecked() ? "false" : "true")
+                     : "")
+            .arg(actionText.isEmpty() ? ""
+                                      : QStringLiteral(" // Action text: '%1'").arg(actionText));
+    }
+    else {
+        //! TODO: на текущий момент не обрабатывается DoubleClick по QMenu (непонятно почему), но
+        //! нужно ли оно?
+        const auto menuText = actionMenu->title();
+        return QStringLiteral("activateMenu('%1')%2")
+            .arg(utils::objectPath(widget))
+            .arg(menuText.isEmpty() ? "" : QStringLiteral(" // Menu title: '%1'").arg(menuText));
+    }
+}
+
 static QString qMenuFilter(const QWidget *widget, const QMouseEvent *event) noexcept
 {
     if (!utils::mouseEventCanBeFiltered(widget, event)) {
@@ -612,6 +658,20 @@ WidgetEventFilter::WidgetEventFilter(QObject *parent) noexcept
         filters::qButtonFilter,
     };
 
+    //! TODO: Очень некрасивое решение. Но пока это работает для решения следующих проблем:
+    //! 1. Мы не можем решать произведено было нажатие на QMenu или на QAction, так как
+    //! при событии нажатия на "кнопку" QMenuBar (раскрытие списка), может быть такое, что
+    //! этот список будет перекрывать кнопку, и из-за того, что мы используем QMenu::actionAt,
+    //! то может случится ложное срабатывание, и мы запишем не "раскрытие QMenu", а "выполнение
+    //! QAction".
+    //! 2. Очень странная работа системы сигналов, так как при событии Press на QMenu, которое
+    //! находится в QMenuBar, раскрытие происходит сразу и источник сигнала (опять же, при Press!)
+    //! будет QMenu, на который мы нажали. Но при отпускании источник сигнала уже будет не QMenu,
+    //! а QAction в том случае, если при раскрытии списка QMenu он перекрывает эту кнопку QMenu.
+    specificFilterFunctions_ = {
+        filters::qMenuBarFilter,
+    };
+
     delayedFilterFunctions_ = {
         { WidgetClass::Slider, filters::qSliderFilter },
         { WidgetClass::SpinBox, filters::qSpinBoxFilter },
@@ -624,19 +684,22 @@ WidgetEventFilter::WidgetEventFilter(QObject *parent) noexcept
 QString WidgetEventFilter::callWidgetFilters(const QWidget *widget, const QMouseEvent *event,
                                              bool isContinuous) noexcept
 {
+    if (specificResultCanBeShown(widget)) {
+        return specificResult_;
+    }
+
     const auto delayedResult = callDelayedFilter(widget, event, isContinuous);
     if (delayedResult.has_value() && !(*delayedResult).isEmpty()) {
         return *delayedResult;
     }
 
-    QString result;
     for (auto &filter : filterFunctions_) {
-        result = filter(widget, event);
+        const auto result = filter(widget, event);
         if (!result.isEmpty()) {
             return result;
         }
     }
-    return result;
+    return QString();
 }
 
 void WidgetEventFilter::findAndSetDelayedFilter(const QWidget *widget,
@@ -649,6 +712,15 @@ void WidgetEventFilter::findAndSetDelayedFilter(const QWidget *widget,
     }
 
     destroyDelay();
+
+    for (auto &filter : specificFilterFunctions_) {
+        const auto result = filter(widget, event);
+        if (!result.isEmpty()) {
+            initSpecific(widget, event, std::move(result));
+            return;
+        }
+    }
+
     WidgetClass foundWidgetClass = WidgetClass::None;
     std::vector<QMetaObject::Connection> connections;
     if (auto *foundWidget
@@ -740,7 +812,14 @@ void WidgetEventFilter::signalDetected(bool needToDisconnect) noexcept
     }
 }
 
-bool WidgetEventFilter::delayedFilterCanBeCalledForWidget(const QWidget *widget) noexcept
+bool WidgetEventFilter::specificResultCanBeShown(const QWidget *widget) const noexcept
+{
+    return delayedWidget_ != nullptr
+           && (widget == delayedWidget_ || widget->parent() == delayedWidget_)
+           && !specificResult_.isEmpty();
+}
+
+bool WidgetEventFilter::delayedFilterCanBeCalledForWidget(const QWidget *widget) const noexcept
 {
     return needToUseDelayedFilter_ && !connectionIsInit() && delayedFilter_.has_value()
            && delayedWidget_ != nullptr && delayedWidget_ == widget;
@@ -757,8 +836,19 @@ void WidgetEventFilter::initDelay(const QWidget *widget, const QMouseEvent *even
     connections_ = connections;
 }
 
+void WidgetEventFilter::initSpecific(const QWidget *widget, const QEvent *event,
+                                     const QString &result) noexcept
+{
+    causedEvent_ = event;
+    causedEventType_ = event->type();
+    delayedWidget_ = widget;
+    specificResult_ = std::move(result);
+}
+
 void WidgetEventFilter::destroyDelay() noexcept
 {
+    specificResult_.clear();
+
     causedEventType_ = QEvent::None;
     delayedWidget_ = nullptr;
     delayedFilter_ = std::nullopt;

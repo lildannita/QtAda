@@ -3,11 +3,12 @@
 #include <qnamespace.h>
 #include <QString>
 #include <QWidget>
+#include <QEvent>
+#include <optional>
 
 #include "ProcessedObjects.hpp"
 
 QT_BEGIN_NAMESPACE
-class QEvent;
 class QObject;
 class QModelIndex;
 class QLatin1String;
@@ -20,7 +21,8 @@ namespace QtAda::core::utils {
 QString objectPath(const QObject *obj) noexcept;
 QString mouseButtonToString(const Qt::MouseButton mouseButton) noexcept;
 
-bool mouseEventCanBeFiltered(const QWidget *widget, const QMouseEvent *event) noexcept;
+bool mouseEventCanBeFiltered(const QWidget *widget, const QMouseEvent *event,
+                             bool shouldBePressEvent = false) noexcept;
 
 QString widgetIdInView(const QWidget *widget, const int index,
                        const WidgetClass widgetClass) noexcept;
