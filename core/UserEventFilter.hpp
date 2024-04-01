@@ -32,7 +32,7 @@ public:
     }
 
 signals:
-    void newScriptLine(const QString &scriptLine);
+    void newScriptLine(const QString &scriptLine) const;
 
 private:
     struct LastMouseEvent {
@@ -44,7 +44,7 @@ private:
 
         QDateTime pushTimestamp;
 
-        bool registerEvent(const QString &path, const QMouseEvent *event) noexcept;
+        bool registerEvent(const QString &path, const QEvent *event) noexcept;
         bool isContinuous(const LastMouseEvent &pressEvent) const noexcept;
         void clearEvent() noexcept
         {
@@ -53,7 +53,7 @@ private:
     };
     LastMouseEvent lastPressEvent_;
     LastMouseEvent lastReleaseEvent_;
-    std::optional<QString> delayedScriptLine_;
+    QStringList delayedScriptLines_;
 
     QTimer doubleClickTimer_;
     bool doubleClickDetected_ = false;
@@ -61,7 +61,8 @@ private:
 
     WidgetEventFilter widgetFilter_;
 
-    QString handleMouseEvent(const QString &objPath, const QWidget *widget,
-                             const QMouseEvent *event) noexcept;
+    QStringList handleMouseEvent(const QString &objPath, const QWidget *widget, const QEvent *event,
+                                 bool isSpecialEvent = false) noexcept;
+    void flushScriptLines(const QStringList &list) const noexcept;
 };
 } // namespace QtAda::core

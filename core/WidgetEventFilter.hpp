@@ -18,8 +18,7 @@ class QWidget;
 QT_END_NAMESPACE
 
 namespace QtAda::core::filters {
-QString qMouseEventFilter(const QString &path, const QWidget *widget,
-                          const QMouseEvent *event) noexcept;
+QString qMouseEventFilter(const QString &path, const QWidget *widget, const QEvent *event) noexcept;
 }
 
 namespace QtAda::core {
@@ -47,20 +46,22 @@ struct ExtraInfoForDelayed final {
 using WidgetFilterFunction = std::function<QString(const QWidget *, const QMouseEvent *)>;
 using DelayedWidgetFilterFunction
     = std::function<QString(const QWidget *, const QMouseEvent *, const ExtraInfoForDelayed &)>;
+using SpecialFilterFunction = std::function<QString(const QWidget *, const QEvent *)>;
 
 class WidgetEventFilter : public QObject {
     Q_OBJECT
 public:
     WidgetEventFilter(QObject *parent = nullptr) noexcept;
 
-    QString callWidgetFilters(const QWidget *widget, const QMouseEvent *event,
-                              bool isContinuous) noexcept;
-    void findAndSetDelayedFilter(const QWidget *widget, const QMouseEvent *event) noexcept;
+    QString callWidgetFilters(const QWidget *widget, const QEvent *event, bool isContinuous,
+                              bool isSpecialEvent) noexcept;
+    void setDelayedOrSpecificMouseEventFilter(const QWidget *widget, const QEvent *event) noexcept;
 
 private:
-    std::vector<WidgetFilterFunction> filterFunctions_;
-    std::vector<WidgetFilterFunction> specificFilterFunctions_;
-    std::map<WidgetClass, DelayedWidgetFilterFunction> delayedFilterFunctions_;
+    std::vector<WidgetFilterFunction> widgetFilterFunctions_;
+    std::vector<WidgetFilterFunction> specificWidgetFilterFunctions_;
+    std::map<WidgetClass, DelayedWidgetFilterFunction> delayedWidgetFilterFunctions_;
+    std::vector<SpecialFilterFunction> specialFilterFunctions_;
 
     QEvent::Type causedEventType_ = QEvent::None;
     const QEvent *causedEvent_ = nullptr;

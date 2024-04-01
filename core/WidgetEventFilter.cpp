@@ -22,6 +22,7 @@
 #include <QTreeView>
 #include <QUndoView>
 #include <QUndoStack>
+#include <QDialog>
 
 #include "utils/Common.hpp"
 #include "utils/FilterUtils.hpp"
@@ -57,20 +58,22 @@ static const std::map<WidgetClass, std::pair<QLatin1String, size_t>> s_widgetMet
     //! однако он в составе QColumnView. Если его не обрабатывать, то
     //! для ItemView генерируются неправильные события.
     { ColumnViewGrip, { QLatin1String("QColumnViewGrip"), 1 } },
+    { Dialog, { QLatin1String("QDialog"), 1 } },
+    { Window, { QLatin1String("QMainWindow"), 1 } },
 };
 
-QString qMouseEventFilter(const QString &path, const QWidget *widget,
-                          const QMouseEvent *event) noexcept
+QString qMouseEventFilter(const QString &path, const QWidget *widget, const QEvent *event) noexcept
 {
-    if (path.isEmpty() || widget == nullptr || event == nullptr) {
+    auto *mouseEvent = static_cast<const QMouseEvent *>(event);
+    if (path.isEmpty() || widget == nullptr || mouseEvent == nullptr) {
         return QString();
     }
 
-    const auto clickPosition = widget->mapFromGlobal(event->globalPos());
+    const auto clickPosition = widget->mapFromGlobal(mouseEvent->globalPos());
     return QStringLiteral("%1('%2', '%3', %4, %5)")
         .arg(event->type() == QEvent::MouseButtonDblClick ? "mouseDblClick" : "mouseClick")
         .arg(path)
-        .arg(utils::mouseButtonToString(event->button()))
+        .arg(utils::mouseButtonToString(mouseEvent->button()))
         .arg(clickPosition.x())
         .arg(clickPosition.y());
 }
@@ -491,9 +494,18 @@ static QString qItemViewFilter(const QWidget *widget, const QMouseEvent *event) 
         return QString();
     }
 
+    /*
+     * События для QUndoView обрабатываем отдельно, но если индекс в QUndoView, то никакого
+     * полезного события и не будет, следовательно, обработчик дойдет до сюда, поэтому необходимо
+     * отметить, что данный клик бесполезен.
+     */
+    QString result;
+    if (utils::searchSpecificWidget(widget, s_widgetMetaMap.at(WidgetClass::UndoView)) != nullptr) {
+        result += QLatin1String("// Looks like QUndoView useless delegate click\n// ");
+    }
+
     auto *view = qobject_cast<const QAbstractItemView *>(widget);
     assert(view != nullptr);
-    const auto clickPos = widget->mapFromGlobal(event->globalPos());
 
     //! TODO:
     //! 1. Основная проблема в том, что пока что нет четкого понимания, как работать с моделями.
@@ -513,19 +525,21 @@ static QString qItemViewFilter(const QWidget *widget, const QMouseEvent *event) 
     const auto selectedIndexes = selectionModel->selectedIndexes();
     const auto selectedIndex
         = selectedIndexes.size() == 1 ? selectedIndexes.first() : QModelIndex();
-    if ((view->selectionMode() == QAbstractItemView::NoSelection || currentIndex == selectedIndex)
-        && view->rect().contains(clickPos) && currentIndex.isValid()) {
+
+    if ((view->selectionMode() == QAbstractItemView::NoSelection || selectedIndex == currentIndex)
+        && currentIndex.isValid()) {
         const auto currentItem = view->model()->data(currentIndex);
         const auto currentItemText
             = currentItem.canConvert<QString>() ? currentItem.toString() : QString();
-        return QStringLiteral("%1Delegate('%2', (%3, %4))%5")
-            .arg(event->type() == QEvent::MouseButtonDblClick ? "doubleClick" : "click")
-            .arg(utils::objectPath(view))
-            .arg(currentIndex.row())
-            .arg(currentIndex.column())
-            .arg(currentItemText.isEmpty()
-                     ? ""
-                     : QStringLiteral(" // Delegate text: '%1'").arg(currentItemText));
+        result += QStringLiteral("%1Delegate('%2', (%3, %4))%5")
+                      .arg(event->type() == QEvent::MouseButtonDblClick ? "doubleClick" : "click")
+                      .arg(utils::objectPath(view))
+                      .arg(currentIndex.row())
+                      .arg(currentIndex.column())
+                      .arg(currentItemText.isEmpty()
+                               ? ""
+                               : QStringLiteral(" // Delegate text: '%1'").arg(currentItemText));
+        return result;
     }
 
     const auto selectedCellsData = utils::selectedCellsData(selectionModel);
@@ -641,13 +655,32 @@ static QString qTabBarFilter(const QWidget *widget, const QMouseEvent *event) no
         .arg(currentText.isEmpty() ? ""
                                    : QStringLiteral(" // Tab item text: '%1'").arg(currentText));
 }
+
+static QString qCloseFilter(const QWidget *widget, const QEvent *event) noexcept
+{
+    // Здесь обрабатываем только закрытие какого-либо окна приложения
+    if (widget == nullptr || event == nullptr
+        || (event != nullptr && event->type() != QEvent::Close)) {
+        return QString();
+    }
+
+    if (utils::searchSpecificWidget(widget, s_widgetMetaMap.at(WidgetClass::Dialog)) != nullptr) {
+        return QStringLiteral("closeDialog(%1)").arg(utils::objectPath(widget));
+    }
+    if (utils::searchSpecificWidget(widget, s_widgetMetaMap.at(WidgetClass::Window)) != nullptr) {
+        return QStringLiteral("closeWindow(%1)").arg(utils::objectPath(widget));
+    }
+
+    return QStringLiteral("// Looks like this QEvent::Close is not important\nclose(%1)")
+        .arg(utils::objectPath(widget));
+}
 } // namespace QtAda::core::filters
 
 namespace QtAda::core {
 WidgetEventFilter::WidgetEventFilter(QObject *parent) noexcept
     : QObject{ parent }
 {
-    filterFunctions_ = {
+    widgetFilterFunctions_ = {
         filters::qRadioButtonFilter,
         filters::qCheckBoxFilter,
         filters::qComboBoxFilter,
@@ -668,33 +701,51 @@ WidgetEventFilter::WidgetEventFilter(QObject *parent) noexcept
     //! находится в QMenuBar, раскрытие происходит сразу и источник сигнала (опять же, при Press!)
     //! будет QMenu, на который мы нажали. Но при отпускании источник сигнала уже будет не QMenu,
     //! а QAction в том случае, если при раскрытии списка QMenu он перекрывает эту кнопку QMenu.
-    specificFilterFunctions_ = {
+    specificWidgetFilterFunctions_ = {
         filters::qMenuBarFilter,
     };
 
-    delayedFilterFunctions_ = {
+    delayedWidgetFilterFunctions_ = {
         { WidgetClass::Slider, filters::qSliderFilter },
         { WidgetClass::SpinBox, filters::qSpinBoxFilter },
         { WidgetClass::Calendar, filters::qCalendarFilter },
         { WidgetClass::TreeView, filters::qTreeViewFilter },
         { WidgetClass::UndoView, filters::qUndoViewFilter },
     };
+
+    specialFilterFunctions_ = {
+        filters::qCloseFilter,
+    };
 }
 
-QString WidgetEventFilter::callWidgetFilters(const QWidget *widget, const QMouseEvent *event,
-                                             bool isContinuous) noexcept
+QString WidgetEventFilter::callWidgetFilters(const QWidget *widget, const QEvent *event,
+                                             bool isContinuous, bool isSpecialEvent) noexcept
 {
+    if (isSpecialEvent) {
+        for (auto &filter : specialFilterFunctions_) {
+            const auto result = filter(widget, event);
+            if (!result.isEmpty()) {
+                return result;
+            }
+        }
+        return QString();
+    }
+
     if (specificResultCanBeShown(widget)) {
         return specificResult_;
     }
 
-    const auto delayedResult = callDelayedFilter(widget, event, isContinuous);
+    auto *mouseEvent = static_cast<const QMouseEvent *>(event);
+    if (mouseEvent == nullptr) {
+        return QString();
+    }
+    const auto delayedResult = callDelayedFilter(widget, mouseEvent, isContinuous);
     if (delayedResult.has_value() && !(*delayedResult).isEmpty()) {
         return *delayedResult;
     }
 
-    for (auto &filter : filterFunctions_) {
-        const auto result = filter(widget, event);
+    for (auto &filter : widgetFilterFunctions_) {
+        const auto result = filter(widget, mouseEvent);
         if (!result.isEmpty()) {
             return result;
         }
@@ -702,19 +753,21 @@ QString WidgetEventFilter::callWidgetFilters(const QWidget *widget, const QMouse
     return QString();
 }
 
-void WidgetEventFilter::findAndSetDelayedFilter(const QWidget *widget,
-                                                const QMouseEvent *event) noexcept
+void WidgetEventFilter::setDelayedOrSpecificMouseEventFilter(const QWidget *widget,
+                                                             const QEvent *event) noexcept
 {
-    if (widget == delayedWidget_ && event == causedEvent_
-        && causedEventType_ == QEvent::MouseButtonPress
-        && event->type() == QEvent::MouseButtonDblClick) {
+    auto *mouseEvent = static_cast<const QMouseEvent *>(event);
+    if (mouseEvent == nullptr && widget == nullptr
+        || (widget == delayedWidget_ && event == causedEvent_
+            && causedEventType_ == QEvent::MouseButtonPress
+            && event->type() == QEvent::MouseButtonDblClick)) {
         return;
     }
 
     destroyDelay();
 
-    for (auto &filter : specificFilterFunctions_) {
-        const auto result = filter(widget, event);
+    for (auto &filter : specificWidgetFilterFunctions_) {
+        const auto result = filter(widget, mouseEvent);
         if (!result.isEmpty()) {
             initSpecific(widget, event, std::move(result));
             return;
@@ -800,7 +853,8 @@ void WidgetEventFilter::findAndSetDelayedFilter(const QWidget *widget,
 
     if (foundWidgetClass != WidgetClass::None) {
         assert(connectionIsInit(connections) == true);
-        initDelay(widget, event, delayedFilterFunctions_.at(foundWidgetClass), connections);
+        initDelay(widget, mouseEvent, delayedWidgetFilterFunctions_.at(foundWidgetClass),
+                  connections);
     }
 }
 

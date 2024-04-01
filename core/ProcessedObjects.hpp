@@ -16,6 +16,8 @@ enum WidgetClass {
     UndoView,
     ItemView,
     ColumnViewGrip,
+    Dialog,
+    Window,
     None,
 };
 }
