@@ -18,6 +18,7 @@
 #include <QMenu>
 #include <QAction>
 #include <QTabBar>
+#include <QTreeView>
 
 #include "utils/Common.hpp"
 #include "utils/FilterUtils.hpp"
@@ -45,6 +46,7 @@ static const std::map<WidgetClass, std::pair<QLatin1String, size_t>> s_widgetMet
     { Menu, { QLatin1String("QMenu"), 1 } },
     { TabBar, { QLatin1String("QTabBar"), 1 } },
     { ItemView, { QLatin1String("QAbstractItemView"), 2 } },
+    { TreeView, { QLatin1String("QTreeView"), 2 } },
     { Calendar, { QLatin1String("QCalendarView"), 2 } },
 };
 
@@ -391,6 +393,40 @@ static QString qCalendarFilter(const QWidget *widget, const QMouseEvent *event,
         .arg(utils::setValueStatement(calendar, currentDate.toString(Qt::ISODate)));
 }
 
+static QString qTreeViewFilter(const QWidget *widget, const QMouseEvent *event,
+                               const ExtraInfoForDelayed &extra) noexcept
+{
+    if (!utils::mouseEventCanBeFiltered(widget, event)) {
+        return QString();
+    }
+
+    widget = utils::searchSpecificWidget(widget, s_widgetMetaMap.at(WidgetClass::TreeView));
+    if (widget == nullptr) {
+        return QString();
+    }
+
+    // В этом фильтре обрабатываем только Expanded и Collapsed события для QTreeView,
+    // для остальных событий будет вызван фильтр qItemViewFilter
+    assert(extra.changeType.has_value());
+    assert(*extra.changeType == ExtraInfoForDelayed::TreeViewExtra::Collapsed
+           || *extra.changeType == ExtraInfoForDelayed::TreeViewExtra::Expanded);
+    assert(extra.changeIndex.isValid());
+
+    auto *view = qobject_cast<const QAbstractItemView *>(widget);
+    assert(view != nullptr);
+
+    const auto currentItem = view->model()->data(extra.changeIndex);
+    const auto currentItemText
+        = currentItem.canConvert<QString>() ? currentItem.toString() : QString();
+    return QStringLiteral("%1Delegate('%2')%3")
+        .arg(extra.changeType == ExtraInfoForDelayed::TreeViewExtra::Expanded ? "expand"
+                                                                              : "collapse")
+        .arg(utils::objectPath(widget))
+        .arg(currentItemText.isEmpty()
+                 ? ""
+                 : QStringLiteral(" // Delegate text: '%1'").arg(currentItemText));
+}
+
 static QString qItemViewFilter(const QWidget *widget, const QMouseEvent *event) noexcept
 {
     if (!utils::mouseEventCanBeFiltered(widget, event)) {
@@ -436,7 +472,7 @@ static QString qItemViewFilter(const QWidget *widget, const QMouseEvent *event) 
             .arg(currentIndex.column())
             .arg(currentItemText.isEmpty()
                      ? ""
-                     : QStringLiteral("// Delegate text: '%1'").arg(currentItemText));
+                     : QStringLiteral(" // Delegate text: '%1'").arg(currentItemText));
     }
 
     const auto selectedCellsData = utils::selectedCellsData(selectionModel);
@@ -529,6 +565,7 @@ WidgetEventFilter::WidgetEventFilter(QObject *parent) noexcept
         { WidgetClass::Slider, filters::qSliderFilter },
         { WidgetClass::SpinBox, filters::qSpinBoxFilter },
         { WidgetClass::Calendar, filters::qCalendarFilter },
+        { WidgetClass::TreeView, filters::qTreeViewFilter },
     };
 }
 
@@ -561,68 +598,91 @@ void WidgetEventFilter::findAndSetDelayedFilter(const QWidget *widget,
 
     destroyDelay();
     WidgetClass foundWidgetClass = WidgetClass::None;
-    QMetaObject::Connection connection;
+    std::vector<QMetaObject::Connection> connections;
     if (auto *foundWidget
         = utils::searchSpecificWidget(widget, filters::s_widgetMetaMap.at(WidgetClass::SpinBox))) {
         auto slot = [this] { emit this->signalDetected(); };
         foundWidgetClass = WidgetClass::SpinBox;
-        connection = utils::connectIfType<QSpinBox>(
+        QMetaObject::Connection spinBoxConnection = utils::connectIfType<QSpinBox>(
             widget, this, static_cast<void (QSpinBox::*)(int)>(&QSpinBox::valueChanged), slot);
-        if (!connection) {
-            connection = utils::connectIfType<QDoubleSpinBox>(
+        if (!spinBoxConnection) {
+            spinBoxConnection = utils::connectIfType<QDoubleSpinBox>(
                 foundWidget, this,
                 static_cast<void (QDoubleSpinBox::*)(double)>(&QDoubleSpinBox::valueChanged), slot);
         }
-        if (!connection) {
-            connection = utils::connectIfType<QDateTimeEdit>(
+        if (!spinBoxConnection) {
+            spinBoxConnection = utils::connectIfType<QDateTimeEdit>(
                 foundWidget, this,
                 static_cast<void (QDateTimeEdit::*)(const QDateTime &)>(
                     &QDateTimeEdit::dateTimeChanged),
                 slot);
         }
+        connections.push_back(spinBoxConnection);
     }
     else if (auto *foundWidget = utils::searchSpecificWidget(
                  widget, filters::s_widgetMetaMap.at(WidgetClass::Slider))) {
-        auto slot = [this](int type) { emit this->specificSignalDetected(type); };
         foundWidgetClass = WidgetClass::Slider;
-        connection = utils::connectIfType<QAbstractSlider>(
+        connections.push_back(utils::connectIfType<QAbstractSlider>(
             foundWidget, this,
-            static_cast<void (QAbstractSlider::*)(int)>(&QAbstractSlider::actionTriggered), slot);
+            static_cast<void (QAbstractSlider::*)(int)>(&QAbstractSlider::actionTriggered),
+            [this](int type) {
+                this->delayedExtra_.changeType = type;
+                emit this->signalDetected();
+            }));
     }
     else if (auto *foundWidget = utils::searchSpecificWidget(
                  widget, filters::s_widgetMetaMap.at(WidgetClass::Calendar))) {
         auto *itemView = qobject_cast<const QAbstractItemView *>(foundWidget);
         assert(itemView != nullptr);
-        auto slot = [this] { emit this->signalDetected(); };
         foundWidgetClass = WidgetClass::Calendar;
-        connection = utils::connectIfType<QItemSelectionModel>(
+        connections.push_back(utils::connectIfType<QItemSelectionModel>(
             itemView->selectionModel(), this,
             static_cast<void (QItemSelectionModel::*)(const QModelIndex &, const QModelIndex &)>(
                 &QItemSelectionModel::currentChanged),
-            slot);
+            [this] { emit this->signalDetected(); }));
+    }
+    else if (auto *foundWidget = utils::searchSpecificWidget(
+                 widget, filters::s_widgetMetaMap.at(WidgetClass::TreeView))) {
+        foundWidgetClass = WidgetClass::TreeView;
+        connections.push_back(utils::connectIfType<QTreeView>(
+            foundWidget, this,
+            static_cast<void (QTreeView::*)(const QModelIndex &)>(&QTreeView::expanded),
+            [this](const QModelIndex &index) {
+                this->delayedExtra_.changeIndex = index;
+                this->delayedExtra_.changeType = ExtraInfoForDelayed::TreeViewExtra::Expanded;
+                emit this->signalDetected();
+            }));
+        connections.push_back(utils::connectIfType<QTreeView>(
+            foundWidget, this,
+            static_cast<void (QTreeView::*)(const QModelIndex &)>(&QTreeView::collapsed),
+            [this](const QModelIndex &index) {
+                this->delayedExtra_.changeIndex = index;
+                this->delayedExtra_.changeType = ExtraInfoForDelayed::TreeViewExtra::Collapsed;
+                emit this->signalDetected();
+            }));
     }
 
     if (foundWidgetClass != WidgetClass::None) {
-        assert(connection);
-        initDelay(widget, event, delayedFilterFunctions_.at(foundWidgetClass), connection);
+        assert(connectionIsInit(connections) == true);
+        initDelay(widget, event, delayedFilterFunctions_.at(foundWidgetClass), connections);
     }
 }
 
 bool WidgetEventFilter::delayedFilterCanBeCalledForWidget(const QWidget *widget) const noexcept
 {
-    return needToUseFilter_ && !connection_ && delayedFilter_.has_value()
+    return needToUseFilter_ && !connectionIsInit() && delayedFilter_.has_value()
            && delayedWidget_ != nullptr && delayedWidget_ == widget;
 }
 
 void WidgetEventFilter::initDelay(const QWidget *widget, const QMouseEvent *event,
                                   const DelayedWidgetFilterFunction &filter,
-                                  QMetaObject::Connection &connection) noexcept
+                                  std::vector<QMetaObject::Connection> &connections) noexcept
 {
     causedEvent_ = event;
     causedEventType_ = event->type();
     delayedWidget_ = widget;
     delayedFilter_ = filter;
-    connection_ = connection;
+    connections_ = connections;
 }
 
 void WidgetEventFilter::destroyDelay() noexcept
@@ -632,9 +692,26 @@ void WidgetEventFilter::destroyDelay() noexcept
     delayedFilter_ = std::nullopt;
     delayedExtra_.clear();
     needToUseFilter_ = false;
-    if (connection_) {
-        QObject::disconnect(connection_);
+    disconnectAll();
+}
+
+bool WidgetEventFilter::connectionIsInit(
+    std::optional<std::vector<QMetaObject::Connection>> connections) const noexcept
+{
+    for (auto &connection : connections.has_value() ? *connections : connections_) {
+        if (connection) {
+            return true;
+        }
     }
+    return false;
+}
+
+void WidgetEventFilter::disconnectAll() noexcept
+{
+    for (auto &connection : connections_) {
+        QObject::disconnect(connection);
+    }
+    connections_.clear();
 }
 
 std::optional<QString> WidgetEventFilter::callDelayedFilter(const QWidget *widget,

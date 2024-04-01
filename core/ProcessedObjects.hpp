@@ -11,6 +11,7 @@ enum WidgetClass {
     Calendar,
     Menu,
     TabBar,
+    TreeView,
     ItemView,
     None,
 };
