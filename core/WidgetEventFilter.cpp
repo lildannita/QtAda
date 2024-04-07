@@ -70,8 +70,8 @@ QString qMouseEventFilter(const QString &path, const QWidget *widget, const QEve
     }
 
     const auto clickPosition = widget->mapFromGlobal(mouseEvent->globalPos());
-    return QStringLiteral("%1('%2', '%3', %4, %5)")
-        .arg(event->type() == QEvent::MouseButtonDblClick ? "mouseDblClick" : "mouseClick")
+    return QStringLiteral("mouse%1Click('%2', '%3', %4, %5);")
+        .arg(event->type() == QEvent::MouseButtonDblClick ? "Dbl" : "")
         .arg(path)
         .arg(utils::mouseButtonToString(mouseEvent->button()))
         .arg(clickPosition.x())
@@ -96,7 +96,7 @@ static QString qButtonFilter(const QWidget *widget, const QMouseEvent *event) no
     const auto buttonRect = button->rect();
     const auto clickPos = button->mapFromGlobal(event->globalPos());
 
-    return QStringLiteral("%1Button('%2')%3")
+    return QStringLiteral("%1Button('%2');%3")
         .arg(buttonRect.contains(clickPos) ? "click" : "press")
         .arg(utils::objectPath(widget))
         .arg(button->text().isEmpty()
@@ -126,7 +126,7 @@ static QString qRadioButtonFilter(const QWidget *widget, const QMouseEvent *even
         if (clickableArea.contains(clickPos)) {
             auto *radioButton = qobject_cast<const QRadioButton *>(widget);
             assert(radioButton != nullptr);
-            return QStringLiteral("clickButton('%1')%2")
+            return QStringLiteral("clickButton('%1');%2")
                 .arg(utils::objectPath(widget))
                 .arg(radioButton->text().isEmpty()
                          ? ""
@@ -159,7 +159,7 @@ static QString qCheckBoxFilter(const QWidget *widget, const QMouseEvent *event) 
             auto *checkBox = qobject_cast<const QCheckBox *>(widget);
             assert(checkBox != nullptr);
             //! TODO: разобраться с tristate
-            return QStringLiteral("checkButton('%1', %2)%3")
+            return QStringLiteral("checkButton('%1', %2);%3")
                 .arg(utils::objectPath(widget))
                 .arg(checkBox->isChecked() ? "false" : "true")
                 .arg(checkBox->text().isEmpty()
@@ -198,7 +198,7 @@ static QString qComboBoxFilter(const QWidget *widget, const QMouseEvent *event) 
     const auto clickPos = comboBoxView->mapFromGlobal(event->globalPos());
 
     if (containerRect.contains(clickPos)) {
-        return QStringLiteral("selectItem('%1', '%2')")
+        return QStringLiteral("selectItem('%1', '%2');")
             .arg(utils::objectPath(comboBox))
             .arg(utils::widgetIdInView(comboBox, comboBoxView->currentIndex().row(),
                                        WidgetClass::ComboBox));
@@ -430,7 +430,7 @@ static QString qTreeViewFilter(const QWidget *widget, const QMouseEvent *event,
     const auto currentItem = view->model()->data(extra.changeIndex);
     const auto currentItemText
         = currentItem.canConvert<QString>() ? currentItem.toString() : QString();
-    return QStringLiteral("%1Delegate('%2')%3")
+    return QStringLiteral("%1Delegate('%2');%3")
         .arg(extra.changeType == ExtraInfoForDelayed::TreeViewExtra::Expanded ? "expand"
                                                                               : "collapse")
         .arg(utils::objectPath(widget))
@@ -465,7 +465,7 @@ static QString qUndoViewFilter(const QWidget *widget, const QMouseEvent *event,
         const auto currentItem = model->data(model->index(index, 0));
         const auto currentItemText
             = currentItem.canConvert<QString>() ? currentItem.toString() : QString();
-        result += QStringLiteral("undoCommand('%1', %2)%3")
+        result += QStringLiteral("undoCommand('%1', %2);%3")
                       .arg(utils::objectPath(view))
                       .arg(index)
                       .arg(currentItemText.isEmpty()
@@ -474,6 +474,38 @@ static QString qUndoViewFilter(const QWidget *widget, const QMouseEvent *event,
     }
     assert(!result.isEmpty());
     return result;
+}
+
+// Это вспомогательная функция для двух используемых фильтров: qItemViewFilter и
+// qItemViewSelectFilter
+static QString qItemViewClickFilter(const QAbstractItemView *view,
+                                    const QMouseEvent *event) noexcept
+{
+    const auto *selectionModel = view->selectionModel();
+    //! TODO: возможна ли ситуация `selectionModel == nullptr`?
+    assert(selectionModel != nullptr);
+    const auto currentIndex = view->currentIndex();
+    const auto selectedIndexes = selectionModel->selectedIndexes();
+    const auto selectedIndex
+        = selectedIndexes.size() == 1 ? selectedIndexes.first() : QModelIndex();
+    const auto clickedIndex = view->indexAt(event->pos());
+
+    if ((view->selectionMode() == QAbstractItemView::NoSelection || selectedIndex == currentIndex)
+        && currentIndex.isValid() && clickedIndex.isValid()) {
+        const auto currentItem = view->model()->data(currentIndex);
+        const auto currentItemText
+            = currentItem.canConvert<QString>() ? currentItem.toString() : QString();
+        return QStringLiteral("delegate%1Click('%2', (%3, %4));%5")
+            .arg(event->type() == QEvent::MouseButtonDblClick ? "Dbl" : "")
+            .arg(utils::objectPath(view))
+            .arg(currentIndex.row())
+            .arg(currentIndex.column())
+            .arg(currentItemText.isEmpty()
+                     ? ""
+                     : QStringLiteral(" // Delegate text: '%1'").arg(currentItemText));
+    }
+
+    return QString();
 }
 
 static QString qItemViewFilter(const QWidget *widget, const QMouseEvent *event) noexcept
@@ -499,10 +531,8 @@ static QString qItemViewFilter(const QWidget *widget, const QMouseEvent *event) 
      * полезного события и не будет, следовательно, обработчик дойдет до сюда, поэтому необходимо
      * отметить, что данный клик бесполезен.
      */
-    QString result;
-    if (utils::searchSpecificWidget(widget, s_widgetMetaMap.at(WidgetClass::UndoView)) != nullptr) {
-        result += QLatin1String("// Looks like QUndoView useless delegate click\n// ");
-    }
+    bool isUndoView
+        = utils::searchSpecificWidget(widget, s_widgetMetaMap.at(WidgetClass::UndoView)) != nullptr;
 
     auto *view = qobject_cast<const QAbstractItemView *>(widget);
     assert(view != nullptr);
@@ -518,36 +548,48 @@ static QString qItemViewFilter(const QWidget *widget, const QMouseEvent *event) 
     //! именно это событие и используется в тестируемых приложениях. На всякий случай мы
     //! пока что также обрабатываем `выбор` элементов, но скорее всего это будет лишним.
 
-    const auto *selectionModel = view->selectionModel();
-    //! TODO: возможна ли ситуация `selectionModel == nullptr`?
-    assert(selectionModel != nullptr);
-    const auto currentIndex = view->currentIndex();
-    const auto selectedIndexes = selectionModel->selectedIndexes();
-    const auto selectedIndex
-        = selectedIndexes.size() == 1 ? selectedIndexes.first() : QModelIndex();
-
-    if ((view->selectionMode() == QAbstractItemView::NoSelection || selectedIndex == currentIndex)
-        && currentIndex.isValid()) {
-        const auto currentItem = view->model()->data(currentIndex);
-        const auto currentItemText
-            = currentItem.canConvert<QString>() ? currentItem.toString() : QString();
-        result += QStringLiteral("%1Delegate('%2', (%3, %4))%5")
-                      .arg(event->type() == QEvent::MouseButtonDblClick ? "doubleClick" : "click")
-                      .arg(utils::objectPath(view))
-                      .arg(currentIndex.row())
-                      .arg(currentIndex.column())
-                      .arg(currentItemText.isEmpty()
-                               ? ""
-                               : QStringLiteral(" // Delegate text: '%1'").arg(currentItemText));
-        return result;
+    const auto clickResult = qItemViewClickFilter(view, event);
+    if (clickResult.isEmpty()) {
+        const auto selectionMode = view->selectionMode();
+        if (selectionMode == QAbstractItemView::ExtendedSelection
+            || selectionMode == QAbstractItemView::ContiguousSelection) {
+            return QStringLiteral("clearSelection('%1');").arg(utils::objectPath(view));
+        }
+        return QString();
     }
 
-    const auto selectedCellsData = utils::selectedCellsData(selectionModel);
+    return QStringLiteral("%1%2")
+        .arg(isUndoView ? "// Looks like QUndoView useless delegate click\n// " : "")
+        .arg(clickResult);
+}
+
+static QString qItemViewSelectionFilter(const QWidget *widget, const QMouseEvent *event,
+                                        const ExtraInfoForDelayed &extra) noexcept
+{
+    Q_UNUSED(extra);
+    if (!utils::mouseEventCanBeFiltered(widget, event)) {
+        return QString();
+    }
+
+    widget = utils::searchSpecificWidget(widget, s_widgetMetaMap.at(WidgetClass::ItemView));
+    if (widget == nullptr) {
+        return QString();
+    }
+
+    auto *view = qobject_cast<const QAbstractItemView *>(widget);
+    assert(view != nullptr);
+
+    const auto clickResult = qItemViewClickFilter(view, event);
+    if (!clickResult.isEmpty()) {
+        return clickResult;
+    }
+
+    const auto selectedCellsData = utils::selectedCellsData(view->selectionModel());
     //! TODO: на этапе обработки записанных действий скорее всего придется переделать
     //! запись выбранных ячеек
     return selectedCellsData.isEmpty()
-               ? QStringLiteral("clearSelection('%1')").arg(utils::objectPath(widget))
-               : QStringLiteral("let selectionData = [%1];\nsetSelection('%2', selectionData)")
+               ? QStringLiteral("clearSelection('%1');").arg(utils::objectPath(widget))
+               : QStringLiteral("let selectionData = [%1];\nsetSelection('%2', selectionData);")
                      .arg(selectedCellsData)
                      .arg(utils::objectPath(widget));
 }
@@ -575,8 +617,8 @@ static QString qMenuBarFilter(const QWidget *widget, const QMouseEvent *event) n
     const auto *actionMenu = action->menu();
     if (actionMenu == nullptr) {
         const auto actionText = action->text();
-        return QStringLiteral("%1activateMenuAction('%2', '%3'%4)%5")
-            .arg(action->isSeparator() ? "// Looks like QMenu::Separator clicked\n// " : "")
+        return QStringLiteral("%1activateMenuAction('%2', '%3'%4);%5")
+            .arg(action->isSeparator() ? " // Looks like QMenu::Separator clicked\n// " : "")
             .arg(utils::objectPath(widget))
             .arg(utils::widgetIdInView(menuBar, menuBar->actions().indexOf(action),
                                        WidgetClass::MenuBar))
@@ -590,7 +632,7 @@ static QString qMenuBarFilter(const QWidget *widget, const QMouseEvent *event) n
         //! TODO: на текущий момент не обрабатывается DoubleClick по QMenu (непонятно почему), но
         //! нужно ли оно?
         const auto menuText = actionMenu->title();
-        return QStringLiteral("activateMenu('%1')%2")
+        return QStringLiteral("activateMenu('%1');%2")
             .arg(utils::objectPath(widget))
             .arg(menuText.isEmpty() ? "" : QStringLiteral(" // Menu title: '%1'").arg(menuText));
     }
@@ -615,13 +657,13 @@ static QString qMenuFilter(const QWidget *widget, const QMouseEvent *event) noex
 
     if (action == nullptr) {
         const auto menuText = menu->title();
-        return QStringLiteral("activateMenu('%1')%2")
+        return QStringLiteral("activateMenu('%1');%2")
             .arg(utils::objectPath(widget))
             .arg(menuText.isEmpty() ? "" : QStringLiteral(" // Menu title: '%1'").arg(menuText));
     }
     else {
         const auto actionText = action->text();
-        return QStringLiteral("%1activateMenuAction('%2', '%3'%4)%5")
+        return QStringLiteral("%1activateMenuAction('%2', '%3'%4);%5")
             .arg(action->isSeparator() ? "// Looks like QMenu::Separator clicked\n// " : "")
             .arg(utils::objectPath(widget))
             .arg(utils::widgetIdInView(menu, menu->actions().indexOf(action), WidgetClass::Menu))
@@ -649,7 +691,7 @@ static QString qTabBarFilter(const QWidget *widget, const QMouseEvent *event) no
 
     const auto currentIndex = tabBar->currentIndex();
     const auto currentText = tabBar->tabText(currentIndex);
-    return QStringLiteral("selectTabItem('%1', '%2')%3")
+    return QStringLiteral("selectTabItem('%1', '%2');%3")
         .arg(utils::objectPath(widget))
         .arg(utils::widgetIdInView(tabBar, currentIndex, WidgetClass::TabBar))
         .arg(currentText.isEmpty() ? ""
@@ -665,13 +707,13 @@ static QString qCloseFilter(const QWidget *widget, const QEvent *event) noexcept
     }
 
     if (utils::searchSpecificWidget(widget, s_widgetMetaMap.at(WidgetClass::Dialog)) != nullptr) {
-        return QStringLiteral("closeDialog(%1)").arg(utils::objectPath(widget));
+        return QStringLiteral("closeDialog(%1);").arg(utils::objectPath(widget));
     }
     if (utils::searchSpecificWidget(widget, s_widgetMetaMap.at(WidgetClass::Window)) != nullptr) {
-        return QStringLiteral("closeWindow(%1)").arg(utils::objectPath(widget));
+        return QStringLiteral("closeWindow(%1);").arg(utils::objectPath(widget));
     }
 
-    return QStringLiteral("// Looks like this QEvent::Close is not important\nclose(%1)")
+    return QStringLiteral("// Looks like this QEvent::Close is not important\nclose(%1);")
         .arg(utils::objectPath(widget));
 }
 } // namespace QtAda::core::filters
@@ -711,6 +753,7 @@ WidgetEventFilter::WidgetEventFilter(QObject *parent) noexcept
         { WidgetClass::Calendar, filters::qCalendarFilter },
         { WidgetClass::TreeView, filters::qTreeViewFilter },
         { WidgetClass::UndoView, filters::qUndoViewFilter },
+        { WidgetClass::ItemView, filters::qItemViewSelectionFilter },
     };
 
     specialFilterFunctions_ = {
@@ -849,6 +892,18 @@ void WidgetEventFilter::setDelayedOrSpecificMouseEventFilter(const QWidget *widg
                 this->delayedExtra_.collectedIndexes.push_back(index);
                 this->signalDetected(false);
             }));
+    }
+    else if (auto *foundWidget = utils::searchSpecificWidget(
+                 widget, filters::s_widgetMetaMap.at(WidgetClass::ItemView))) {
+        auto *itemView = qobject_cast<const QAbstractItemView *>(foundWidget);
+        assert(itemView != nullptr);
+        foundWidgetClass = WidgetClass::ItemView;
+        connections.push_back(utils::connectIfType<QItemSelectionModel>(
+            itemView->selectionModel(), this,
+            static_cast<void (QItemSelectionModel::*)(const QItemSelection &,
+                                                      const QItemSelection &)>(
+                &QItemSelectionModel::selectionChanged),
+            [this] { this->signalDetected(); }));
     }
 
     if (foundWidgetClass != WidgetClass::None) {

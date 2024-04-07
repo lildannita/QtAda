@@ -204,7 +204,6 @@ QString selectedCellsData(const QItemSelectionModel *selectionModel) noexcept
     for (const QModelIndex &index : selectionModel->selectedIndexes()) {
         rowsToColumns[index.row()].insert(index.column());
     }
-
     for (auto it = rowsToColumns.constBegin(); it != rowsToColumns.constEnd(); ++it) {
         if (it.value().size() == model->columnCount()) {
             fullRows.insert(it.key());
@@ -223,30 +222,35 @@ QString selectedCellsData(const QItemSelectionModel *selectionModel) noexcept
         }
     }
 
+    if (fullRows.size() == model->rowCount() && fullColumns.size() == model->columnCount()) {
+        return "['ALL', 'ALL']";
+    }
+
     QString result;
     for (int row : fullRows) {
-        result += QStringLiteral("[%1, 'ALL'],").arg(row);
+        result += QStringLiteral("[%1, 'ALL'], ").arg(row);
     }
     for (int column : fullColumns) {
-        result += QStringLiteral("['ALL', %1],").arg(column);
+        result += QStringLiteral("['ALL', %1], ").arg(column);
     }
     for (auto it = rowsToColumns.constBegin(); it != rowsToColumns.constEnd(); ++it) {
         if (!fullRows.contains(it.key())) {
             QString cols = "[";
             for (int col : it.value()) {
                 if (!fullColumns.contains(col)) {
-                    cols += QStringLiteral("%1,").arg(col);
+                    cols += QStringLiteral("%1, ").arg(col);
                 }
             }
             if (cols != "[") {
-                cols[cols.length() - 1] = ']';
-                result += QStringLiteral("[%1, %2],").arg(it.key()).arg(cols);
+                cols[cols.length() - 2] = ']';
+                cols.chop(1);
+                result += QStringLiteral("[%1, %2], ").arg(it.key()).arg(cols);
             }
         }
     }
 
     if (!result.isEmpty()) {
-        result.chop(1);
+        result.chop(2);
     }
 
     return result;

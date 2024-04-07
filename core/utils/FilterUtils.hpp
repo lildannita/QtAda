@@ -37,16 +37,16 @@ searchSpecificWidget(const QWidget *widget,
 template <typename T> inline QString setValueStatement(const QWidget *widget, T value) noexcept
 {
     static_assert(std::is_arithmetic<T>::value, "Type T must be a digit");
-    return QStringLiteral("setValue('%1', %2)").arg(objectPath(widget)).arg(value);
+    return QStringLiteral("setValue('%1', %2);").arg(objectPath(widget)).arg(value);
 }
 
 inline QString setValueStatement(const QWidget *widget, const QString &value) noexcept
 {
-    return QStringLiteral("setValue('%1', '%2')").arg(objectPath(widget), value);
+    return QStringLiteral("setValue('%1', '%2');").arg(objectPath(widget), value);
 }
 
 inline QString changeValueStatement(const QWidget *widget, const QString &type) noexcept
 {
-    return QStringLiteral("changeValue('%1', '%2')").arg(objectPath(widget), type);
+    return QStringLiteral("changeValue('%1', '%2');").arg(objectPath(widget), type);
 }
 } // namespace QtAda::core::utils
