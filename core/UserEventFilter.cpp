@@ -3,6 +3,7 @@
 #include <QApplication>
 #include <QQuickItem>
 #include <QWidget>
+#include <QRegularExpression>
 
 #include "utils/FilterUtils.hpp"
 
@@ -82,13 +83,14 @@ QStringList UserEventFilter::handleMouseEvent(const QString &objPath, const QWid
         scriptLine = filters::qMouseEventFilter(objPath, widget, event);
     }
     else if (duplicateMouseEvent_) {
-        scriptLine = QStringLiteral("%1\n// %2")
-                         .arg(scriptLine)
-                         .arg(filters::qMouseEventFilter(objPath, widget, event));
+        static QRegularExpression regex("mouse(Dbl)?Click");
+        if (!regex.match(scriptLine).hasMatch()) {
+            scriptLine
+                += QStringLiteral("// %1").arg(filters::qMouseEventFilter(objPath, widget, event));
+        }
     }
-    auto lines = scriptLine.split('\n');
-    assert(!lines.isEmpty());
-    return lines;
+    assert(!scriptLine.isEmpty());
+    return scriptLine.split('\n');
 }
 
 bool UserEventFilter::eventFilter(QObject *reciever, QEvent *event) noexcept
