@@ -11,54 +11,18 @@
 #include <iostream>
 
 namespace QtAda::core {
-static constexpr qint64 EVENT_TIME_DIFF_MS = 100;
-
-bool UserEventFilter::LastMouseEvent::registerEvent(const QString &path,
-                                                    const QEvent *event) noexcept
-{
-    auto *mouseEvent = static_cast<const QMouseEvent *>(event);
-    if (mouseEvent == nullptr) {
-        return false;
-    }
-
-    const auto now = QDateTime::currentDateTime();
-    if (mouseEvent->type() == type && std::llabs(now.msecsTo(timestamp)) < EVENT_TIME_DIFF_MS
-        && mouseEvent->buttons() == buttons) {
-        if (mouseEvent->globalPos() == globalPos && objectPath == path) {
-            return false;
-        }
-        const auto parentPath = objectPath.left(objectPath.lastIndexOf('/'));
-        if (parentPath == path) {
-            objectPath = path;
-            return false;
-        }
-    }
-
-    type = mouseEvent->type();
-    timestamp = now;
-    globalPos = mouseEvent->globalPos();
-    buttons = mouseEvent->buttons();
-    objectPath = path;
-
-    return true;
-}
-
-bool UserEventFilter::LastMouseEvent::isContinuous(const LastMouseEvent &pressEvent) const noexcept
-{
-    return type == QEvent::MouseButtonRelease
-           && (pressEvent.type == QEvent::MouseButtonPress
-               || pressEvent.type == QEvent::MouseButtonDblClick)
-           && std::llabs(timestamp.msecsTo(pressEvent.timestamp)) > EVENT_TIME_DIFF_MS
-           && objectPath == pressEvent.objectPath;
-}
-
 UserEventFilter::UserEventFilter(QObject *parent) noexcept
     : QObject{ parent }
 {
+    connect(&widgetFilter_, &WidgetEventFilter::newScriptKeyLine, this,
+            &UserEventFilter::newScriptLine);
+
     doubleClickTimer_.setSingleShot(true);
     connect(&doubleClickTimer_, &QTimer::timeout, this, [this]() {
-        flushScriptLine(delayedScriptLine_);
-        delayedScriptLine_.clear();
+        if (delayedScriptLine_.has_value()) {
+            flushScriptLine(*delayedScriptLine_);
+            delayedScriptLine_ = std::nullopt;
+        }
     });
 
     //! TODO: убрать
@@ -75,14 +39,14 @@ void UserEventFilter::flushScriptLine(const QString &line) const noexcept
 QString UserEventFilter::handleMouseEvent(const QString &objPath, const QWidget *widget,
                                           const QEvent *event, bool isSpecialEvent) noexcept
 {
-    auto scriptLine = widgetFilter_.callWidgetFilters(
+    auto scriptLine = widgetFilter_.callWidgetMouseFilters(
         widget, event, lastReleaseEvent_.isContinuous(lastPressEvent_), isSpecialEvent);
     if (scriptLine.isEmpty()) {
         scriptLine = filters::qMouseEventFilter(objPath, widget, event);
     }
     else if (duplicateMouseEvent_) {
-        static QRegularExpression regex("mouse(Dbl)?Click");
-        if (!regex.match(scriptLine).hasMatch()) {
+        static QRegularExpression s_regex("mouse(Dbl)?Click");
+        if (!s_regex.match(scriptLine).hasMatch()) {
             scriptLine
                 += QStringLiteral("// %1").arg(filters::qMouseEventFilter(objPath, widget, event));
         }
@@ -122,9 +86,9 @@ bool UserEventFilter::eventFilter(QObject *reciever, QEvent *event) noexcept
             }
             lastReleaseEvent_.clearEvent();
 
-            if (doubleClickTimer_.isActive() && !delayedScriptLine_.isEmpty()) {
-                flushScriptLine(delayedScriptLine_);
-                delayedScriptLine_.clear();
+            if (doubleClickTimer_.isActive() && delayedScriptLine_.has_value()) {
+                flushScriptLine(*delayedScriptLine_);
+                delayedScriptLine_ = std::nullopt;
             }
             doubleClickTimer_.start(QApplication::doubleClickInterval());
             widgetFilter_.setDelayedOrSpecificMouseEventFilter(widgetItem, event);
@@ -144,14 +108,14 @@ bool UserEventFilter::eventFilter(QObject *reciever, QEvent *event) noexcept
                     if (lastReleaseEvent_.isContinuous(lastPressEvent_)) {
                         flushScriptLine(handleMouseEvent(std::move(path), widgetItem, event));
                     }
-                    else if (!delayedScriptLine_.isEmpty()) {
-                        flushScriptLine(delayedScriptLine_);
+                    else if (delayedScriptLine_.has_value()) {
+                        flushScriptLine(*delayedScriptLine_);
                     }
                 }
                 else {
                     flushScriptLine(handleMouseEvent(std::move(path), widgetItem, event));
                 }
-                delayedScriptLine_.clear();
+                delayedScriptLine_ = std::nullopt;
             }
             lastPressEvent_.clearEvent();
             break;
@@ -176,10 +140,23 @@ bool UserEventFilter::eventFilter(QObject *reciever, QEvent *event) noexcept
         flushScriptLine(handleMouseEvent(utils::objectPath(reciever), widgetItem, event, true));
         break;
     }
-    case QEvent::KeyPress:
+    case QEvent::KeyPress: {
+        if (lastKeyEvent_.registerEvent(utils::objectPath(reciever), event)) {
+            widgetFilter_.updateKeyWatchDog(widgetItem, event);
+        }
         break;
-    case QEvent::KeyRelease:
+    }
+    case QEvent::KeyRelease: {
+        lastKeyEvent_.clearEvent();
         break;
+    }
+    case QEvent::FocusAboutToChange: {
+        //! TODO: надо ли отдельно от KeyPress рассматривать это событие?
+        if (lastFocusEvent_.registerEvent(utils::objectPath(reciever), event)) {
+            widgetFilter_.updateKeyWatchDog(widgetItem, event);
+        }
+        break;
+    }
     default:
         break;
     }

@@ -18,6 +18,10 @@ enum WidgetClass {
     ColumnViewGrip,
     Dialog,
     Window,
+    KeySequenceEdit,
+    TextEdit,
+    PlainTextEdit,
+    LineEdit,
     None,
 };
 }

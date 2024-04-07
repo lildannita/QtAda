@@ -18,6 +18,8 @@ class QItemSelectionModel;
 QT_END_NAMESPACE
 
 namespace QtAda::core::utils {
+QString escapeText(const QString &text) noexcept;
+
 QString objectPath(const QObject *obj) noexcept;
 QString mouseButtonToString(const Qt::MouseButton mouseButton) noexcept;
 

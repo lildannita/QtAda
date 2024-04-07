@@ -23,6 +23,10 @@
 #include <QUndoView>
 #include <QUndoStack>
 #include <QDialog>
+#include <QTextEdit>
+#include <QPlainTextEdit>
+#include <QLineEdit>
+#include <QKeySequenceEdit>
 
 #include "utils/Common.hpp"
 #include "utils/FilterUtils.hpp"
@@ -50,7 +54,7 @@ static const std::map<WidgetClass, std::pair<QLatin1String, size_t>> s_widgetMet
     { Menu, { QLatin1String("QMenu"), 1 } },
     { MenuBar, { QLatin1String("QMenuBar"), 1 } },
     { TabBar, { QLatin1String("QTabBar"), 1 } },
-    { ItemView, { QLatin1String("QAbstractItemView"), 2 } },
+    { ItemView, { QLatin1String("QAbstractItemView"), 3 } },
     { TreeView, { QLatin1String("QTreeView"), 2 } },
     { UndoView, { QLatin1String("QUndoView"), 2 } },
     { Calendar, { QLatin1String("QCalendarView"), 2 } },
@@ -60,6 +64,10 @@ static const std::map<WidgetClass, std::pair<QLatin1String, size_t>> s_widgetMet
     { ColumnViewGrip, { QLatin1String("QColumnViewGrip"), 1 } },
     { Dialog, { QLatin1String("QDialog"), 1 } },
     { Window, { QLatin1String("QMainWindow"), 1 } },
+    { KeySequenceEdit, { QLatin1String("QKeySequenceEdit"), 1 } },
+    { TextEdit, { QLatin1String("QTextEdit"), 1 } },
+    { PlainTextEdit, { QLatin1String("QPlainTextEdit"), 1 } },
+    { LineEdit, { QLatin1String("QLineEdit"), 1 } },
 };
 
 QString qMouseEventFilter(const QString &path, const QWidget *widget, const QEvent *event) noexcept
@@ -722,7 +730,7 @@ namespace QtAda::core {
 WidgetEventFilter::WidgetEventFilter(QObject *parent) noexcept
     : QObject{ parent }
 {
-    widgetFilterFunctions_ = {
+    widgetMouseFilters_ = {
         filters::qRadioButtonFilter,
         filters::qCheckBoxFilter,
         filters::qComboBoxFilter,
@@ -743,11 +751,11 @@ WidgetEventFilter::WidgetEventFilter(QObject *parent) noexcept
     //! находится в QMenuBar, раскрытие происходит сразу и источник сигнала (опять же, при Press!)
     //! будет QMenu, на который мы нажали. Но при отпускании источник сигнала уже будет не QMenu,
     //! а QAction в том случае, если при раскрытии списка QMenu он перекрывает эту кнопку QMenu.
-    specificWidgetFilterFunctions_ = {
+    specificWidgetMouseFilters_ = {
         filters::qMenuBarFilter,
     };
 
-    delayedWidgetFilterFunctions_ = {
+    delayedWidgetMouseFilters_ = {
         { WidgetClass::Slider, filters::qSliderFilter },
         { WidgetClass::SpinBox, filters::qSpinBoxFilter },
         { WidgetClass::Calendar, filters::qCalendarFilter },
@@ -759,11 +767,25 @@ WidgetEventFilter::WidgetEventFilter(QObject *parent) noexcept
     specialFilterFunctions_ = {
         filters::qCloseFilter,
     };
+
+    processedTextWidgetClasses_ = {
+        WidgetClass::LineEdit, WidgetClass::TextEdit, WidgetClass::PlainTextEdit,
+        WidgetClass::SpinBox,
+        // Рассматриваем отдельно:
+        // WidgetClass::KeySequenceEdit,
+    };
+    keyWatchDogTimer_.setInterval(5000);
+    keyWatchDogTimer_.setSingleShot(true);
+    connect(&keyWatchDogTimer_, &QTimer::timeout, this, &WidgetEventFilter::callWidgetKeyFilters);
 }
 
-QString WidgetEventFilter::callWidgetFilters(const QWidget *widget, const QEvent *event,
-                                             bool isContinuous, bool isSpecialEvent) noexcept
+QString WidgetEventFilter::callWidgetMouseFilters(const QWidget *widget, const QEvent *event,
+                                                  bool isContinuous, bool isSpecialEvent) noexcept
 {
+    // Считаем, что любое нажатие мышью или какое-либо специальное событие
+    // обозначает конец редактирования текста.
+    callWidgetKeyFilters();
+
     if (isSpecialEvent) {
         for (auto &filter : specialFilterFunctions_) {
             const auto result = filter(widget, event);
@@ -787,7 +809,7 @@ QString WidgetEventFilter::callWidgetFilters(const QWidget *widget, const QEvent
         return *delayedResult;
     }
 
-    for (auto &filter : widgetFilterFunctions_) {
+    for (auto &filter : widgetMouseFilters_) {
         const auto result = filter(widget, mouseEvent);
         if (!result.isEmpty()) {
             return result;
@@ -809,7 +831,7 @@ void WidgetEventFilter::setDelayedOrSpecificMouseEventFilter(const QWidget *widg
 
     destroyDelay();
 
-    for (auto &filter : specificWidgetFilterFunctions_) {
+    for (auto &filter : specificWidgetMouseFilters_) {
         const auto result = filter(widget, mouseEvent);
         if (!result.isEmpty()) {
             initSpecific(widget, event, std::move(result));
@@ -908,14 +930,13 @@ void WidgetEventFilter::setDelayedOrSpecificMouseEventFilter(const QWidget *widg
 
     if (foundWidgetClass != WidgetClass::None) {
         assert(connectionIsInit(connections) == true);
-        initDelay(widget, mouseEvent, delayedWidgetFilterFunctions_.at(foundWidgetClass),
-                  connections);
+        initDelay(widget, mouseEvent, delayedWidgetMouseFilters_.at(foundWidgetClass), connections);
     }
 }
 
 void WidgetEventFilter::signalDetected(bool needToDisconnect) noexcept
 {
-    needToUseDelayedFilter_ = true;
+    needToUseDelayedMouseFilter_ = true;
     if (needToDisconnect) {
         disconnectAll();
     }
@@ -930,7 +951,7 @@ bool WidgetEventFilter::specificResultCanBeShown(const QWidget *widget) const no
 
 bool WidgetEventFilter::delayedFilterCanBeCalledForWidget(const QWidget *widget) const noexcept
 {
-    return needToUseDelayedFilter_ && !connectionIsInit() && delayedFilter_.has_value()
+    return needToUseDelayedMouseFilter_ && !connectionIsInit() && delayedMouseFilter_.has_value()
            && delayedWidget_ != nullptr && delayedWidget_ == widget;
 }
 
@@ -941,7 +962,7 @@ void WidgetEventFilter::initDelay(const QWidget *widget, const QMouseEvent *even
     causedEvent_ = event;
     causedEventType_ = event->type();
     delayedWidget_ = widget;
-    delayedFilter_ = filter;
+    delayedMouseFilter_ = filter;
     connections_ = connections;
 }
 
@@ -960,9 +981,9 @@ void WidgetEventFilter::destroyDelay() noexcept
 
     causedEventType_ = QEvent::None;
     delayedWidget_ = nullptr;
-    delayedFilter_ = std::nullopt;
+    delayedMouseFilter_ = std::nullopt;
     delayedExtra_.clear();
-    needToUseDelayedFilter_ = false;
+    needToUseDelayedMouseFilter_ = false;
     disconnectAll();
 }
 
@@ -992,7 +1013,135 @@ std::optional<QString> WidgetEventFilter::callDelayedFilter(const QWidget *widge
     disconnectAll();
     delayedExtra_.isContinuous = isContinuous;
     bool callable = delayedFilterCanBeCalledForWidget(widget);
-    return callable ? std::make_optional((*delayedFilter_)(widget, event, delayedExtra_))
+    return callable ? std::make_optional((*delayedMouseFilter_)(widget, event, delayedExtra_))
                     : std::nullopt;
+}
+
+void WidgetEventFilter::updateKeyWatchDog(const QWidget *widget, const QEvent *event) noexcept
+{
+    if (widget == nullptr || event == nullptr) {
+        return;
+    }
+
+    // Изменение фокуса (при условии, что фокус переводится с уже зарегестрированного объекта)
+    // считаем сигналом о завершении редактирования текста
+    if (event->type() == QEvent::FocusAboutToChange && widget == keyWidget_) {
+        callWidgetKeyFilters();
+    }
+
+    if (event->type() != QEvent::KeyPress) {
+        return;
+    }
+
+    if (keyWidget_ != widget) {
+        callWidgetKeyFilters();
+    }
+
+    //! TODO: Почему-то среди всех текстовых элементов в QtWidgets только для QKeySequenceEdit
+    //! найден очень удобный сигнал editingFinished. Для остальных приходится строить систему
+    //! из отслеживания фокуса и таймера. Однако может стоит придумать более надежный вариант.
+    if (auto *keySeqWidget = utils::searchSpecificWidget(
+            keyWidget_, filters::s_widgetMetaMap.at(WidgetClass::KeySequenceEdit))) {
+        if (keySeqWidget == keyWidget_ && keyConnection_) {
+            return;
+        }
+
+        keyWidget_ = keySeqWidget;
+        keyConnection_ = utils::connectIfType<QKeySequenceEdit>(
+            keySeqWidget, this,
+            static_cast<void (QKeySequenceEdit::*)()>(&QKeySequenceEdit::editingFinished),
+            [this, keySeqWidget] {
+                disconnect(this->keyConnection_);
+                auto *keySeqEdit = qobject_cast<const QKeySequenceEdit *>(keySeqWidget);
+                assert(keySeqEdit != nullptr);
+                this->flushKeyEvent(std::move(keySeqEdit->keySequence().toString()));
+            });
+        return;
+    }
+
+    for (const auto &widgetClass : processedTextWidgetClasses_) {
+        if (auto *foundWidget
+            = utils::searchSpecificWidget(widget, filters::s_widgetMetaMap.at(widgetClass))) {
+            keyWidget_ = foundWidget;
+            keyWidgetClass_ = widgetClass;
+            keyWatchDogTimer_.start();
+            return;
+        }
+    }
+
+    auto *keyEvent = static_cast<const QKeyEvent *>(event);
+    assert(keyEvent != nullptr);
+    flushKeyEvent(std::move(keyEvent->text()), widget);
+}
+
+void WidgetEventFilter::callWidgetKeyFilters() noexcept
+{
+    if (keyWidget_ == nullptr || keyWidgetClass_ == WidgetClass::None) {
+        return;
+    }
+
+    switch (keyWidgetClass_) {
+    case SpinBox: {
+        auto *spinBox = qobject_cast<const QAbstractSpinBox *>(keyWidget_);
+        assert(spinBox != nullptr);
+        flushKeyEvent(std::move(spinBox->text()));
+        return;
+    }
+    case TextEdit: {
+        auto *textEdit = qobject_cast<const QTextEdit *>(keyWidget_);
+        assert(textEdit != nullptr);
+        flushKeyEvent(std::move(textEdit->toPlainText()));
+        return;
+    }
+    case PlainTextEdit: {
+        auto *plainTextEdit = qobject_cast<const QPlainTextEdit *>(keyWidget_);
+        assert(plainTextEdit != nullptr);
+        flushKeyEvent(std::move(plainTextEdit->toPlainText()));
+        return;
+    }
+    case LineEdit: {
+        auto *lineEdit = qobject_cast<const QLineEdit *>(keyWidget_);
+        assert(lineEdit != nullptr);
+        flushKeyEvent(std::move(lineEdit->text()));
+        return;
+    }
+    default:
+        Q_UNREACHABLE();
+    }
+}
+
+void WidgetEventFilter::flushKeyEvent(const QString &line, const QWidget *extWidget) noexcept
+{
+    if (extWidget != nullptr) {
+        const auto keyLine = QStringLiteral("%1('%2', '%3');")
+                                 .arg("keyEvent")
+                                 .arg(utils::objectPath(extWidget))
+                                 .arg(utils::escapeText(std::move(line)));
+        emit newScriptKeyLine(std::move(keyLine));
+        return;
+    }
+
+    QModelIndex index;
+    const auto viewWidget = utils::searchSpecificWidget(
+        keyWidget_, filters::s_widgetMetaMap.at(WidgetClass::ItemView));
+    if (viewWidget != nullptr) {
+        auto *view = qobject_cast<const QAbstractItemView *>(viewWidget);
+        assert(view != nullptr);
+        index = view->currentIndex();
+    }
+
+    const auto keyLine
+        = QStringLiteral("%1('%2'%3, '%4');")
+              .arg("setText")
+              .arg(utils::objectPath(index.isValid() ? viewWidget : keyWidget_))
+              .arg(index.isValid()
+                       ? QStringLiteral(", (%1, %2)").arg(index.row()).arg(index.column())
+                       : "")
+              .arg(utils::escapeText(std::move(line)));
+    emit newScriptKeyLine(std::move(keyLine));
+
+    keyWatchDogTimer_.stop();
+    keyWidget_ = nullptr;
+    keyWidgetClass_ = WidgetClass::None;
 }
 } // namespace QtAda::core

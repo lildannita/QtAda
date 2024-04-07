@@ -8,6 +8,7 @@
 #include <QObject>
 #include <QEvent>
 #include <QModelIndex>
+#include <QTimer>
 
 #include "ProcessedObjects.hpp"
 
@@ -53,24 +54,32 @@ class WidgetEventFilter : public QObject {
 public:
     WidgetEventFilter(QObject *parent = nullptr) noexcept;
 
-    QString callWidgetFilters(const QWidget *widget, const QEvent *event, bool isContinuous,
-                              bool isSpecialEvent) noexcept;
+    QString callWidgetMouseFilters(const QWidget *widget, const QEvent *event, bool isContinuous,
+                                   bool isSpecialEvent) noexcept;
     void setDelayedOrSpecificMouseEventFilter(const QWidget *widget, const QEvent *event) noexcept;
 
+    void updateKeyWatchDog(const QWidget *widget, const QEvent *event) noexcept;
+signals:
+    //! TODO: Этот сигнал используется только для ввода текста, который вызывается только тогда,
+    //! когда мы считаем, что редактирование текста закончилось (иначе, если бы UserEventFitler
+    //! ждал scriptLine сразу после текстового QEvent, то в генерируемом скрипте был бы ввод
+    //! по одной букве, что не очень хорошо). Но такую же систему, в принципе, можно попробовать
+    //! и для click'овых QEvent.
+    void newScriptKeyLine(const QString &line) const;
+
 private:
-    std::vector<WidgetFilterFunction> widgetFilterFunctions_;
-    std::vector<WidgetFilterFunction> specificWidgetFilterFunctions_;
-    std::map<WidgetClass, DelayedWidgetFilterFunction> delayedWidgetFilterFunctions_;
+    std::vector<WidgetFilterFunction> widgetMouseFilters_;
+    std::vector<WidgetFilterFunction> specificWidgetMouseFilters_;
+    std::map<WidgetClass, DelayedWidgetFilterFunction> delayedWidgetMouseFilters_;
     std::vector<SpecialFilterFunction> specialFilterFunctions_;
 
     QEvent::Type causedEventType_ = QEvent::None;
     const QEvent *causedEvent_ = nullptr;
     const QWidget *delayedWidget_ = nullptr;
-    std::optional<DelayedWidgetFilterFunction> delayedFilter_ = std::nullopt;
-    bool needToUseDelayedFilter_ = false;
+    std::optional<DelayedWidgetFilterFunction> delayedMouseFilter_ = std::nullopt;
+    bool needToUseDelayedMouseFilter_ = false;
     std::vector<QMetaObject::Connection> connections_;
     ExtraInfoForDelayed delayedExtra_;
-
     QString specificResult_;
 
     void signalDetected(bool needToDisconnect = true) noexcept;
@@ -88,5 +97,15 @@ private:
 
     std::optional<QString> callDelayedFilter(const QWidget *widget, const QMouseEvent *event,
                                              bool isContinuous = false) noexcept;
+
+    QTimer keyWatchDogTimer_;
+    const QWidget *keyWidget_ = nullptr;
+    WidgetClass keyWidgetClass_ = WidgetClass::None;
+    std::vector<WidgetClass> processedTextWidgetClasses_;
+    QMetaObject::Connection keyConnection_;
+
+    void flushKeyEvent(const QString &line, const QWidget *extWidget = nullptr) noexcept;
+private slots:
+    void callWidgetKeyFilters() noexcept;
 };
 } // namespace QtAda::core

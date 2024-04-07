@@ -12,6 +12,7 @@ set(core_HDRS
   ProbeGuard.hpp
   MetaTypeDeclarations.hpp
   ProcessedObjects.hpp
+  LastEvent.hpp
   utils/Common.hpp
   utils/FilterUtils.hpp)
 set(core_SRCS
@@ -20,6 +21,7 @@ set(core_SRCS
   MetaObjectHandler.cpp
   UserEventFilter.cpp
   WidgetEventFilter.cpp
+  LastEvent.cpp
   utils/FilterUtils.cpp)
 qt5_wrap_cpp(core_SRCS ${core_MOC_HDRS} TARGET core)
 

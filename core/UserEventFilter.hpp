@@ -14,6 +14,7 @@
 #include <queue>
 
 #include "WidgetEventFilter.hpp"
+#include "LastEvent.hpp"
 
 QT_BEGIN_NAMESPACE
 class QQuickItem;
@@ -35,25 +36,12 @@ signals:
     void newScriptLine(const QString &scriptLine) const;
 
 private:
-    struct LastMouseEvent {
-        QEvent::Type type = QEvent::None;
-        QDateTime timestamp;
-        QPoint globalPos;
-        Qt::MouseButtons buttons;
-        QString objectPath;
-
-        QDateTime pushTimestamp;
-
-        bool registerEvent(const QString &path, const QEvent *event) noexcept;
-        bool isContinuous(const LastMouseEvent &pressEvent) const noexcept;
-        void clearEvent() noexcept
-        {
-            type = QEvent::None;
-        }
-    };
     LastMouseEvent lastPressEvent_;
     LastMouseEvent lastReleaseEvent_;
-    QString delayedScriptLine_;
+    std::optional<QString> delayedScriptLine_;
+
+    LastKeyEvent lastKeyEvent_;
+    LastEvent lastFocusEvent_;
 
     QTimer doubleClickTimer_;
     bool doubleClickDetected_ = false;

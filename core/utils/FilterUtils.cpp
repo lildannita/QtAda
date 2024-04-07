@@ -12,7 +12,7 @@
 #include <iostream>
 
 namespace QtAda::core::utils {
-static const std::pair<Qt::MouseButton, QLatin1String> mouseButtons[] = {
+static const std::pair<Qt::MouseButton, QLatin1String> s_mouseButtons[] = {
     { Qt::NoButton, QLatin1String("Qt::NoButton") },
     { Qt::LeftButton, QLatin1String("Qt::LeftButton") },
     { Qt::RightButton, QLatin1String("Qt::RightButton") },
@@ -20,6 +20,9 @@ static const std::pair<Qt::MouseButton, QLatin1String> mouseButtons[] = {
     { Qt::BackButton, QLatin1String("Qt::BackButton") },
     { Qt::ForwardButton, QLatin1String("Qt::ForwardButton") },
 };
+
+static const std::vector<std::pair<char, QString>> s_escapeReplacements
+    = { { '\n', "\\n" }, { '\r', "\\r" }, { '\t', "\\t" }, { '\v', "\\v" } };
 
 static uint metaObjectIndexInObjectList(const QObject *obj, const QObjectList &children) noexcept
 {
@@ -83,9 +86,18 @@ QString objectPath(const QObject *obj) noexcept
     return pathComponents.join('/');
 }
 
+QString escapeText(const QString &text) noexcept
+{
+    QString result = text;
+    for (const auto &replacement : s_escapeReplacements) {
+        result.replace(replacement.first, replacement.second, Qt::CaseSensitive);
+    }
+    return result;
+}
+
 QString mouseButtonToString(const Qt::MouseButton mouseButton) noexcept
 {
-    for (const auto &pair : mouseButtons) {
+    for (const auto &pair : s_mouseButtons) {
         if (pair.first == mouseButton) {
             return pair.second;
         }
