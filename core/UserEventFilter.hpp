@@ -53,7 +53,7 @@ private:
     };
     LastMouseEvent lastPressEvent_;
     LastMouseEvent lastReleaseEvent_;
-    QStringList delayedScriptLines_;
+    QString delayedScriptLine_;
 
     QTimer doubleClickTimer_;
     bool doubleClickDetected_ = false;
@@ -61,8 +61,8 @@ private:
 
     WidgetEventFilter widgetFilter_;
 
-    QStringList handleMouseEvent(const QString &objPath, const QWidget *widget, const QEvent *event,
-                                 bool isSpecialEvent = false) noexcept;
-    void flushScriptLines(const QStringList &list) const noexcept;
+    QString handleMouseEvent(const QString &objPath, const QWidget *widget, const QEvent *event,
+                             bool isSpecialEvent = false) noexcept;
+    void flushScriptLine(const QString &line) const noexcept;
 };
 } // namespace QtAda::core
