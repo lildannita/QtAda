@@ -3,18 +3,17 @@ import QtQuick 2.15
 Rectangle {
     id: button
 
-    required property color colorTest
-
     signal buttonClicked()
 
-    radius: 10
-    color: button.colorTest
+    color: MyStyle.blueColor
+    border.width: MyStyle.px(5)
+    border.color: MyStyle.blackColor
 
     Text {
         anchors.centerIn: parent
-        color: "white"
-        text: "test button"
-        font.pixelSize: 15
+        color: MyStyle.blackColor
+        text: "Custom Button With MouseArea (Open Dialog)"
+        font.pixelSize: MyStyle.px(15)
     }
 
     MouseArea {
@@ -23,4 +22,5 @@ Rectangle {
             button.buttonClicked();
         }
     }
+
 }

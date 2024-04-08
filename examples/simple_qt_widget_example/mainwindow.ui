@@ -24,7 +24,7 @@
     <item row="0" column="0">
      <widget class="QTabWidget" name="tabWidget">
       <property name="currentIndex">
-       <number>3</number>
+       <number>0</number>
       </property>
       <widget class="QWidget" name="tab">
        <attribute name="title">
@@ -99,6 +99,9 @@
                     </item>
                     <item>
                      <widget class="QComboBox" name="comboBox_2">
+                      <property name="editable">
+                       <bool>true</bool>
+                      </property>
                       <item>
                        <property name="text">
                         <string>Combo2-1</string>

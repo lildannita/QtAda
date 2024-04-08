@@ -70,6 +70,16 @@ bool UserEventFilter::eventFilter(QObject *reciever, QEvent *event) noexcept
 
     //! TODO: пока что обрабатываем только QWidget
     if (quickItem != nullptr) {
+        if (event->type() == QEvent::MouseButtonPress)
+            while (quickItem != nullptr) {
+                const auto *metaObject = quickItem->metaObject();
+                while (metaObject != nullptr) {
+                    std::cout << metaObject->className() << std::endl;
+                    metaObject = metaObject->superClass();
+                }
+                quickItem = quickItem->parentItem();
+            }
+
         return QObject::eventFilter(reciever, event);
     }
 

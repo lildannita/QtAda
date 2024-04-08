@@ -1,86 +1,98 @@
 import QtQuick 2.15
+import QtQuick.Controls 2.15
+import QtQuick.Layouts 1.15
+import QtQuick.Templates 2.15 as T
 import QtQuick.Window 2.15
 
-Window {
-    width: 640
-    height: 480
+ApplicationWindow {
+    id: main
+
+    width: Screen.width / 2.5
+    height: Screen.height / 1.5
     visible: true
     title: qsTr("Hello World")
 
-    Rectangle {
-        id: rect
-        anchors.fill: parent
-        color: "red"
+    StackLayout {
+        id: content
 
-        MyTextField {
-            id: text
-            anchors {
-                left: parent.left
-                right: parent.right
-                top: parent.top
-            }
-            height: parent.height * 0.3
+        width: parent.width
+        height: main.contentItem.height
+        currentIndex: tabBar.currentIndex
+
+        MyClickPage {
         }
 
-        MyButton {
-            id: b1
-
-            anchors {
-                left: parent.left
-                right: parent.right
-                bottom: b2.top
-            }
-
-            colorTest: "blue"
-            height: parent.height * 0.1
-            onButtonClicked: {
-                text.text = "TEST TEXT 1";
-            }
-        }
-
-        MyButton {
-            id: b2
-            colorTest: "black"
-            anchors {
-                left: parent.left
-                right: parent.right
-                bottom: b3.bottom
-            }
-
-            height: parent.height * 0.1
-            onButtonClicked: {
-                text.text = "TEST TEXT 2";
-            }
-        }
-
-        MyButton {
-            id: b3
-            colorTest: "grey"
-            anchors {
-                left: parent.left
-                right: parent.right
-                bottom: b4.bottom
-            }
-
-            height: parent.height * 0.1
-            onButtonClicked: {
-                text.text = "TEST TEXT 2";
-            }
-        }
-
-        MyButton {
-            id: b4
-            colorTest: "red"
-            anchors {
-                left: parent.left
-                right: parent.right
-                bottom: parent.bottom
-            }
-
-            height: parent.height * 0.1
-            onButtonClicked: {
-                text.text = "TEST TEXT 2";
-            }
-        }
     }
+
+    menuBar: MenuBar {
+        visible: tabBar.currentIndex == 0
+
+        Menu {
+            title: "Menu"
+
+            Action {
+                text: "Action"
+            }
+
+            MenuSeparator {
+            }
+
+            Menu {
+                title: "Submenu"
+
+                Action {
+                    text: "Submenu action"
+                }
+
+                Menu {
+                    title: "Empty submenu"
+                }
+
+            }
+
+        }
+
+        Menu {
+            title: "Empty submenu"
+        }
+
+    }
+
+    footer: T.TabBar {
+        id: tabBar
+
+        readonly property real itemWidth: tabBar.width / 5 - tabBar.spacing * 4
+
+        spacing: 1
+        width: parent.width
+        height: MyStyle.px(50)
+        currentIndex: 0
+
+        MyTabButton {
+            buttonText: "Click Items"
+        }
+
+        MyTabButton {
+            buttonText: "Text Items"
+        }
+
+        MyTabButton {
+            buttonText: "Views Items"
+        }
+
+        contentItem: ListView {
+            model: tabBar.contentModel
+            currentIndex: tabBar.currentIndex
+            spacing: tabBar.spacing
+            orientation: ListView.Horizontal
+            flickableDirection: Flickable.AutoFlickIfNeeded
+            boundsBehavior: Flickable.StopAtBounds
+        }
+
+        background: Rectangle {
+            color: MyStyle.greyColor
+        }
+
+    }
+
 }
