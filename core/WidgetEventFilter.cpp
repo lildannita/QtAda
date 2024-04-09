@@ -70,6 +70,10 @@ static const std::map<WidgetClass, std::pair<QLatin1String, size_t>> s_widgetMet
     { LineEdit, { QLatin1String("QLineEdit"), 1 } },
 };
 
+static const std::vector<WidgetClass> s_processedTextWidgets = {
+    TextEdit, PlainTextEdit, LineEdit, KeySequenceEdit, ComboBox, SpinBox,
+};
+
 QString qMouseEventFilter(const QString &path, const QWidget *widget, const QEvent *event) noexcept
 {
     auto *mouseEvent = static_cast<const QMouseEvent *>(event);
@@ -724,6 +728,41 @@ static QString qCloseFilter(const QWidget *widget, const QEvent *event) noexcept
     return QStringLiteral("// Looks like this QEvent::Close is not important\nclose(%1);")
         .arg(utils::objectPath(widget));
 }
+
+static QString qTextFocusFilters(const QWidget *widget, const QMouseEvent *event) noexcept
+{
+    for (const auto &widgetClass : s_processedTextWidgets) {
+        if (auto *foundWidget
+            = utils::searchSpecificWidget(widget, s_widgetMetaMap.at(widgetClass))) {
+            QString widgetClassStr;
+            switch (widgetClass) {
+            case WidgetClass::TextEdit:
+                widgetClassStr = QLatin1String("QTextEdit");
+                break;
+            case WidgetClass::PlainTextEdit:
+                widgetClassStr = QLatin1String("QPlainTextEdit");
+                break;
+            case WidgetClass::LineEdit:
+                widgetClassStr = QLatin1String("QLineEdit");
+                break;
+            case WidgetClass::SpinBox:
+                widgetClassStr = QLatin1String("QSpinBox");
+                break;
+            default:
+                // Для QComboBox есть собственный обработчик нажатия, который
+                // должен быть вызван раньше текущего
+                Q_UNREACHABLE();
+            }
+
+            const auto clickPos = foundWidget->mapFromGlobal(event->globalPos());
+            return QStringLiteral("// Looks like focus click on %1\n// %2")
+                .arg(widgetClassStr)
+                .arg(qMouseEventFilter(utils::objectPath(foundWidget), foundWidget, event));
+        }
+    }
+    return QString();
+}
+
 } // namespace QtAda::core::filters
 
 namespace QtAda::core {
@@ -737,8 +776,9 @@ WidgetEventFilter::WidgetEventFilter(QObject *parent) noexcept
         filters::qMenuFilter,
         filters::qTabBarFilter,
         filters::qItemViewFilter,
-        // Обязательно последним:
+        // Обязательно в таком порядке:
         filters::qButtonFilter,
+        filters::qTextFocusFilters,
     };
 
     //! TODO: Очень некрасивое решение. Но пока это работает для решения следующих проблем:
@@ -768,12 +808,6 @@ WidgetEventFilter::WidgetEventFilter(QObject *parent) noexcept
         filters::qCloseFilter,
     };
 
-    processedTextWidgetClasses_ = {
-        WidgetClass::LineEdit, WidgetClass::TextEdit, WidgetClass::PlainTextEdit,
-        WidgetClass::SpinBox,
-        // Рассматриваем отдельно:
-        // WidgetClass::KeySequenceEdit,
-    };
     keyWatchDogTimer_.setInterval(5000);
     keyWatchDogTimer_.setSingleShot(true);
     connect(&keyWatchDogTimer_, &QTimer::timeout, this, &WidgetEventFilter::callWidgetKeyFilters);
@@ -1059,7 +1093,11 @@ void WidgetEventFilter::updateKeyWatchDog(const QWidget *widget, const QEvent *e
         return;
     }
 
-    for (const auto &widgetClass : processedTextWidgetClasses_) {
+    for (const auto &widgetClass : filters::s_processedTextWidgets) {
+        if (widgetClass == WidgetClass::KeySequenceEdit) {
+            // KeySequenceEdit рассматриваем выше
+            continue;
+        }
         if (auto *foundWidget
             = utils::searchSpecificWidget(widget, filters::s_widgetMetaMap.at(widgetClass))) {
             keyWidget_ = foundWidget;
@@ -1081,28 +1119,34 @@ void WidgetEventFilter::callWidgetKeyFilters() noexcept
     }
 
     switch (keyWidgetClass_) {
-    case SpinBox: {
-        auto *spinBox = qobject_cast<const QAbstractSpinBox *>(keyWidget_);
-        assert(spinBox != nullptr);
-        flushKeyEvent(std::move(spinBox->text()));
-        return;
-    }
-    case TextEdit: {
+    case WidgetClass::TextEdit: {
         auto *textEdit = qobject_cast<const QTextEdit *>(keyWidget_);
         assert(textEdit != nullptr);
         flushKeyEvent(std::move(textEdit->toPlainText()));
         return;
     }
-    case PlainTextEdit: {
+    case WidgetClass::PlainTextEdit: {
         auto *plainTextEdit = qobject_cast<const QPlainTextEdit *>(keyWidget_);
         assert(plainTextEdit != nullptr);
         flushKeyEvent(std::move(plainTextEdit->toPlainText()));
         return;
     }
-    case LineEdit: {
+    case WidgetClass::LineEdit: {
         auto *lineEdit = qobject_cast<const QLineEdit *>(keyWidget_);
         assert(lineEdit != nullptr);
         flushKeyEvent(std::move(lineEdit->text()));
+        return;
+    }
+    case WidgetClass::ComboBox: {
+        auto *comboBox = qobject_cast<const QComboBox *>(keyWidget_);
+        assert(comboBox != nullptr);
+        flushKeyEvent(std::move(comboBox->currentText()));
+        return;
+    }
+    case WidgetClass::SpinBox: {
+        auto *spinBox = qobject_cast<const QAbstractSpinBox *>(keyWidget_);
+        assert(spinBox != nullptr);
+        flushKeyEvent(std::move(spinBox->text()));
         return;
     }
     default:

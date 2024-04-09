@@ -101,7 +101,6 @@ private:
     QTimer keyWatchDogTimer_;
     const QWidget *keyWidget_ = nullptr;
     WidgetClass keyWidgetClass_ = WidgetClass::None;
-    std::vector<WidgetClass> processedTextWidgetClasses_;
     QMetaObject::Connection keyConnection_;
 
     void flushKeyEvent(const QString &line, const QWidget *extWidget = nullptr) noexcept;
