@@ -19,8 +19,11 @@ class QWidget;
 QT_END_NAMESPACE
 
 namespace QtAda::core::filters {
-QString qMouseEventFilter(const QString &path, const QWidget *widget, const QEvent *event) noexcept;
-}
+QString qMouseEventFilter(const QWidget *widget, const QEvent *event,
+                          const QString &path = QString()) noexcept;
+QString qKeyEventFilter(const QWidget *widget, const QEvent *event,
+                        const QString &path = QString()) noexcept;
+} // namespace QtAda::core::filters
 
 namespace QtAda::core {
 struct ExtraInfoForDelayed final {
@@ -103,7 +106,8 @@ private:
     WidgetClass keyWidgetClass_ = WidgetClass::None;
     QMetaObject::Connection keyConnection_;
 
-    void flushKeyEvent(const QString &line, const QWidget *extWidget = nullptr) noexcept;
+    void processKeyEvent(const QString &text) noexcept;
+    void flushKeyEvent(const QString &line) const noexcept;
 private slots:
     void callWidgetKeyFilters() noexcept;
 };

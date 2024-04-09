@@ -1,7 +1,7 @@
 #include "MetaObjectHandler.hpp"
 
 #include "MetaTypeDeclarations.hpp"
-#include "utils/Common.hpp"
+#include "utils/Tools.hpp"
 #include "Probe.hpp"
 
 #include <QThread>
@@ -66,7 +66,7 @@ const QMetaObject *MetaObjectHandler::addMetaObject(const QMetaObject *obj,
         parentObj = addMetaObject(parentObj, needToMergeDynamic);
     }
 
-    const bool isObjStatic = utils::isReadOnlyData(obj);
+    const bool isObjStatic = tools::isReadOnlyData(obj);
     if (!isObjStatic && needToMergeDynamic) {
         const auto objName = QByteArray(obj->className());
         const auto savedObj = dynamicMetaObjectNames_.constFind(objName);

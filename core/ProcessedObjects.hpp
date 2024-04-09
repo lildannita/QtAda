@@ -1,7 +1,7 @@
 #pragma once
 
 namespace QtAda::core {
-enum WidgetClass {
+enum class WidgetClass {
     Button,
     RadioButton,
     CheckBox,
@@ -24,4 +24,4 @@ enum WidgetClass {
     LineEdit,
     None,
 };
-}
+} // namespace QtAda::core

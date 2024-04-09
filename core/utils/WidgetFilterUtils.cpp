@@ -1,117 +1,27 @@
-#include "FilterUtils.hpp"
+#include "WidgetFilterUtils.hpp"
 
+#include <QObject>
+#include <QWidget>
 #include <QMouseEvent>
 #include <QModelIndex>
-
 #include <QComboBox>
 #include <QMenu>
 #include <QMenuBar>
 #include <QItemSelectionModel>
 
-//! TODO: remove
-#include <iostream>
+#include "CommonFilterUtils.hpp"
 
 namespace QtAda::core::utils {
-static const std::pair<Qt::MouseButton, QLatin1String> s_mouseButtons[] = {
-    { Qt::NoButton, QLatin1String("Qt::NoButton") },
-    { Qt::LeftButton, QLatin1String("Qt::LeftButton") },
-    { Qt::RightButton, QLatin1String("Qt::RightButton") },
-    { Qt::MiddleButton, QLatin1String("Qt::MiddleButton") },
-    { Qt::BackButton, QLatin1String("Qt::BackButton") },
-    { Qt::ForwardButton, QLatin1String("Qt::ForwardButton") },
-};
-
-static const std::vector<std::pair<char, QString>> s_escapeReplacements
-    = { { '\n', "\\n" }, { '\r', "\\r" }, { '\t', "\\t" }, { '\v', "\\v" } };
-
-static uint metaObjectIndexInObjectList(const QObject *obj, const QObjectList &children) noexcept
+QString objectPath(const QWidget *widget) noexcept
 {
-    assert(!children.isEmpty());
-    uint index = 0;
-    const auto className = obj->metaObject()->className();
-    for (const QObject *item : children) {
-        if (item == obj) {
-            return index;
-        }
-        if (className == item->metaObject()->className()) {
-            index++;
-        }
-    }
-    Q_UNREACHABLE();
-}
-
-static uint objectIndexInObjectList(const QObject *obj, const QObjectList &children) noexcept
-{
-    assert(!children.isEmpty());
-    uint index = 0;
-    const auto objName = obj->objectName();
-    for (const QObject *item : children) {
-        if (item == obj) {
-            return index;
-        }
-        if (objName == item->objectName()) {
-            index++;
-        }
-    }
-    Q_UNREACHABLE();
-}
-
-static QString metaObjectId(const QObject *obj) noexcept
-{
-    const QString metaObjName = obj->metaObject()->className();
-    const auto *parent = obj->parent();
-    return QString("%1_%2")
-        .arg(metaObjName)
-        .arg(parent ? metaObjectIndexInObjectList(obj, parent->children()) : 0);
-}
-
-static QString objectId(const QObject *obj) noexcept
-{
-    const QString objName = obj->objectName();
-    const auto *parent = obj->parent();
-    return QString("%1_%2").arg(objName).arg(
-        parent ? objectIndexInObjectList(obj, parent->children()) : 0);
-}
-
-QString objectPath(const QObject *obj) noexcept
-{
-    QStringList pathComponents;
-    while (obj != nullptr) {
-        QString identifier = obj->objectName().isEmpty() ? QString("c=%1").arg(metaObjectId(obj))
-                                                         : QString("n=%1").arg(objectId(obj));
-        pathComponents.prepend(identifier);
-        obj = obj->parent();
-    }
-    assert(!pathComponents.isEmpty());
-    return pathComponents.join('/');
-}
-
-QString escapeText(const QString &text) noexcept
-{
-    QString result = text;
-    for (const auto &replacement : s_escapeReplacements) {
-        result.replace(replacement.first, replacement.second, Qt::CaseSensitive);
-    }
-    return result;
-}
-
-QString mouseButtonToString(const Qt::MouseButton mouseButton) noexcept
-{
-    for (const auto &pair : s_mouseButtons) {
-        if (pair.first == mouseButton) {
-            return pair.second;
-        }
-    }
-    return QLatin1String("<unknown>");
+    auto *obj = qobject_cast<const QObject *>(widget);
+    return objectPath(obj);
 }
 
 bool mouseEventCanBeFiltered(const QWidget *widget, const QMouseEvent *event,
                              bool shouldBePressEvent) noexcept
 {
-    const auto type = event->type();
-    return widget != nullptr && event != nullptr && event->button() == Qt::LeftButton
-           && (type == (shouldBePressEvent ? QEvent::MouseButtonPress : QEvent::MouseButtonRelease)
-               || type == QEvent::MouseButtonDblClick);
+    return widget != nullptr && mouseEventCanBeFiltered(event, shouldBePressEvent);
 }
 
 std::pair<const QWidget *, size_t>
@@ -142,7 +52,7 @@ QString widgetIdInView(const QWidget *widget, const int index,
                        const WidgetClass widgetClass) noexcept
 {
     switch (widgetClass) {
-    case ComboBox: {
+    case WidgetClass::ComboBox: {
         auto *comboBox = qobject_cast<const QComboBox *>(widget);
         assert(comboBox != nullptr);
         const auto itemText = comboBox->itemText(index);
@@ -156,7 +66,7 @@ QString widgetIdInView(const QWidget *widget, const int index,
         }
         Q_UNREACHABLE();
     }
-    case Menu: {
+    case WidgetClass::Menu: {
         auto *menu = qobject_cast<const QMenu *>(widget);
         assert(menu != nullptr);
         auto *action = menu->actions().at(index);
@@ -172,7 +82,7 @@ QString widgetIdInView(const QWidget *widget, const int index,
         }
         Q_UNREACHABLE();
     }
-    case MenuBar: {
+    case WidgetClass::MenuBar: {
         auto *menuBar = qobject_cast<const QMenuBar *>(widget);
         assert(menuBar != nullptr);
         auto *action = menuBar->actions().at(index);
@@ -188,7 +98,7 @@ QString widgetIdInView(const QWidget *widget, const int index,
         }
         Q_UNREACHABLE();
     }
-    case TabBar: {
+    case WidgetClass::TabBar: {
         auto *tabBar = qobject_cast<const QTabBar *>(widget);
         assert(tabBar != nullptr);
         const auto itemText = tabBar->tabText(index);

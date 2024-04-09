@@ -28,8 +28,8 @@
 #include <QLineEdit>
 #include <QKeySequenceEdit>
 
-#include "utils/Common.hpp"
-#include "utils/FilterUtils.hpp"
+#include "utils/CommonFilterUtils.hpp"
+#include "utils/WidgetFilterUtils.hpp"
 
 //! TODO: remove
 #include <iostream>
@@ -45,49 +45,63 @@ namespace QtAda::core::filters {
  * N потомков.
  */
 static const std::map<WidgetClass, std::pair<QLatin1String, size_t>> s_widgetMetaMap = {
-    { Button, { QLatin1String("QAbstractButton"), 1 } },
-    { RadioButton, { QLatin1String("QRadioButton"), 1 } },
-    { CheckBox, { QLatin1String("QCheckBox"), 1 } },
-    { Slider, { QLatin1String("QAbstractSlider"), 1 } },
-    { ComboBox, { QLatin1String("QComboBox"), 4 } },
-    { SpinBox, { QLatin1String("QAbstractSpinBox"), 1 } },
-    { Menu, { QLatin1String("QMenu"), 1 } },
-    { MenuBar, { QLatin1String("QMenuBar"), 1 } },
-    { TabBar, { QLatin1String("QTabBar"), 1 } },
-    { ItemView, { QLatin1String("QAbstractItemView"), 3 } },
-    { TreeView, { QLatin1String("QTreeView"), 2 } },
-    { UndoView, { QLatin1String("QUndoView"), 2 } },
-    { Calendar, { QLatin1String("QCalendarView"), 2 } },
+    { WidgetClass::Button, { QLatin1String("QAbstractButton"), 1 } },
+    { WidgetClass::RadioButton, { QLatin1String("QRadioButton"), 1 } },
+    { WidgetClass::CheckBox, { QLatin1String("QCheckBox"), 1 } },
+    { WidgetClass::Slider, { QLatin1String("QAbstractSlider"), 1 } },
+    { WidgetClass::ComboBox, { QLatin1String("QComboBox"), 4 } },
+    { WidgetClass::SpinBox, { QLatin1String("QAbstractSpinBox"), 1 } },
+    { WidgetClass::Menu, { QLatin1String("QMenu"), 1 } },
+    { WidgetClass::MenuBar, { QLatin1String("QMenuBar"), 1 } },
+    { WidgetClass::TabBar, { QLatin1String("QTabBar"), 1 } },
+    { WidgetClass::ItemView, { QLatin1String("QAbstractItemView"), 3 } },
+    { WidgetClass::TreeView, { QLatin1String("QTreeView"), 2 } },
+    { WidgetClass::UndoView, { QLatin1String("QUndoView"), 2 } },
+    { WidgetClass::Calendar, { QLatin1String("QCalendarView"), 2 } },
     //! TODO: в официальной документации по 5.15 ни слова об этом классе,
     //! однако он в составе QColumnView. Если его не обрабатывать, то
     //! для ItemView генерируются неправильные события.
-    { ColumnViewGrip, { QLatin1String("QColumnViewGrip"), 1 } },
-    { Dialog, { QLatin1String("QDialog"), 1 } },
-    { Window, { QLatin1String("QMainWindow"), 1 } },
-    { KeySequenceEdit, { QLatin1String("QKeySequenceEdit"), 1 } },
-    { TextEdit, { QLatin1String("QTextEdit"), 1 } },
-    { PlainTextEdit, { QLatin1String("QPlainTextEdit"), 1 } },
-    { LineEdit, { QLatin1String("QLineEdit"), 1 } },
+    { WidgetClass::ColumnViewGrip, { QLatin1String("QColumnViewGrip"), 1 } },
+    { WidgetClass::Dialog, { QLatin1String("QDialog"), 1 } },
+    { WidgetClass::Window, { QLatin1String("QMainWindow"), 1 } },
+    { WidgetClass::KeySequenceEdit, { QLatin1String("QKeySequenceEdit"), 1 } },
+    { WidgetClass::TextEdit, { QLatin1String("QTextEdit"), 1 } },
+    { WidgetClass::PlainTextEdit, { QLatin1String("QPlainTextEdit"), 1 } },
+    { WidgetClass::LineEdit, { QLatin1String("QLineEdit"), 1 } },
 };
 
 static const std::vector<WidgetClass> s_processedTextWidgets = {
-    TextEdit, PlainTextEdit, LineEdit, KeySequenceEdit, ComboBox, SpinBox,
+    WidgetClass::TextEdit,        WidgetClass::PlainTextEdit, WidgetClass::LineEdit,
+    WidgetClass::KeySequenceEdit, WidgetClass::ComboBox,      WidgetClass::SpinBox,
 };
 
-QString qMouseEventFilter(const QString &path, const QWidget *widget, const QEvent *event) noexcept
+QString qMouseEventFilter(const QWidget *widget, const QEvent *event, const QString &path) noexcept
 {
     auto *mouseEvent = static_cast<const QMouseEvent *>(event);
-    if (path.isEmpty() || widget == nullptr || mouseEvent == nullptr) {
+    if (widget == nullptr || mouseEvent == nullptr) {
         return QString();
     }
 
     const auto clickPosition = widget->mapFromGlobal(mouseEvent->globalPos());
     return QStringLiteral("mouse%1Click('%2', '%3', %4, %5);")
         .arg(event->type() == QEvent::MouseButtonDblClick ? "Dbl" : "")
-        .arg(path)
+        .arg(path.isEmpty() ? utils::objectPath(widget) : path)
         .arg(utils::mouseButtonToString(mouseEvent->button()))
         .arg(clickPosition.x())
         .arg(clickPosition.y());
+}
+
+QString qKeyEventFilter(const QWidget *widget, const QEvent *event, const QString &path) noexcept
+{
+    auto *keyEvent = static_cast<const QKeyEvent *>(event);
+    if (widget == nullptr || keyEvent == nullptr) {
+        return QString();
+    }
+
+    return QStringLiteral("%1('%2', '%3');")
+        .arg("keyEvent")
+        .arg(path.isEmpty() ? utils::objectPath(widget) : path)
+        .arg(utils::escapeText(keyEvent->text()));
 }
 
 //! TODO: нужна ли обработка зажатия кастомной кнопки?
@@ -145,7 +159,7 @@ static QString qRadioButtonFilter(const QWidget *widget, const QMouseEvent *even
                          : QStringLiteral(" // Button text: '%1'").arg(radioButton->text()));
         }
     }
-    return qMouseEventFilter(utils::objectPath(widget), widget, event);
+    return qMouseEventFilter(widget, event);
 }
 
 static QString qCheckBoxFilter(const QWidget *widget, const QMouseEvent *event) noexcept
@@ -180,7 +194,7 @@ static QString qCheckBoxFilter(const QWidget *widget, const QMouseEvent *event) 
             ;
         }
     }
-    return qMouseEventFilter(utils::objectPath(widget), widget, event);
+    return qMouseEventFilter(widget, event);
 }
 
 static QString qComboBoxFilter(const QWidget *widget, const QMouseEvent *event) noexcept
@@ -197,7 +211,7 @@ static QString qComboBoxFilter(const QWidget *widget, const QMouseEvent *event) 
     }
     if (iteration <= 2) {
         return QStringLiteral("// Looks like QComboBox container clicked\n// %1")
-            .arg(qMouseEventFilter(utils::objectPath(widget), widget, event));
+            .arg(qMouseEventFilter(widget, event));
     }
 
     auto *comboBox = qobject_cast<const QComboBox *>(widget);
@@ -223,7 +237,7 @@ static QString qComboBoxFilter(const QWidget *widget, const QMouseEvent *event) 
      */
     return QStringLiteral(
                "// 'Release' event is outside of QComboBox, so it is still opened\n// %1")
-        .arg(qMouseEventFilter(utils::objectPath(comboBox), comboBox, event));
+        .arg(qMouseEventFilter(comboBox, event));
 }
 
 static QString qSliderFilter(const QWidget *widget, const QMouseEvent *event,
@@ -757,7 +771,7 @@ static QString qTextFocusFilters(const QWidget *widget, const QMouseEvent *event
             const auto clickPos = foundWidget->mapFromGlobal(event->globalPos());
             return QStringLiteral("// Looks like focus click on %1\n// %2")
                 .arg(widgetClassStr)
-                .arg(qMouseEventFilter(utils::objectPath(foundWidget), foundWidget, event));
+                .arg(qMouseEventFilter(foundWidget, event));
         }
     }
     return QString();
@@ -1107,9 +1121,7 @@ void WidgetEventFilter::updateKeyWatchDog(const QWidget *widget, const QEvent *e
         }
     }
 
-    auto *keyEvent = static_cast<const QKeyEvent *>(event);
-    assert(keyEvent != nullptr);
-    flushKeyEvent(std::move(keyEvent->text()), widget);
+    flushKeyEvent(filters::qKeyEventFilter(widget, event));
 }
 
 void WidgetEventFilter::callWidgetKeyFilters() noexcept
@@ -1122,31 +1134,31 @@ void WidgetEventFilter::callWidgetKeyFilters() noexcept
     case WidgetClass::TextEdit: {
         auto *textEdit = qobject_cast<const QTextEdit *>(keyWidget_);
         assert(textEdit != nullptr);
-        flushKeyEvent(std::move(textEdit->toPlainText()));
+        processKeyEvent(textEdit->toPlainText());
         return;
     }
     case WidgetClass::PlainTextEdit: {
         auto *plainTextEdit = qobject_cast<const QPlainTextEdit *>(keyWidget_);
         assert(plainTextEdit != nullptr);
-        flushKeyEvent(std::move(plainTextEdit->toPlainText()));
+        processKeyEvent(std::move(plainTextEdit->toPlainText()));
         return;
     }
     case WidgetClass::LineEdit: {
         auto *lineEdit = qobject_cast<const QLineEdit *>(keyWidget_);
         assert(lineEdit != nullptr);
-        flushKeyEvent(std::move(lineEdit->text()));
+        processKeyEvent(lineEdit->text());
         return;
     }
     case WidgetClass::ComboBox: {
         auto *comboBox = qobject_cast<const QComboBox *>(keyWidget_);
         assert(comboBox != nullptr);
-        flushKeyEvent(std::move(comboBox->currentText()));
+        processKeyEvent(comboBox->currentText());
         return;
     }
     case WidgetClass::SpinBox: {
         auto *spinBox = qobject_cast<const QAbstractSpinBox *>(keyWidget_);
         assert(spinBox != nullptr);
-        flushKeyEvent(std::move(spinBox->text()));
+        processKeyEvent(spinBox->text());
         return;
     }
     default:
@@ -1154,17 +1166,8 @@ void WidgetEventFilter::callWidgetKeyFilters() noexcept
     }
 }
 
-void WidgetEventFilter::flushKeyEvent(const QString &line, const QWidget *extWidget) noexcept
+void WidgetEventFilter::processKeyEvent(const QString &text) noexcept
 {
-    if (extWidget != nullptr) {
-        const auto keyLine = QStringLiteral("%1('%2', '%3');")
-                                 .arg("keyEvent")
-                                 .arg(utils::objectPath(extWidget))
-                                 .arg(utils::escapeText(std::move(line)));
-        emit newScriptKeyLine(std::move(keyLine));
-        return;
-    }
-
     QModelIndex index;
     const auto viewWidget = utils::searchSpecificWidget(
         keyWidget_, filters::s_widgetMetaMap.at(WidgetClass::ItemView));
@@ -1181,11 +1184,17 @@ void WidgetEventFilter::flushKeyEvent(const QString &line, const QWidget *extWid
               .arg(index.isValid()
                        ? QStringLiteral(", (%1, %2)").arg(index.row()).arg(index.column())
                        : "")
-              .arg(utils::escapeText(std::move(line)));
-    emit newScriptKeyLine(std::move(keyLine));
+              .arg(utils::escapeText(std::move(text)));
+    flushKeyEvent(std::move(keyLine));
 
     keyWatchDogTimer_.stop();
     keyWidget_ = nullptr;
     keyWidgetClass_ = WidgetClass::None;
+}
+
+void WidgetEventFilter::flushKeyEvent(const QString &line) const noexcept
+{
+    assert(!line.isEmpty());
+    emit newScriptKeyLine(line);
 }
 } // namespace QtAda::core
