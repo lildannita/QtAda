@@ -22,6 +22,9 @@ ApplicationWindow {
         MyClickPage {
         }
 
+        MyTextPage {
+        }
+
     }
 
     menuBar: MenuBar {

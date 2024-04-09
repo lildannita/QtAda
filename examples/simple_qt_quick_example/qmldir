@@ -2,3 +2,4 @@ main 1.0 main.qml
 singleton MyStyle 1.0 MyStyle.qml
 MyTabButton 1.0 MyTabButton.qml
 MyButton 1.0 MyButton.qml
+MyTextInput 1.0 MyTextInput.qml

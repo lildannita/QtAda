@@ -7,7 +7,7 @@ MyPage {
     id: page
 
     readonly property real prefferedHeight: MyStyle.px(30)
-    readonly property real prefferedWidht: (page.width - layout.spacing * 2) / 3
+    readonly property real prefferedWidth: (page.width - layout.spacing * 2) / 3
 
     Dialog {
         id: dialog
@@ -73,19 +73,19 @@ MyPage {
             Layout.preferredHeight: page.prefferedHeight
 
             CheckBox {
-                Layout.preferredWidth: page.prefferedWidht
+                Layout.preferredWidth: page.prefferedWidth
                 Layout.fillHeight: true
                 text: "First CheckBox"
             }
 
             CheckBox {
-                Layout.preferredWidth: page.prefferedWidht
+                Layout.preferredWidth: page.prefferedWidth
                 Layout.fillHeight: true
                 text: "Second CheckBox"
             }
 
             CheckBox {
-                Layout.preferredWidth: page.prefferedWidht
+                Layout.preferredWidth: page.prefferedWidth
                 Layout.fillHeight: true
                 enabled: false
                 text: "Disabled CheckBox"
@@ -98,19 +98,19 @@ MyPage {
             Layout.preferredHeight: page.prefferedHeight
 
             RadioButton {
-                Layout.preferredWidth: page.prefferedWidht
+                Layout.preferredWidth: page.prefferedWidth
                 Layout.fillHeight: true
                 text: "First RadioButton"
             }
 
             RadioButton {
-                Layout.preferredWidth: page.prefferedWidht
+                Layout.preferredWidth: page.prefferedWidth
                 Layout.fillHeight: true
                 text: "Second RadioButton"
             }
 
             RadioButton {
-                Layout.preferredWidth: page.prefferedWidht
+                Layout.preferredWidth: page.prefferedWidth
                 Layout.fillHeight: true
                 enabled: false
                 text: "Disabled RadioButton"
@@ -123,20 +123,20 @@ MyPage {
             Layout.preferredHeight: page.prefferedHeight
 
             Switch {
-                Layout.preferredWidth: page.prefferedWidht
+                Layout.preferredWidth: page.prefferedWidth
                 Layout.fillHeight: true
                 text: "Switch"
             }
 
             Switch {
-                Layout.preferredWidth: page.prefferedWidht
+                Layout.preferredWidth: page.prefferedWidth
                 enabled: false
                 Layout.fillHeight: true
                 text: "Disabled Switch"
             }
 
             DelayButton {
-                Layout.preferredWidth: page.prefferedWidht
+                Layout.preferredWidth: page.prefferedWidth
                 Layout.fillHeight: true
                 delay: 3000
                 text: "DelayButton"
@@ -149,17 +149,17 @@ MyPage {
             Layout.preferredHeight: page.prefferedHeight * 3
 
             Slider {
-                Layout.preferredWidth: page.prefferedWidht
+                Layout.preferredWidth: page.prefferedWidth
                 Layout.fillHeight: true
             }
 
             RangeSlider {
-                Layout.preferredWidth: page.prefferedWidht
+                Layout.preferredWidth: page.prefferedWidth
                 Layout.fillHeight: true
             }
 
             Dial {
-                Layout.preferredWidth: page.prefferedWidht
+                Layout.preferredWidth: page.prefferedWidth
                 Layout.fillHeight: true
             }
 
@@ -170,7 +170,7 @@ MyPage {
             Layout.preferredHeight: page.prefferedHeight
 
             ComboBox {
-                Layout.preferredWidth: page.prefferedWidht
+                Layout.preferredWidth: page.prefferedWidth
                 Layout.fillHeight: true
 
                 model: ListModel {
@@ -191,7 +191,7 @@ MyPage {
             }
 
             ComboBox {
-                Layout.preferredWidth: page.prefferedWidht
+                Layout.preferredWidth: page.prefferedWidth
                 Layout.fillHeight: true
                 editable: true
 
@@ -213,7 +213,7 @@ MyPage {
             }
 
             SpinBox {
-                Layout.preferredWidth: page.prefferedWidht
+                Layout.preferredWidth: page.prefferedWidth
                 Layout.fillHeight: true
                 editable: true
             }

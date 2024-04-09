@@ -9,5 +9,6 @@
         <file>MyClickPage.qml</file>
         <file>MyPage.qml</file>
         <file>MyTumbler.qml</file>
+        <file>MyTextPage.qml</file>
     </qresource>
 </RCC>
