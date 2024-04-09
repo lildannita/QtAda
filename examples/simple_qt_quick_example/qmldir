@@ -3,3 +3,6 @@ singleton MyStyle 1.0 MyStyle.qml
 MyTabButton 1.0 MyTabButton.qml
 MyButton 1.0 MyButton.qml
 MyTextInput 1.0 MyTextInput.qml
+MyClickPage 1.0 MyClickPage.qml
+MyTextPage 1.0 MyTextPage.qml
+MyViewPage 1.0 MyViewPage.qml

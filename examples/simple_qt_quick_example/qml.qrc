@@ -10,5 +10,9 @@
         <file>MyPage.qml</file>
         <file>MyTumbler.qml</file>
         <file>MyTextPage.qml</file>
+        <file>MyViewPage.qml</file>
+    </qresource>
+    <qresource prefix="pics">
+        <file alias="portrait.png">pics/portrait.png</file>
     </qresource>
 </RCC>
