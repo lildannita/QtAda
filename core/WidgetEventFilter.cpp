@@ -710,8 +710,12 @@ static QString qCloseFilter(const QWidget *widget, const QEvent *event) noexcept
         return QStringLiteral("closeWindow(%1);").arg(utils::objectPath(widget));
     }
 
-    return QStringLiteral("// Looks like this QEvent::Close is not important\nclose(%1);")
-        .arg(utils::objectPath(widget));
+    //! TODO: Сейчас проблема в том, что при закрытии QMenu эта строка генерируется, чем
+    //! произведено нажатие на какой-либо QAction в этом QMenu. Но нужна ли нам вообще
+    //! строка?
+    //! return QStringLiteral("// Looks like this QEvent::Close is not important\nclose(%1);")
+    //!    .arg(utils::objectPath(widget));
+    return QString();
 }
 
 static QString qTextFocusFilters(const QWidget *widget, const QMouseEvent *event) noexcept
