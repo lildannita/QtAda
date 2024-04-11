@@ -93,8 +93,10 @@ static QString qButtonFilter(const QWidget *widget, const QMouseEvent *event) no
     const auto buttonRect = button->rect();
     const auto clickPos = button->mapFromGlobal(event->globalPos());
 
-    return QStringLiteral("%1Button('%2');%3")
-        .arg(buttonRect.contains(clickPos) ? "click" : "press")
+    return QStringLiteral("button%1('%2');%3")
+        .arg(buttonRect.contains(clickPos)
+                 ? (event->type() == QEvent::MouseButtonDblClick ? "DblClick" : "Click")
+                 : "Press")
         .arg(utils::objectPath(widget))
         .arg(button->text().isEmpty()
                  ? ""
@@ -123,7 +125,8 @@ static QString qRadioButtonFilter(const QWidget *widget, const QMouseEvent *even
         if (clickableArea.contains(clickPos)) {
             auto *radioButton = qobject_cast<const QRadioButton *>(widget);
             assert(radioButton != nullptr);
-            return QStringLiteral("clickButton('%1');%2")
+            return QStringLiteral("button%1Click('%2');%3")
+                .arg(event->type() == QEvent::MouseButtonDblClick ? "Dbl" : "")
                 .arg(utils::objectPath(widget))
                 .arg(radioButton->text().isEmpty()
                          ? ""
@@ -156,13 +159,22 @@ static QString qCheckBoxFilter(const QWidget *widget, const QMouseEvent *event) 
             auto *checkBox = qobject_cast<const QCheckBox *>(widget);
             assert(checkBox != nullptr);
             //! TODO: разобраться с tristate
-            return QStringLiteral("checkButton('%1', %2);%3")
-                .arg(utils::objectPath(widget))
-                .arg(checkBox->isChecked() ? "false" : "true")
-                .arg(checkBox->text().isEmpty()
-                         ? ""
-                         : QStringLiteral(" // Button text: '%1'").arg(checkBox->text()));
-            ;
+
+            auto generate = [widget, checkBox](bool isChecked) {
+                return QStringLiteral("checkButton('%1', %2);%3")
+                    .arg(utils::objectPath(widget))
+                    .arg(isChecked ? "true" : "false")
+                    .arg(checkBox->text().isEmpty()
+                             ? ""
+                             : QStringLiteral(" // Button text: '%1'").arg(checkBox->text()));
+            };
+
+            if (event->type() == QEvent::MouseButtonDblClick) {
+                return QStringLiteral("%1\n%2")
+                    .arg(generate(checkBox->isChecked()))
+                    .arg(generate(!checkBox->isChecked()));
+            }
+            return generate(!checkBox->isChecked());
         }
     }
     return utils::qMouseEventHandler(widget, event);
