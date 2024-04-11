@@ -146,6 +146,7 @@ bool UserEventFilter::eventFilter(QObject *obj, QEvent *event) noexcept
         default:
             Q_UNREACHABLE();
         }
+        break;
     }
     case QEvent::KeyRelease: {
         lastKeyEvent_.clearEvent();

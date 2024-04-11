@@ -14,6 +14,10 @@ namespace QtAda::core::utils {
 QString escapeText(const QString &text) noexcept;
 QString objectPath(const QObject *obj) noexcept;
 QString mouseButtonToString(const Qt::MouseButton mouseButton) noexcept;
+inline QString keyToString(const int key) noexcept
+{
+    return QKeySequence(static_cast<Qt::Key>(key)).toString();
+}
 
 bool mouseEventCanBeFiltered(const QMouseEvent *event, bool shouldBePressEvent = false) noexcept;
 
@@ -74,10 +78,11 @@ QString qKeyEventHandler(const GuiComponent *component, const QEvent *event,
         return QString();
     }
 
+    const auto eventText = keyEvent->text();
     return QStringLiteral("%1('%2', '%3');")
         .arg("keyEvent")
         .arg(path.isEmpty() ? utils::objectPath(component) : path)
-        .arg(utils::escapeText(keyEvent->text()));
+        .arg(eventText.isEmpty() ? keyToString(keyEvent->key()) : utils::escapeText(eventText));
 }
 
 inline QString qMouseEventHandler(const QObject *obj, const QEvent *event,
