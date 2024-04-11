@@ -41,6 +41,7 @@ private:
     std::optional<QString> delayedScriptLine_;
 
     LastKeyEvent lastKeyEvent_;
+    LastWheelEvent lastWheelEvent_;
     LastEvent lastFocusEvent_;
 
     QTimer doubleClickTimer_;

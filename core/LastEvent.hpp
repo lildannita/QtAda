@@ -30,4 +30,8 @@ struct LastKeyEvent : LastEvent {
 
     bool registerEvent(const QString &path, const QEvent *event) noexcept override;
 };
+
+struct LastWheelEvent : LastEvent {
+    bool registerEvent(const QString &path, const QEvent *event) noexcept override;
+};
 } // namespace QtAda::core

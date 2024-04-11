@@ -152,6 +152,13 @@ bool UserEventFilter::eventFilter(QObject *obj, QEvent *event) noexcept
         lastKeyEvent_.clearEvent();
         break;
     }
+    case QEvent::Wheel: {
+        const auto path = utils::objectPath(obj);
+        if (lastWheelEvent_.registerEvent(path, event)) {
+            flushScriptLine(utils::qWheelEventHandler(obj, event, std::move(path)));
+        }
+        break;
+    }
     default:
         break;
     };

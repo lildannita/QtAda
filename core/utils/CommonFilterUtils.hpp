@@ -67,24 +67,6 @@ QString qMouseEventHandler(const GuiComponent *component, const QEvent *event,
         .arg(clickPosition.y());
 }
 
-template <typename GuiComponent>
-QString qKeyEventHandler(const GuiComponent *component, const QEvent *event,
-                         const QString &path = QString()) noexcept
-{
-    CHECK_GUI_CLASS(GuiComponent);
-
-    auto *keyEvent = static_cast<const QKeyEvent *>(event);
-    if (component == nullptr || keyEvent == nullptr) {
-        return QString();
-    }
-
-    const auto eventText = keyEvent->text();
-    return QStringLiteral("%1('%2', '%3');")
-        .arg("keyEvent")
-        .arg(path.isEmpty() ? utils::objectPath(component) : path)
-        .arg(eventText.isEmpty() ? keyToString(keyEvent->key()) : utils::escapeText(eventText));
-}
-
 inline QString qMouseEventHandler(const QObject *obj, const QEvent *event,
                                   const QString &path = QString()) noexcept
 {
@@ -97,5 +79,37 @@ inline QString qMouseEventHandler(const QObject *obj, const QEvent *event,
     else {
         Q_UNREACHABLE();
     }
+}
+
+template <typename GuiComponent>
+QString qKeyEventHandler(const GuiComponent *component, const QEvent *event,
+                         const QString &path = QString()) noexcept
+{
+    CHECK_GUI_CLASS(GuiComponent);
+
+    auto *keyEvent = static_cast<const QKeyEvent *>(event);
+    if (component == nullptr || keyEvent == nullptr) {
+        return QString();
+    }
+
+    const auto eventText = keyEvent->text();
+    return QStringLiteral("keyEvent('%1', '%2');")
+        .arg(path.isEmpty() ? utils::objectPath(component) : path)
+        .arg(eventText.isEmpty() ? keyToString(keyEvent->key()) : utils::escapeText(eventText));
+}
+
+inline QString qWheelEventHandler(const QObject *obj, const QEvent *event,
+                                  const QString &path = QString()) noexcept
+{
+    auto *wheelEvent = static_cast<const QWheelEvent *>(event);
+    if (obj == nullptr || wheelEvent == nullptr) {
+        return QString();
+    }
+
+    const auto delta = wheelEvent->pixelDelta();
+    return QStringLiteral("wheelEvent('%1', (%2, %3));")
+        .arg(path.isEmpty() ? utils::objectPath(obj) : path)
+        .arg(delta.x())
+        .arg(delta.y());
 }
 } // namespace QtAda::core::utils

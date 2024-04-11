@@ -91,4 +91,18 @@ bool LastKeyEvent::registerEvent(const QString &path, const QEvent *event) noexc
 
     return true;
 }
+
+bool LastWheelEvent::registerEvent(const QString &path, const QEvent *event) noexcept
+{
+    //! TODO: При WheelEvent получается, что первый источник сигнала - самый старший родитель,
+    //! что очень странно, так как обычно порядок вызова eventFilter начинается с самого младшего.
+    //! Поэтому если путь до источника сигнала состоит из одного компонента, то считаем, что
+    //! этот источник - самый старший родитель и игнорируем событие. Однако, нужно проверить, бывает
+    //! ли полезен WheelEvent для объектов типа QMainWindow.
+    if (path.lastIndexOf('/') == -1) {
+        return false;
+    }
+
+    return LastEvent::registerEvent(path, event);
+}
 } // namespace QtAda::core
