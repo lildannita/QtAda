@@ -6,6 +6,7 @@ set(core_MOC_HDRS
   Probe.hpp
   MetaObjectHandler.hpp
   UserEventFilter.hpp
+  GuiEventFilter.hpp
   WidgetEventFilter.hpp)
 set(core_HDRS
   ${core_MOC_HDRS}

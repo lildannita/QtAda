@@ -4,6 +4,8 @@
 #include <QString>
 #include <QObject>
 
+#include <ProcessedObjects.hpp>
+
 QT_BEGIN_NAMESPACE
 class QMouseEvent;
 QT_END_NAMESPACE
@@ -39,5 +41,56 @@ QMetaObject::Connection connectIfType(const QObject *widget, const QObject *pare
         return QObject::connect(castedWidget, signal, parent, slot);
     }
     return {};
+}
+
+template <typename GuiComponent>
+QString qMouseEventHandler(const GuiComponent *component, const QEvent *event,
+                           const QString &path = QString()) noexcept
+{
+    CHECK_GUI_CLASS(GuiComponent);
+
+    auto *mouseEvent = static_cast<const QMouseEvent *>(event);
+    if (component == nullptr || mouseEvent == nullptr) {
+        return QString();
+    }
+
+    const auto clickPosition = component->mapFromGlobal(mouseEvent->globalPos());
+    return QStringLiteral("mouse%1Click('%2', '%3', %4, %5);")
+        .arg(event->type() == QEvent::MouseButtonDblClick ? "Dbl" : "")
+        .arg(path.isEmpty() ? utils::objectPath(component) : path)
+        .arg(utils::mouseButtonToString(mouseEvent->button()))
+        .arg(clickPosition.x())
+        .arg(clickPosition.y());
+}
+
+template <typename GuiComponent>
+QString qKeyEventHandler(const GuiComponent *component, const QEvent *event,
+                         const QString &path = QString()) noexcept
+{
+    CHECK_GUI_CLASS(GuiComponent);
+
+    auto *keyEvent = static_cast<const QKeyEvent *>(event);
+    if (component == nullptr || keyEvent == nullptr) {
+        return QString();
+    }
+
+    return QStringLiteral("%1('%2', '%3');")
+        .arg("keyEvent")
+        .arg(path.isEmpty() ? utils::objectPath(component) : path)
+        .arg(utils::escapeText(keyEvent->text()));
+}
+
+inline QString qMouseEventHandler(const QObject *obj, const QEvent *event,
+                                  const QString &path = QString()) noexcept
+{
+    if (auto *widget = qobject_cast<const QWidget *>(obj)) {
+        return qMouseEventHandler(widget, event, path);
+    }
+    else if (auto *item = qobject_cast<const QQuickItem *>(obj)) {
+        return qMouseEventHandler(item, event, path);
+    }
+    else {
+        Q_UNREACHABLE();
+    }
 }
 } // namespace QtAda::core::utils

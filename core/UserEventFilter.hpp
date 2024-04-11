@@ -26,7 +26,7 @@ class UserEventFilter final : public QObject {
 public:
     UserEventFilter(QObject *parent = nullptr) noexcept;
 
-    bool eventFilter(QObject *reciever, QEvent *event) noexcept override;
+    bool eventFilter(QObject *obj, QEvent *event) noexcept override;
     void setDuplicateMouseEvent(bool value) noexcept
     {
         duplicateMouseEvent_ = value;
@@ -47,10 +47,14 @@ private:
     bool doubleClickDetected_ = false;
     bool duplicateMouseEvent_ = false;
 
-    WidgetEventFilter widgetFilter_;
+    std::shared_ptr<WidgetEventFilter> widgetFilter_ = nullptr;
 
-    QString handleMouseEvent(const QString &objPath, const QWidget *widget, const QEvent *event,
-                             bool isSpecialEvent = false) noexcept;
-    void flushScriptLine(const QString &line) const noexcept;
+    void flushScriptLine(const QString &line) const noexcept
+    {
+        assert(!line.isEmpty());
+        emit newScriptLine(line);
+    }
+    MouseEventInfo mouseEventInfo(bool isSpecial = false,
+                                  const QString &objPath = QString()) const noexcept;
 };
 } // namespace QtAda::core
