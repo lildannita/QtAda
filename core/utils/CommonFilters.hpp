@@ -4,49 +4,9 @@
 #include <QString>
 #include <QObject>
 
-#include <ProcessedObjects.hpp>
+#include "FilterUtils.hpp"
 
-QT_BEGIN_NAMESPACE
-class QMouseEvent;
-QT_END_NAMESPACE
-
-namespace QtAda::core::utils {
-QString escapeText(const QString &text) noexcept;
-QString objectPath(const QObject *obj) noexcept;
-QString mouseButtonToString(const Qt::MouseButton mouseButton) noexcept;
-inline QString keyToString(const int key) noexcept
-{
-    return QKeySequence(static_cast<Qt::Key>(key)).toString();
-}
-
-bool mouseEventCanBeFiltered(const QMouseEvent *event, bool shouldBePressEvent = false) noexcept;
-
-template <typename T> inline QString setValueStatement(const QObject *obj, T value) noexcept
-{
-    static_assert(std::is_arithmetic<T>::value, "Type T must be a digit");
-    return QStringLiteral("setValue('%1', %2);").arg(objectPath(obj)).arg(value);
-}
-
-inline QString setValueStatement(const QObject *obj, const QString &value) noexcept
-{
-    return QStringLiteral("setValue('%1', '%2');").arg(objectPath(obj), value);
-}
-
-inline QString changeValueStatement(const QObject *obj, const QString &type) noexcept
-{
-    return QStringLiteral("changeValue('%1', '%2');").arg(objectPath(obj), type);
-}
-
-template <typename T, typename Signal, typename Slot>
-QMetaObject::Connection connectIfType(const QObject *widget, const QObject *parent, Signal signal,
-                                      Slot slot)
-{
-    if (auto *castedWidget = qobject_cast<const T *>(widget)) {
-        return QObject::connect(castedWidget, signal, parent, slot);
-    }
-    return {};
-}
-
+namespace QtAda::core::filters {
 template <typename GuiComponent>
 QString qMouseEventHandler(const GuiComponent *component, const QEvent *event,
                            const QString &path = QString()) noexcept
@@ -95,7 +55,8 @@ QString qKeyEventHandler(const GuiComponent *component, const QEvent *event,
     const auto eventText = keyEvent->text();
     return QStringLiteral("keyEvent('%1', '%2');")
         .arg(path.isEmpty() ? utils::objectPath(component) : path)
-        .arg(eventText.isEmpty() ? keyToString(keyEvent->key()) : utils::escapeText(eventText));
+        .arg(eventText.isEmpty() ? utils::keyToString(keyEvent->key())
+                                 : utils::escapeText(eventText));
 }
 
 inline QString qWheelEventHandler(const QObject *obj, const QEvent *event,
@@ -112,4 +73,4 @@ inline QString qWheelEventHandler(const QObject *obj, const QEvent *event,
         .arg(delta.x())
         .arg(delta.y());
 }
-} // namespace QtAda::core::utils
+} // namespace QtAda::core::filters

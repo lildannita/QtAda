@@ -6,7 +6,7 @@
 #include <QRegularExpression>
 
 #include "GuiEventFilter.hpp"
-#include "utils/CommonFilterUtils.hpp"
+#include "utils/CommonFilters.hpp"
 
 //! TODO: remove
 #include <iostream>
@@ -155,7 +155,7 @@ bool UserEventFilter::eventFilter(QObject *obj, QEvent *event) noexcept
     case QEvent::Wheel: {
         const auto path = utils::objectPath(obj);
         if (lastWheelEvent_.registerEvent(path, event)) {
-            flushScriptLine(utils::qWheelEventHandler(obj, event, std::move(path)));
+            flushScriptLine(filters::qWheelEventHandler(obj, event, std::move(path)));
         }
         break;
     }

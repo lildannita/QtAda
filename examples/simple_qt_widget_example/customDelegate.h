@@ -3,9 +3,14 @@
 
 class CustomItemDelegate : public QStyledItemDelegate {
 public:
-    CustomItemDelegate(QObject *parent = nullptr) : QStyledItemDelegate(parent) {}
+    CustomItemDelegate(QObject *parent = nullptr)
+        : QStyledItemDelegate(parent)
+    {
+    }
 
-    void paint(QPainter *painter, const QStyleOptionViewItem &option, const QModelIndex &index) const override {
+    void paint(QPainter *painter, const QStyleOptionViewItem &option,
+               const QModelIndex &index) const override
+    {
         QStyleOptionViewItem options = option;
         initStyleOption(&options, index);
 

@@ -28,8 +28,8 @@
 #include <QLineEdit>
 #include <QKeySequenceEdit>
 
-#include "utils/CommonFilterUtils.hpp"
-#include "utils/WidgetFilterUtils.hpp"
+#include "utils/CommonFilters.hpp"
+#include "utils/FilterUtils.hpp"
 
 //! TODO: remove
 #include <iostream>
@@ -83,7 +83,7 @@ static QString qButtonFilter(const QWidget *widget, const QMouseEvent *event) no
     }
 
     //! TODO: скорее всего нужно будет уточнять какие именно классы, а не просто QAbstractButton
-    widget = utils::searchSpecificWidget(widget, s_widgetMetaMap.at(WidgetClass::Button));
+    widget = utils::searchSpecificComponent(widget, s_widgetMetaMap.at(WidgetClass::Button));
     if (widget == nullptr) {
         return QString();
     }
@@ -109,7 +109,7 @@ static QString qRadioButtonFilter(const QWidget *widget, const QMouseEvent *even
         return QString();
     }
 
-    widget = utils::searchSpecificWidget(widget, s_widgetMetaMap.at(WidgetClass::RadioButton));
+    widget = utils::searchSpecificComponent(widget, s_widgetMetaMap.at(WidgetClass::RadioButton));
     if (widget == nullptr) {
         return QString();
     }
@@ -133,7 +133,7 @@ static QString qRadioButtonFilter(const QWidget *widget, const QMouseEvent *even
                          : QStringLiteral(" // Button text: '%1'").arg(radioButton->text()));
         }
     }
-    return utils::qMouseEventHandler(widget, event);
+    return filters::qMouseEventHandler(widget, event);
 }
 
 static QString qCheckBoxFilter(const QWidget *widget, const QMouseEvent *event) noexcept
@@ -142,7 +142,7 @@ static QString qCheckBoxFilter(const QWidget *widget, const QMouseEvent *event) 
         return QString();
     }
 
-    widget = utils::searchSpecificWidget(widget, s_widgetMetaMap.at(WidgetClass::CheckBox));
+    widget = utils::searchSpecificComponent(widget, s_widgetMetaMap.at(WidgetClass::CheckBox));
     if (widget == nullptr) {
         return QString();
     }
@@ -177,7 +177,7 @@ static QString qCheckBoxFilter(const QWidget *widget, const QMouseEvent *event) 
             return generate(!checkBox->isChecked());
         }
     }
-    return utils::qMouseEventHandler(widget, event);
+    return filters::qMouseEventHandler(widget, event);
 }
 
 static QString qComboBoxFilter(const QWidget *widget, const QMouseEvent *event) noexcept
@@ -187,14 +187,14 @@ static QString qComboBoxFilter(const QWidget *widget, const QMouseEvent *event) 
     }
 
     size_t iteration;
-    std::tie(widget, iteration) = utils::searchSpecificWidgetWithIteration(
+    std::tie(widget, iteration) = utils::searchSpecificComponentWithIteration(
         widget, s_widgetMetaMap.at(WidgetClass::ComboBox));
     if (widget == nullptr) {
         return QString();
     }
     if (iteration <= 2) {
         return QStringLiteral("// Looks like QComboBox container clicked\n// %1")
-            .arg(utils::qMouseEventHandler(widget, event));
+            .arg(filters::qMouseEventHandler(widget, event));
     }
 
     auto *comboBox = qobject_cast<const QComboBox *>(widget);
@@ -208,8 +208,8 @@ static QString qComboBoxFilter(const QWidget *widget, const QMouseEvent *event) 
 
     if (containerRect.contains(clickPos)) {
         return QStringLiteral("selectItem('%1', '%2');")
-            .arg(utils::objectPath(comboBox))
-            .arg(utils::widgetIdInView(comboBox, comboBoxView->currentIndex().row(),
+            .arg(utils::objectPath(widget))
+            .arg(utils::widgetIdInView(widget, comboBoxView->currentIndex().row(),
                                        WidgetClass::ComboBox));
     }
     /*
@@ -220,7 +220,7 @@ static QString qComboBoxFilter(const QWidget *widget, const QMouseEvent *event) 
      */
     return QStringLiteral(
                "// 'Release' event is outside of QComboBox, so it is still opened\n// %1")
-        .arg(utils::qMouseEventHandler(widget, event));
+        .arg(filters::qMouseEventHandler(widget, event));
 }
 
 static QString qSliderFilter(const QWidget *widget, const QMouseEvent *event,
@@ -230,7 +230,7 @@ static QString qSliderFilter(const QWidget *widget, const QMouseEvent *event,
         return QString();
     }
 
-    widget = utils::searchSpecificWidget(widget, s_widgetMetaMap.at(WidgetClass::Slider));
+    widget = utils::searchSpecificComponent(widget, s_widgetMetaMap.at(WidgetClass::Slider));
     if (widget == nullptr) {
         return QString();
     }
@@ -277,7 +277,7 @@ static QString qSpinBoxFilter(const QWidget *widget, const QMouseEvent *event,
         return QString();
     }
 
-    widget = utils::searchSpecificWidget(widget, s_widgetMetaMap.at(WidgetClass::SpinBox));
+    widget = utils::searchSpecificComponent(widget, s_widgetMetaMap.at(WidgetClass::SpinBox));
     if (widget == nullptr) {
         return QString();
     }
@@ -334,7 +334,7 @@ static QString qCalendarFilter(const QWidget *widget, const QMouseEvent *event,
         return QString();
     }
 
-    widget = utils::searchSpecificWidget(widget, s_widgetMetaMap.at(WidgetClass::Calendar));
+    widget = utils::searchSpecificComponent(widget, s_widgetMetaMap.at(WidgetClass::Calendar));
     if (widget == nullptr) {
         return QString();
     }
@@ -411,7 +411,8 @@ static QString qCalendarFilter(const QWidget *widget, const QMouseEvent *event,
 
     return QStringLiteral("%1%2")
         .arg(dateChanged ? "" : "// Looks like this date was not selected\n// ")
-        .arg(utils::setValueStatement(calendar, currentDate.toString(Qt::ISODate)));
+        .arg(utils::setValueStatement(qobject_cast<const QWidget *>(calendar),
+                                      currentDate.toString(Qt::ISODate)));
 }
 
 static QString qTreeViewFilter(const QWidget *widget, const QMouseEvent *event,
@@ -421,7 +422,7 @@ static QString qTreeViewFilter(const QWidget *widget, const QMouseEvent *event,
         return QString();
     }
 
-    widget = utils::searchSpecificWidget(widget, s_widgetMetaMap.at(WidgetClass::TreeView));
+    widget = utils::searchSpecificComponent(widget, s_widgetMetaMap.at(WidgetClass::TreeView));
     if (widget == nullptr) {
         return QString();
     }
@@ -455,7 +456,7 @@ static QString qUndoViewFilter(const QWidget *widget, const QMouseEvent *event,
         return QString();
     }
 
-    widget = utils::searchSpecificWidget(widget, s_widgetMetaMap.at(WidgetClass::ItemView));
+    widget = utils::searchSpecificComponent(widget, s_widgetMetaMap.at(WidgetClass::ItemView));
     if (widget == nullptr) {
         return QString();
     }
@@ -475,7 +476,7 @@ static QString qUndoViewFilter(const QWidget *widget, const QMouseEvent *event,
         const auto currentItemText
             = currentItem.canConvert<QString>() ? currentItem.toString() : QString();
         result += QStringLiteral("undoCommand('%1', %2);%3")
-                      .arg(utils::objectPath(view))
+                      .arg(utils::objectPath(widget))
                       .arg(index)
                       .arg(currentItemText.isEmpty()
                                ? ""
@@ -506,7 +507,7 @@ static QString qItemViewClickFilter(const QAbstractItemView *view,
             = currentItem.canConvert<QString>() ? currentItem.toString() : QString();
         return QStringLiteral("delegate%1Click('%2', (%3, %4));%5")
             .arg(event->type() == QEvent::MouseButtonDblClick ? "Dbl" : "")
-            .arg(utils::objectPath(view))
+            .arg(utils::objectPath(qobject_cast<const QWidget *>(view)))
             .arg(currentIndex.row())
             .arg(currentIndex.column())
             .arg(currentItemText.isEmpty()
@@ -523,14 +524,14 @@ static QString qItemViewFilter(const QWidget *widget, const QMouseEvent *event) 
         return QString();
     }
 
-    if (utils::searchSpecificWidget(widget, s_widgetMetaMap.at(WidgetClass::ColumnViewGrip))
+    if (utils::searchSpecificComponent(widget, s_widgetMetaMap.at(WidgetClass::ColumnViewGrip))
         != nullptr) {
         // Никак дополнительно не обрабатываем это действие, так как оно не влияет
         // на функционал, а влияет только на визуальное отображение элементов
         return QLatin1String("// Looks like QColumnViewGrip moved");
     }
 
-    widget = utils::searchSpecificWidget(widget, s_widgetMetaMap.at(WidgetClass::ItemView));
+    widget = utils::searchSpecificComponent(widget, s_widgetMetaMap.at(WidgetClass::ItemView));
     if (widget == nullptr) {
         return QString();
     }
@@ -541,7 +542,8 @@ static QString qItemViewFilter(const QWidget *widget, const QMouseEvent *event) 
      * отметить, что данный клик бесполезен.
      */
     bool isUndoView
-        = utils::searchSpecificWidget(widget, s_widgetMetaMap.at(WidgetClass::UndoView)) != nullptr;
+        = utils::searchSpecificComponent(widget, s_widgetMetaMap.at(WidgetClass::UndoView))
+          != nullptr;
 
     auto *view = qobject_cast<const QAbstractItemView *>(widget);
     assert(view != nullptr);
@@ -562,7 +564,7 @@ static QString qItemViewFilter(const QWidget *widget, const QMouseEvent *event) 
         const auto selectionMode = view->selectionMode();
         if (selectionMode == QAbstractItemView::ExtendedSelection
             || selectionMode == QAbstractItemView::ContiguousSelection) {
-            return QStringLiteral("clearSelection('%1');").arg(utils::objectPath(view));
+            return QStringLiteral("clearSelection('%1');").arg(utils::objectPath(widget));
         }
         return QString();
     }
@@ -580,7 +582,7 @@ static QString qItemViewSelectionFilter(const QWidget *widget, const QMouseEvent
         return QString();
     }
 
-    widget = utils::searchSpecificWidget(widget, s_widgetMetaMap.at(WidgetClass::ItemView));
+    widget = utils::searchSpecificComponent(widget, s_widgetMetaMap.at(WidgetClass::ItemView));
     if (widget == nullptr) {
         return QString();
     }
@@ -609,7 +611,7 @@ static QString qMenuBarFilter(const QWidget *widget, const QMouseEvent *event) n
         return QString();
     }
 
-    widget = utils::searchSpecificWidget(widget, s_widgetMetaMap.at(WidgetClass::MenuBar));
+    widget = utils::searchSpecificComponent(widget, s_widgetMetaMap.at(WidgetClass::MenuBar));
     if (widget == nullptr) {
         return QString();
     }
@@ -653,7 +655,7 @@ static QString qMenuFilter(const QWidget *widget, const QMouseEvent *event) noex
         return QString();
     }
 
-    widget = utils::searchSpecificWidget(widget, s_widgetMetaMap.at(WidgetClass::Menu));
+    widget = utils::searchSpecificComponent(widget, s_widgetMetaMap.at(WidgetClass::Menu));
     if (widget == nullptr) {
         return QString();
     }
@@ -690,7 +692,7 @@ static QString qTabBarFilter(const QWidget *widget, const QMouseEvent *event) no
         return QString();
     }
 
-    widget = utils::searchSpecificWidget(widget, s_widgetMetaMap.at(WidgetClass::TabBar));
+    widget = utils::searchSpecificComponent(widget, s_widgetMetaMap.at(WidgetClass::TabBar));
     if (widget == nullptr) {
         return QString();
     }
@@ -715,10 +717,12 @@ static QString qCloseFilter(const QWidget *widget, const QEvent *event) noexcept
         return QString();
     }
 
-    if (utils::searchSpecificWidget(widget, s_widgetMetaMap.at(WidgetClass::Dialog)) != nullptr) {
+    if (utils::searchSpecificComponent(widget, s_widgetMetaMap.at(WidgetClass::Dialog))
+        != nullptr) {
         return QStringLiteral("closeDialog(%1);").arg(utils::objectPath(widget));
     }
-    if (utils::searchSpecificWidget(widget, s_widgetMetaMap.at(WidgetClass::Window)) != nullptr) {
+    if (utils::searchSpecificComponent(widget, s_widgetMetaMap.at(WidgetClass::Window))
+        != nullptr) {
         return QStringLiteral("closeWindow(%1);").arg(utils::objectPath(widget));
     }
 
@@ -734,7 +738,7 @@ static QString qTextFocusFilters(const QWidget *widget, const QMouseEvent *event
 {
     for (const auto &widgetClass : s_processedTextWidgets) {
         if (auto *foundWidget
-            = utils::searchSpecificWidget(widget, s_widgetMetaMap.at(widgetClass))) {
+            = utils::searchSpecificComponent(widget, s_widgetMetaMap.at(widgetClass))) {
             QString widgetClassStr;
             switch (widgetClass) {
             case WidgetClass::TextEdit:
@@ -758,7 +762,7 @@ static QString qTextFocusFilters(const QWidget *widget, const QMouseEvent *event
             const auto clickPos = foundWidget->mapFromGlobal(event->globalPos());
             return QStringLiteral("// Looks like focus click on %1\n// %2")
                 .arg(widgetClassStr)
-                .arg(utils::qMouseEventHandler(foundWidget, event));
+                .arg(filters::qMouseEventHandler(foundWidget, event));
         }
     }
     return QString();
@@ -882,8 +886,8 @@ void WidgetEventFilter::setMousePressFilter(const QObject *obj, const QEvent *ev
 
     WidgetClass foundWidgetClass = WidgetClass::None;
     std::vector<QMetaObject::Connection> connections;
-    if (auto *foundWidget
-        = utils::searchSpecificWidget(widget, filters::s_widgetMetaMap.at(WidgetClass::SpinBox))) {
+    if (auto *foundWidget = utils::searchSpecificComponent(
+            widget, filters::s_widgetMetaMap.at(WidgetClass::SpinBox))) {
         auto slot = [this] { this->delayedData_.processSignal(); };
         foundWidgetClass = WidgetClass::SpinBox;
         QMetaObject::Connection spinBoxConnection = utils::connectIfType<QSpinBox>(
@@ -902,7 +906,7 @@ void WidgetEventFilter::setMousePressFilter(const QObject *obj, const QEvent *ev
         }
         connections.push_back(spinBoxConnection);
     }
-    else if (auto *foundWidget = utils::searchSpecificWidget(
+    else if (auto *foundWidget = utils::searchSpecificComponent(
                  widget, filters::s_widgetMetaMap.at(WidgetClass::Slider))) {
         foundWidgetClass = WidgetClass::Slider;
         connections.push_back(utils::connectIfType<QAbstractSlider>(
@@ -913,18 +917,18 @@ void WidgetEventFilter::setMousePressFilter(const QObject *obj, const QEvent *ev
                 this->delayedData_.processSignal();
             }));
     }
-    else if (auto *foundWidget = utils::searchSpecificWidget(
+    else if (auto *foundWidget = utils::searchSpecificComponent(
                  widget, filters::s_widgetMetaMap.at(WidgetClass::Calendar))) {
         auto *itemView = qobject_cast<const QAbstractItemView *>(foundWidget);
         assert(itemView != nullptr);
         foundWidgetClass = WidgetClass::Calendar;
         connections.push_back(utils::connectIfType<QItemSelectionModel>(
-            itemView->selectionModel(), this,
+            qobject_cast<const QWidget *>(itemView->selectionModel()), this,
             static_cast<void (QItemSelectionModel::*)(const QModelIndex &, const QModelIndex &)>(
                 &QItemSelectionModel::currentChanged),
             [this] { this->delayedData_.processSignal(); }));
     }
-    else if (auto *foundWidget = utils::searchSpecificWidget(
+    else if (auto *foundWidget = utils::searchSpecificComponent(
                  widget, filters::s_widgetMetaMap.at(WidgetClass::TreeView))) {
         foundWidgetClass = WidgetClass::TreeView;
         connections.push_back(utils::connectIfType<QTreeView>(
@@ -944,25 +948,25 @@ void WidgetEventFilter::setMousePressFilter(const QObject *obj, const QEvent *ev
                 this->delayedData_.processSignal();
             }));
     }
-    else if (auto *foundWidget = utils::searchSpecificWidget(
+    else if (auto *foundWidget = utils::searchSpecificComponent(
                  widget, filters::s_widgetMetaMap.at(WidgetClass::UndoView))) {
         auto *undoView = qobject_cast<const QUndoView *>(foundWidget);
         assert(undoView != nullptr);
         foundWidgetClass = WidgetClass::UndoView;
         connections.push_back(utils::connectIfType<QUndoStack>(
-            undoView->stack(), this,
+            qobject_cast<const QWidget *>(undoView->stack()), this,
             static_cast<void (QUndoStack::*)(int)>(&QUndoStack::indexChanged), [this](int index) {
                 this->delayedData_.extra.collectedIndexes.push_back(index);
                 this->delayedData_.processSignal(false);
             }));
     }
-    else if (auto *foundWidget = utils::searchSpecificWidget(
+    else if (auto *foundWidget = utils::searchSpecificComponent(
                  widget, filters::s_widgetMetaMap.at(WidgetClass::ItemView))) {
         auto *itemView = qobject_cast<const QAbstractItemView *>(foundWidget);
         assert(itemView != nullptr);
         foundWidgetClass = WidgetClass::ItemView;
         connections.push_back(utils::connectIfType<QItemSelectionModel>(
-            itemView->selectionModel(), this,
+            qobject_cast<const QWidget *>(itemView->selectionModel()), this,
             static_cast<void (QItemSelectionModel::*)(const QItemSelection &,
                                                       const QItemSelection &)>(
                 &QItemSelectionModel::selectionChanged),
@@ -1000,7 +1004,7 @@ void WidgetEventFilter::handleKeyEvent(const QObject *obj, const QEvent *event) 
     //! TODO: Почему-то среди всех текстовых элементов в QtWidgets только для QKeySequenceEdit
     //! найден очень удобный сигнал editingFinished. Для остальных приходится строить систему
     //! из отслеживания фокуса и таймера. Однако может стоит придумать более надежный вариант.
-    if (auto *keySeqWidget = utils::searchSpecificWidget(
+    if (auto *keySeqWidget = utils::searchSpecificComponent(
             keyWatchDog_.component, filters::s_widgetMetaMap.at(WidgetClass::KeySequenceEdit))) {
         if (keySeqWidget == keyWatchDog_.component && keyWatchDog_.connection) {
             return;
@@ -1025,7 +1029,7 @@ void WidgetEventFilter::handleKeyEvent(const QObject *obj, const QEvent *event) 
             continue;
         }
         if (auto *foundWidget
-            = utils::searchSpecificWidget(widget, filters::s_widgetMetaMap.at(widgetClass))) {
+            = utils::searchSpecificComponent(widget, filters::s_widgetMetaMap.at(widgetClass))) {
             keyWatchDog_.component = foundWidget;
             keyWatchDog_.componentClass = widgetClass;
             keyWatchDog_.timer.start();
@@ -1033,7 +1037,7 @@ void WidgetEventFilter::handleKeyEvent(const QObject *obj, const QEvent *event) 
         }
     }
 
-    flushKeyEvent(utils::qKeyEventHandler(widget, event));
+    flushKeyEvent(filters::qKeyEventHandler(widget, event));
 }
 
 void WidgetEventFilter::callWidgetKeyFilters() noexcept
@@ -1082,7 +1086,7 @@ void WidgetEventFilter::callWidgetKeyFilters() noexcept
 void WidgetEventFilter::processKeyEvent(const QString &text) noexcept
 {
     QModelIndex index;
-    const auto viewWidget = utils::searchSpecificWidget(
+    const auto viewWidget = utils::searchSpecificComponent(
         keyWatchDog_.component, filters::s_widgetMetaMap.at(WidgetClass::ItemView));
     if (viewWidget != nullptr) {
         auto *view = qobject_cast<const QAbstractItemView *>(viewWidget);

@@ -15,8 +15,8 @@ set(core_HDRS
   ProcessedObjects.hpp
   LastEvent.hpp
   utils/Tools.hpp
-  utils/CommonFilterUtils.hpp
-  utils/WidgetFilterUtils.hpp)
+  utils/CommonFilters.hpp
+  utils/FilterUtils.hpp)
 set(core_SRCS
   Probe.cpp
   ProbeGuard.cpp
@@ -24,8 +24,7 @@ set(core_SRCS
   UserEventFilter.cpp
   WidgetEventFilter.cpp
   LastEvent.cpp
-  utils/CommonFilterUtils.cpp
-  utils/WidgetFilterUtils.cpp)
+  utils/FilterUtils.cpp)
 qt5_wrap_cpp(core_SRCS ${core_MOC_HDRS} TARGET core)
 
 add_library(core SHARED ${core_SRCS} ${core_HDRS})

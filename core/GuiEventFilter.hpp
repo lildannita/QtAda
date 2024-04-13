@@ -10,7 +10,7 @@
 #include <QString>
 
 #include "ProcessedObjects.hpp"
-#include "utils/CommonFilterUtils.hpp"
+#include "utils/CommonFilters.hpp"
 
 QT_BEGIN_NAMESPACE
 class QMouseEvent;
@@ -61,13 +61,13 @@ public:
     {
         auto scriptLine = callMouseFilters(obj, event, info.isContinuous, info.isSpecialEvent);
         if (scriptLine.isEmpty()) {
-            scriptLine = utils::qMouseEventHandler(obj, event, info.objPath);
+            scriptLine = filters::qMouseEventHandler(obj, event, info.objPath);
         }
         else if (info.duplicateMouseEvent) {
             static QRegularExpression s_regex("mouse(Dbl)?Click");
             if (!s_regex.match(scriptLine).hasMatch()) {
                 scriptLine += QStringLiteral("// %1").arg(
-                    utils::qMouseEventHandler(obj, event, info.objPath));
+                    filters::qMouseEventHandler(obj, event, info.objPath));
             }
         }
         assert(!scriptLine.isEmpty());
