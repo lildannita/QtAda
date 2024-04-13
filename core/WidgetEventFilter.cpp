@@ -813,10 +813,10 @@ WidgetEventFilter::WidgetEventFilter(QObject *parent) noexcept
         filters::qCloseFilter,
     };
 
-    auto &keyWatchDogTimer = keyWatchDog_.timer;
-    keyWatchDogTimer.setInterval(5000);
-    keyWatchDogTimer.setSingleShot(true);
-    connect(&keyWatchDogTimer, &QTimer::timeout, this, &WidgetEventFilter::callKeyFilters);
+    //    auto &keyWatchDogTimer = keyWatchDog_.timer;
+    //    keyWatchDogTimer.setInterval(5000);
+    //    keyWatchDogTimer.setSingleShot(true);
+    //    connect(&keyWatchDogTimer, &QTimer::timeout, this, &WidgetEventFilter::callKeyFilters);
 }
 
 QString WidgetEventFilter::callMouseFilters(const QObject *obj, const QEvent *event,

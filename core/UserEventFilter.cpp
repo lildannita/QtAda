@@ -16,8 +16,11 @@ UserEventFilter::UserEventFilter(QObject *parent) noexcept
     : QObject{ parent }
 {
     widgetFilter_ = std::make_shared<WidgetEventFilter>(this);
+    quickFilter_ = std::make_shared<QuickEventFilter>(this);
 
     connect(widgetFilter_.get(), &WidgetEventFilter::newKeyScriptLine, this,
+            &UserEventFilter::newScriptLine);
+    connect(quickFilter_.get(), &WidgetEventFilter::newKeyScriptLine, this,
             &UserEventFilter::newScriptLine);
 
     doubleClickTimer_.setSingleShot(true);
@@ -59,8 +62,7 @@ bool UserEventFilter::eventFilter(QObject *obj, QEvent *event) noexcept
             currentFilter_ = widgetFilter_;
         }
         else if (qobject_cast<QQuickItem *>(obj) != nullptr) {
-            //! TODO: пока что обрабатываем только QWidget
-            return QObject::eventFilter(obj, event);
+            currentFilter_ = quickFilter_;
         }
         else {
             // Если оба каста не получились, то QObject - не компонент GUI

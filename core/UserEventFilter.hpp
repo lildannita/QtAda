@@ -14,6 +14,7 @@
 #include <queue>
 
 #include "WidgetEventFilter.hpp"
+#include "QuickEventFilter.hpp"
 #include "LastEvent.hpp"
 
 QT_BEGIN_NAMESPACE
@@ -49,6 +50,7 @@ private:
     bool duplicateMouseEvent_ = false;
 
     std::shared_ptr<WidgetEventFilter> widgetFilter_ = nullptr;
+    std::shared_ptr<QuickEventFilter> quickFilter_ = nullptr;
 
     void flushScriptLine(const QString &line) const noexcept
     {

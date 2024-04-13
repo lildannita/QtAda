@@ -29,6 +29,8 @@ enum class WidgetClass {
 };
 
 enum class QuickClass {
+    Button,
+    MouseArea,
     None,
 };
 

@@ -3,11 +3,11 @@
 #include <qnamespace.h>
 #include "ProcessedObjects.hpp"
 
+//! TODO: убрать
+#include <iostream>
+
 QT_BEGIN_NAMESPACE
-// class QWidget;
-// class QMouseEvent;
 class QItemSelectionModel;
-// class QLatin1String;
 QT_END_NAMESPACE
 
 namespace QtAda::core::utils {
@@ -54,14 +54,17 @@ std::pair<const GuiComponent *, size_t> searchSpecificComponentWithIteration(
     }
 
     for (size_t i = 1; i <= classDesignation.second && component != nullptr; i++) {
+        std::cout << "---------------------------------" << std::endl;
         const auto *metaObject = component->metaObject();
         while (metaObject != nullptr) {
+            std::cout << metaObject->className() << std::endl;
             if (classDesignation.first == metaObject->className()) {
                 return std::make_pair(component, i);
             }
             metaObject = metaObject->superClass();
         }
         component = parentGetter(component);
+        std::cout << std::endl;
     }
     return std::make_pair(nullptr, 0);
 }

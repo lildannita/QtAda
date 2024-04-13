@@ -107,6 +107,11 @@ protected:
     {
         CHECK_GUI_CLASS(GuiComponent);
         CHECK_GUI_ENUM(EnumType);
+
+        auto &keyWatchDogTimer = keyWatchDog_.timer;
+        keyWatchDogTimer.setInterval(5000);
+        keyWatchDogTimer.setSingleShot(true);
+        connect(&keyWatchDogTimer, &QTimer::timeout, this, &GuiEventFilter::callKeyFilters);
     }
 
     std::vector<MouseFilterFunction> mouseFilters_;
