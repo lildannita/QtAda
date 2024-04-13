@@ -891,18 +891,19 @@ void WidgetEventFilter::setMousePressFilter(const QObject *obj, const QEvent *ev
         auto slot = [this] { this->delayedData_.processSignal(); };
         foundWidgetClass = WidgetClass::SpinBox;
         QMetaObject::Connection spinBoxConnection = utils::connectIfType<QSpinBox>(
-            widget, this, static_cast<void (QSpinBox::*)(int)>(&QSpinBox::valueChanged), slot);
+            widget, static_cast<void (QSpinBox::*)(int)>(&QSpinBox::valueChanged), this, slot);
         if (!spinBoxConnection) {
             spinBoxConnection = utils::connectIfType<QDoubleSpinBox>(
-                foundWidget, this,
-                static_cast<void (QDoubleSpinBox::*)(double)>(&QDoubleSpinBox::valueChanged), slot);
+                foundWidget,
+                static_cast<void (QDoubleSpinBox::*)(double)>(&QDoubleSpinBox::valueChanged), this,
+                slot);
         }
         if (!spinBoxConnection) {
             spinBoxConnection = utils::connectIfType<QDateTimeEdit>(
-                foundWidget, this,
+                foundWidget,
                 static_cast<void (QDateTimeEdit::*)(const QDateTime &)>(
                     &QDateTimeEdit::dateTimeChanged),
-                slot);
+                this, slot);
         }
         connections.push_back(spinBoxConnection);
     }
@@ -910,8 +911,8 @@ void WidgetEventFilter::setMousePressFilter(const QObject *obj, const QEvent *ev
                  widget, filters::s_widgetMetaMap.at(WidgetClass::Slider))) {
         foundWidgetClass = WidgetClass::Slider;
         connections.push_back(utils::connectIfType<QAbstractSlider>(
-            foundWidget, this,
-            static_cast<void (QAbstractSlider::*)(int)>(&QAbstractSlider::actionTriggered),
+            foundWidget,
+            static_cast<void (QAbstractSlider::*)(int)>(&QAbstractSlider::actionTriggered), this,
             [this](int type) {
                 this->delayedData_.extra.changeType = type;
                 this->delayedData_.processSignal();
@@ -922,26 +923,26 @@ void WidgetEventFilter::setMousePressFilter(const QObject *obj, const QEvent *ev
         auto *itemView = qobject_cast<const QAbstractItemView *>(foundWidget);
         assert(itemView != nullptr);
         foundWidgetClass = WidgetClass::Calendar;
-        connections.push_back(utils::connectIfType<QItemSelectionModel>(
-            qobject_cast<const QWidget *>(itemView->selectionModel()), this,
+        connections.push_back(utils::connectObject(
+            itemView->selectionModel(),
             static_cast<void (QItemSelectionModel::*)(const QModelIndex &, const QModelIndex &)>(
                 &QItemSelectionModel::currentChanged),
-            [this] { this->delayedData_.processSignal(); }));
+            this, [this] { this->delayedData_.processSignal(); }));
     }
     else if (auto *foundWidget = utils::searchSpecificComponent(
                  widget, filters::s_widgetMetaMap.at(WidgetClass::TreeView))) {
         foundWidgetClass = WidgetClass::TreeView;
         connections.push_back(utils::connectIfType<QTreeView>(
-            foundWidget, this,
-            static_cast<void (QTreeView::*)(const QModelIndex &)>(&QTreeView::expanded),
+            foundWidget,
+            static_cast<void (QTreeView::*)(const QModelIndex &)>(&QTreeView::expanded), this,
             [this](const QModelIndex &index) {
                 this->delayedData_.extra.changeIndex = index;
                 this->delayedData_.extra.changeType = ExtraInfoForDelayed::TreeViewExtra::Expanded;
                 this->delayedData_.processSignal();
             }));
         connections.push_back(utils::connectIfType<QTreeView>(
-            foundWidget, this,
-            static_cast<void (QTreeView::*)(const QModelIndex &)>(&QTreeView::collapsed),
+            foundWidget,
+            static_cast<void (QTreeView::*)(const QModelIndex &)>(&QTreeView::collapsed), this,
             [this](const QModelIndex &index) {
                 this->delayedData_.extra.changeIndex = index;
                 this->delayedData_.extra.changeType = ExtraInfoForDelayed::TreeViewExtra::Collapsed;
@@ -953,9 +954,9 @@ void WidgetEventFilter::setMousePressFilter(const QObject *obj, const QEvent *ev
         auto *undoView = qobject_cast<const QUndoView *>(foundWidget);
         assert(undoView != nullptr);
         foundWidgetClass = WidgetClass::UndoView;
-        connections.push_back(utils::connectIfType<QUndoStack>(
-            qobject_cast<const QWidget *>(undoView->stack()), this,
-            static_cast<void (QUndoStack::*)(int)>(&QUndoStack::indexChanged), [this](int index) {
+        connections.push_back(utils::connectObject(
+            undoView->stack(), static_cast<void (QUndoStack::*)(int)>(&QUndoStack::indexChanged),
+            this, [this](int index) {
                 this->delayedData_.extra.collectedIndexes.push_back(index);
                 this->delayedData_.processSignal(false);
             }));
@@ -965,12 +966,12 @@ void WidgetEventFilter::setMousePressFilter(const QObject *obj, const QEvent *ev
         auto *itemView = qobject_cast<const QAbstractItemView *>(foundWidget);
         assert(itemView != nullptr);
         foundWidgetClass = WidgetClass::ItemView;
-        connections.push_back(utils::connectIfType<QItemSelectionModel>(
-            qobject_cast<const QWidget *>(itemView->selectionModel()), this,
-            static_cast<void (QItemSelectionModel::*)(const QItemSelection &,
-                                                      const QItemSelection &)>(
-                &QItemSelectionModel::selectionChanged),
-            [this] { this->delayedData_.processSignal(); }));
+        connections.push_back(
+            QObject::connect(itemView->selectionModel(),
+                             static_cast<void (QItemSelectionModel::*)(const QItemSelection &,
+                                                                       const QItemSelection &)>(
+                                 &QItemSelectionModel::selectionChanged),
+                             this, [this] { this->delayedData_.processSignal(); }));
     }
 
     if (foundWidgetClass != WidgetClass::None) {
@@ -1012,8 +1013,8 @@ void WidgetEventFilter::handleKeyEvent(const QObject *obj, const QEvent *event) 
 
         keyWatchDog_.component = keySeqWidget;
         keyWatchDog_.connection = utils::connectIfType<QKeySequenceEdit>(
-            keySeqWidget, this,
-            static_cast<void (QKeySequenceEdit::*)()>(&QKeySequenceEdit::editingFinished),
+            keySeqWidget,
+            static_cast<void (QKeySequenceEdit::*)()>(&QKeySequenceEdit::editingFinished), this,
             [this, keySeqWidget] {
                 QObject::disconnect(this->keyWatchDog_.connection);
                 auto *keySeqEdit = qobject_cast<const QKeySequenceEdit *>(keySeqWidget);

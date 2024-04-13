@@ -54,17 +54,14 @@ std::pair<const GuiComponent *, size_t> searchSpecificComponentWithIteration(
     }
 
     for (size_t i = 1; i <= classDesignation.second && component != nullptr; i++) {
-        std::cout << "---------------------------------" << std::endl;
         const auto *metaObject = component->metaObject();
         while (metaObject != nullptr) {
-            std::cout << metaObject->className() << std::endl;
             if (classDesignation.first == metaObject->className()) {
                 return std::make_pair(component, i);
             }
             metaObject = metaObject->superClass();
         }
         component = parentGetter(component);
-        std::cout << std::endl;
     }
     return std::make_pair(nullptr, 0);
 }
@@ -98,14 +95,25 @@ inline QString changeValueStatement(const GuiComponent *component, const QString
 }
 
 template <typename T, typename GuiComponent, typename Signal, typename Slot>
-QMetaObject::Connection connectIfType(const GuiComponent *component, const QObject *parent,
-                                      Signal signal, Slot slot)
+QMetaObject::Connection connectIfType(const GuiComponent *sender, Signal signal,
+                                      const QObject *reciever, Slot slot)
 {
     CHECK_GUI_CLASS(GuiComponent);
-    if (auto *castedWidget = qobject_cast<const T *>(component)) {
-        return QObject::connect(castedWidget, signal, parent, slot);
+    assert(sender != nullptr);
+    assert(reciever != nullptr);
+    if (auto *castedSender = qobject_cast<const T *>(sender)) {
+        return QObject::connect(castedSender, signal, reciever, slot);
     }
     return {};
+}
+
+template <typename GuiComponent, typename Signal, typename Slot>
+QMetaObject::Connection connectObject(const GuiComponent *sender, Signal signal,
+                                      const QObject *reciever, Slot slot)
+{
+    assert(sender != nullptr);
+    assert(reciever != nullptr);
+    return QObject::connect(sender, signal, reciever, slot);
 }
 
 // Special filters for QWidgets:

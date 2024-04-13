@@ -120,11 +120,6 @@ protected:
     std::vector<FilterFunction> specialFilters_;
 
     struct DelayedData {
-        DelayedData()
-        {
-            bool test = false;
-        }
-
         const GuiComponent *causedComponent = nullptr;
         QEvent::Type causedEventType = QEvent::None;
         const QEvent *causedEvent = nullptr;
