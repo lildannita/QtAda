@@ -89,7 +89,7 @@ protected:
         = 0;
 
 protected slots:
-    virtual void callWidgetKeyFilters() noexcept = 0;
+    virtual void callKeyFilters() noexcept = 0;
 };
 
 template <typename GuiComponent, typename EnumType>

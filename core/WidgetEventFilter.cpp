@@ -816,7 +816,7 @@ WidgetEventFilter::WidgetEventFilter(QObject *parent) noexcept
     auto &keyWatchDogTimer = keyWatchDog_.timer;
     keyWatchDogTimer.setInterval(5000);
     keyWatchDogTimer.setSingleShot(true);
-    connect(&keyWatchDogTimer, &QTimer::timeout, this, &WidgetEventFilter::callWidgetKeyFilters);
+    connect(&keyWatchDogTimer, &QTimer::timeout, this, &WidgetEventFilter::callKeyFilters);
 }
 
 QString WidgetEventFilter::callMouseFilters(const QObject *obj, const QEvent *event,
@@ -829,7 +829,7 @@ QString WidgetEventFilter::callMouseFilters(const QObject *obj, const QEvent *ev
 
     // Считаем, что любое нажатие мышью или какое-либо специальное событие
     // обозначает конец редактирования текста.
-    callWidgetKeyFilters();
+    callKeyFilters();
 
     if (isSpecialEvent) {
         for (auto &filter : specialFilters_) {
@@ -990,7 +990,7 @@ void WidgetEventFilter::handleKeyEvent(const QObject *obj, const QEvent *event) 
     // Изменение фокуса (при условии, что фокус переводится с уже зарегестрированного объекта)
     // считаем сигналом о завершении редактирования текста
     if (event->type() == QEvent::FocusAboutToChange && widget == keyWatchDog_.component) {
-        callWidgetKeyFilters();
+        callKeyFilters();
     }
 
     if (event->type() != QEvent::KeyPress) {
@@ -998,7 +998,7 @@ void WidgetEventFilter::handleKeyEvent(const QObject *obj, const QEvent *event) 
     }
 
     if (keyWatchDog_.component != widget) {
-        callWidgetKeyFilters();
+        callKeyFilters();
     }
 
     //! TODO: Почему-то среди всех текстовых элементов в QtWidgets только для QKeySequenceEdit
@@ -1040,7 +1040,7 @@ void WidgetEventFilter::handleKeyEvent(const QObject *obj, const QEvent *event) 
     flushKeyEvent(filters::qKeyEventHandler(widget, event));
 }
 
-void WidgetEventFilter::callWidgetKeyFilters() noexcept
+void WidgetEventFilter::callKeyFilters() noexcept
 {
     if (keyWatchDog_.component == nullptr || keyWatchDog_.componentClass == WidgetClass::None) {
         return;

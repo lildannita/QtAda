@@ -32,7 +32,7 @@ signals:
     void newScriptKeyLine(const QString &line) const;
 
 private slots:
-    void callWidgetKeyFilters() noexcept override;
+    void callKeyFilters() noexcept override;
 
 private:
     void processKeyEvent(const QString &text) noexcept override;
