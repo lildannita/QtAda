@@ -544,6 +544,17 @@ static QString qItemViewFilter(const QWidget *widget, const QMouseEvent *event) 
     bool isUndoView
         = utils::searchSpecificComponent(widget, s_widgetMetaMap.at(WidgetClass::UndoView))
           != nullptr;
+    /*
+     * События для QCalendarView обрабатываем отдельно, но если мы нажали на уже выбранную дату,
+     * или нажали на "пустое" место, то то никакого полезного события и не будет, следовательно,
+     * обработчик дойдет до сюда, поэтому необходимо отметить, что данный клик бесполезен.
+     */
+    //! TODO: для QCalendarView проблема в том, что если мы нажали на "пустое" место или на
+    //! "номер" месяца, то текущая реализация все равно сгенерирует сообщение о клике на уже
+    //! выбранный делегат.
+    bool isCalendarView
+        = utils::searchSpecificComponent(widget, s_widgetMetaMap.at(WidgetClass::Calendar))
+          != nullptr;
 
     auto *view = qobject_cast<const QAbstractItemView *>(widget);
     assert(view != nullptr);
@@ -570,7 +581,8 @@ static QString qItemViewFilter(const QWidget *widget, const QMouseEvent *event) 
     }
 
     return QStringLiteral("%1%2")
-        .arg(isUndoView ? "// Looks like QUndoView useless delegate click\n// " : "")
+        .arg(isUndoView ? "// Looks like QUndoView useless delegate click\n// "
+                        : (isCalendarView ? "// Looks like QCalendarView useless click\n// " : ""))
         .arg(clickResult);
 }
 
