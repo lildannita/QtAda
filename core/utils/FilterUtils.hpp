@@ -1,5 +1,6 @@
 #pragma once
 
+#include <optional>
 #include <qnamespace.h>
 #include "ProcessedObjects.hpp"
 
@@ -75,11 +76,15 @@ searchSpecificComponent(const GuiComponent *component,
 }
 
 template <typename GuiComponent, typename DigitType>
-inline QString setValueStatement(const GuiComponent *component, DigitType value) noexcept
+inline QString setValueStatement(const GuiComponent *component, DigitType value,
+                                 std::optional<DigitType> secondValue = std::nullopt) noexcept
 {
     CHECK_GUI_CLASS(GuiComponent);
     static_assert(std::is_arithmetic<DigitType>::value, "Type T must be a digit");
-    return QStringLiteral("setValue('%1', %2);").arg(objectPath(component)).arg(value);
+    return QStringLiteral("setValue('%1', %2);")
+        .arg(objectPath(component))
+        .arg(secondValue.has_value() ? QStringLiteral("(%1, %2)").arg(value).arg(*secondValue)
+                                     : QString::number(value));
 }
 template <typename GuiComponent>
 inline QString setValueStatement(const GuiComponent *component, const QString &value) noexcept

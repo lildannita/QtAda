@@ -14,6 +14,9 @@ static const std::map<QuickClass, std::pair<QLatin1String, size_t>> s_quickMetaM
     { QuickClass::CheckBox, { QLatin1String("QQuickCheckBox"), 1 } },
     { QuickClass::Switch, { QLatin1String("QQuickSwitch"), 1 } },
     { QuickClass::DelayButton, { QLatin1String("QQuickDelayButton"), 1 } },
+    { QuickClass::Slider, { QLatin1String("QQuickSlider"), 1 } },
+    { QuickClass::RangeSlider, { QLatin1String("QQuickRangeSlider"), 1 } },
+    { QuickClass::Dial, { QLatin1String("QQuickDial"), 1 } },
 };
 
 //! TODO: если будут использоваться только в одной функции, то перенести объявление в эти функции
@@ -112,7 +115,7 @@ static QString qDelayButtonFilter(const QQuickItem *item, const QMouseEvent *eve
     const auto buttonRect = item->boundingRect();
     const auto clickPos = item->mapFromGlobal(event->globalPos());
     if (buttonRect.contains(clickPos)) {
-        bool isProgressReadable;
+        bool isProgressReadable = false;
         const auto buttonProgress
             = QQmlProperty::read(item, "progress").toReal(&isProgressReadable);
         assert(isProgressReadable == true);
@@ -123,6 +126,55 @@ static QString qDelayButtonFilter(const QQuickItem *item, const QMouseEvent *eve
 
     return qMouseEventHandler(item, event);
 }
+
+static QString qSliderFilter(const QQuickItem *item, const QMouseEvent *event) noexcept
+{
+    if (!utils::mouseEventCanBeFiltered(item, event)) {
+        return QString();
+    }
+
+    static const std::vector<QuickClass> processedSliders = {
+        QuickClass::Slider,
+        //! TODO: Не любое нажатие на QQuickDial приводит к изменению значения
+        //! (в отличии от QDial)
+        QuickClass::Dial,
+    };
+
+    const QQuickItem *currentItem = nullptr;
+    for (const auto &btnClass : processedSliders) {
+        currentItem = utils::searchSpecificComponent(item, s_quickMetaMap.at(btnClass));
+        if (currentItem != nullptr) {
+            break;
+        }
+    }
+    if (currentItem == nullptr) {
+        return QString();
+    }
+
+    bool isValueReadable = false;
+    const auto value = QQmlProperty::read(currentItem, "value").toReal(&isValueReadable);
+    assert(isValueReadable == true);
+    return utils::setValueStatement(currentItem, value);
+}
+
+static QString qRangeSliderFilter(const QQuickItem *item, const QMouseEvent *event) noexcept
+{
+    if (!utils::mouseEventCanBeFiltered(item, event)) {
+        return QString();
+    }
+
+    item = utils::searchSpecificComponent(item, s_quickMetaMap.at(QuickClass::RangeSlider));
+    if (item == nullptr) {
+        return QString();
+    }
+
+    bool isValueReadable = false;
+    const auto firstValue = QQmlProperty::read(item, "first.value").toReal(&isValueReadable);
+    assert(isValueReadable == true);
+    const auto secondValue = QQmlProperty::read(item, "second.value").toReal(&isValueReadable);
+    assert(isValueReadable == true);
+    return utils::setValueStatement(item, firstValue, std::make_optional(secondValue));
+}
 } // namespace QtAda::core::filters
 
 namespace QtAda::core {
@@ -130,6 +182,8 @@ QuickEventFilter::QuickEventFilter(QObject *parent) noexcept
 {
     mouseFilters_ = {
         filters::qDelayButtonFilter,
+        filters::qSliderFilter,
+        filters::qRangeSliderFilter,
         // Обязательно последним:
         filters::qButtonsFilter,
     };

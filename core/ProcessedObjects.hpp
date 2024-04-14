@@ -35,6 +35,9 @@ enum class QuickClass {
     CheckBox,
     Switch,
     DelayButton,
+    Slider,
+    RangeSlider,
+    Dial,
     None,
 };
 
