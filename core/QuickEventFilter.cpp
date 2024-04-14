@@ -22,6 +22,12 @@ static const std::map<QuickClass, std::pair<QLatin1String, size_t>> s_quickMetaM
 //! TODO: если будут использоваться только в одной функции, то перенести объявление в эти функции
 static const std::vector<QuickClass> s_processedTextWidgets = {};
 
+static const std::vector<QuickClass> s_processedSliders = {
+    QuickClass::RangeSlider,
+    QuickClass::Dial,
+    QuickClass::Slider,
+};
+
 //! TODO: нужна ли обработка зажатия кастомной кнопки?
 static QString qButtonsFilter(const QQuickItem *item, const QMouseEvent *event) noexcept
 {
@@ -127,21 +133,20 @@ static QString qDelayButtonFilter(const QQuickItem *item, const QMouseEvent *eve
     return qMouseEventHandler(item, event);
 }
 
-static QString qSliderFilter(const QQuickItem *item, const QMouseEvent *event) noexcept
+static QString qSliderFilter(const QQuickItem *item, const QMouseEvent *event,
+                             const ExtraInfoForDelayed &extra) noexcept
 {
+    Q_UNUSED(extra);
     if (!utils::mouseEventCanBeFiltered(item, event)) {
         return QString();
     }
 
-    static const std::vector<QuickClass> processedSliders = {
-        QuickClass::Slider,
-        //! TODO: Не любое нажатие на QQuickDial приводит к изменению значения
-        //! (в отличии от QDial)
-        QuickClass::Dial,
-    };
-
     const QQuickItem *currentItem = nullptr;
-    for (const auto &btnClass : processedSliders) {
+    for (const auto &btnClass : s_processedSliders) {
+        if (btnClass == QuickClass::RangeSlider) {
+            // Обрабатывается в отдельном фильтре
+            continue;
+        }
         currentItem = utils::searchSpecificComponent(item, s_quickMetaMap.at(btnClass));
         if (currentItem != nullptr) {
             break;
@@ -157,8 +162,10 @@ static QString qSliderFilter(const QQuickItem *item, const QMouseEvent *event) n
     return utils::setValueStatement(currentItem, value);
 }
 
-static QString qRangeSliderFilter(const QQuickItem *item, const QMouseEvent *event) noexcept
+static QString qRangeSliderFilter(const QQuickItem *item, const QMouseEvent *event,
+                                  const ExtraInfoForDelayed &extra) noexcept
 {
+    Q_UNUSED(extra);
     if (!utils::mouseEventCanBeFiltered(item, event)) {
         return QString();
     }
@@ -182,10 +189,14 @@ QuickEventFilter::QuickEventFilter(QObject *parent) noexcept
 {
     mouseFilters_ = {
         filters::qDelayButtonFilter,
-        filters::qSliderFilter,
-        filters::qRangeSliderFilter,
         // Обязательно последним:
         filters::qButtonsFilter,
+    };
+
+    delayedMouseFilters_ = {
+        { QuickClass::Slider, filters::qSliderFilter },
+        { QuickClass::RangeSlider, filters::qRangeSliderFilter },
+        { QuickClass::Dial, filters::qSliderFilter },
     };
 }
 
@@ -197,9 +208,16 @@ QString QuickEventFilter::callMouseFilters(const QObject *obj, const QEvent *eve
         return QString();
     }
 
+    //! TODO: место под specificFilters
+
     auto *mouseEvent = static_cast<const QMouseEvent *>(event);
     if (mouseEvent == nullptr) {
         return QString();
+    }
+
+    const auto delayedResult = delayedData_.callDelayedFilter(item, mouseEvent, isContinuous);
+    if (delayedResult.has_value() && !(*delayedResult).isEmpty()) {
+        return *delayedResult;
     }
 
     for (auto &filter : mouseFilters_) {
@@ -209,5 +227,60 @@ QString QuickEventFilter::callMouseFilters(const QObject *obj, const QEvent *eve
         }
     }
     return QString();
+}
+
+void QuickEventFilter::setMousePressFilter(const QObject *obj, const QEvent *event) noexcept
+{
+    auto *item = qobject_cast<const QQuickItem *>(obj);
+    auto *mouseEvent = static_cast<const QMouseEvent *>(event);
+    if (mouseEvent == nullptr || item == nullptr
+        || (item == delayedData_.causedComponent && event == delayedData_.causedEvent
+            && delayedData_.causedEventType == QEvent::MouseButtonPress
+            && event->type() == QEvent::MouseButtonDblClick)) {
+        return;
+    }
+
+    delayedData_.clear();
+
+    auto foundQuickClass = QuickClass::None;
+    std::vector<QMetaObject::Connection> connections;
+
+    const QQuickItem *currentSlider = nullptr;
+    for (const auto &sliderClass : filters::s_processedSliders) {
+        currentSlider
+            = utils::searchSpecificComponent(item, filters::s_quickMetaMap.at(sliderClass));
+        if (currentSlider != nullptr) {
+            foundQuickClass = sliderClass;
+            break;
+        }
+    }
+
+    switch (foundQuickClass) {
+    case QuickClass::Slider:
+    case QuickClass::Dial:
+        connections.push_back(
+            QObject::connect(currentSlider, SIGNAL(moved()), this, SLOT(classicCallSlot())));
+        break;
+    case QuickClass::RangeSlider: {
+        auto *first = QQmlProperty::read(item, "first").value<QObject *>();
+        assert(first != nullptr);
+        auto *second = QQmlProperty::read(item, "second").value<QObject *>();
+        assert(second != nullptr);
+        connections.push_back(
+            QObject::connect(first, SIGNAL(moved()), this, SLOT(classicCallSlot())));
+        connections.push_back(
+            QObject::connect(second, SIGNAL(moved()), this, SLOT(classicCallSlot())));
+    }
+    case QuickClass::None:
+        break;
+    default:
+        Q_UNREACHABLE();
+    }
+
+    if (foundQuickClass != QuickClass::None) {
+        assert(delayedData_.connectionIsInit(connections) == true);
+        delayedData_.initDelay(item, mouseEvent, delayedMouseFilters_.at(foundQuickClass),
+                               connections);
+    }
 }
 } // namespace QtAda::core
