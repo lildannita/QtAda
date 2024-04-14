@@ -77,11 +77,26 @@ bool UserEventFilter::eventFilter(QObject *obj, QEvent *event) noexcept
             }
             lastReleaseEvent_.clearEvent();
 
-            if (doubleClickTimer_.isActive() && delayedScriptLine_.has_value()) {
-                flushScriptLine(*delayedScriptLine_);
-                delayedScriptLine_ = std::nullopt;
+            /*
+             * GUI построенное на QWidgets и на QQuickItem регируют по-разному на DblClick.
+             * (P - Press, R - Release, D - DblClick)
+             * Для QtWidgets: P -> R -> *D* -> R
+             * Для QtQuick: P -> R -> P -> *D* -> R
+             * То есть в случае QtQuick генерируется "лишнее" событие Press.
+             */
+            if (doubleClickTimer_.isActive()) {
+                if (currentFilter_ == widgetFilter_ && delayedScriptLine_.has_value()) {
+                    flushScriptLine(*delayedScriptLine_);
+                    delayedScriptLine_ = std::nullopt;
+                    doubleClickTimer_.start(QApplication::doubleClickInterval());
+                }
+                else if (currentFilter_ == quickFilter_) {
+                    doubleClickTimer_.stop();
+                }
             }
-            doubleClickTimer_.start(QApplication::doubleClickInterval());
+            else {
+                doubleClickTimer_.start(QApplication::doubleClickInterval());
+            }
             currentFilter_->setMousePressFilter(obj, event);
             break;
         }
