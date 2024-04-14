@@ -12,6 +12,8 @@ static const std::map<QuickClass, std::pair<QLatin1String, size_t>> s_quickMetaM
     { QuickClass::MouseArea, { QLatin1String("QQuickMouseArea"), 1 } },
     { QuickClass::RadioButton, { QLatin1String("QQuickRadioButton"), 1 } },
     { QuickClass::CheckBox, { QLatin1String("QQuickCheckBox"), 1 } },
+    { QuickClass::Switch, { QLatin1String("QQuickSwitch"), 1 } },
+    { QuickClass::DelayButton, { QLatin1String("QQuickDelayButton"), 1 } },
 };
 
 //! TODO: если будут использоваться только в одной функции, то перенести объявление в эти функции
@@ -28,6 +30,7 @@ static QString qButtonsFilter(const QQuickItem *item, const QMouseEvent *event) 
         QuickClass::MouseArea,
         QuickClass::RadioButton,
         QuickClass::CheckBox,
+        QuickClass::Switch,
         // Обязательно последним:
         QuickClass::Button,
     };
@@ -94,12 +97,40 @@ static QString qButtonsFilter(const QQuickItem *item, const QMouseEvent *event) 
         .arg(utils::objectPath(currentItem))
         .arg(buttonText.isEmpty() ? "" : QStringLiteral(" // Button text: '%1'").arg(buttonText));
 }
+
+static QString qDelayButtonFilter(const QQuickItem *item, const QMouseEvent *event) noexcept
+{
+    if (!utils::mouseEventCanBeFiltered(item, event)) {
+        return QString();
+    }
+
+    item = utils::searchSpecificComponent(item, s_quickMetaMap.at(QuickClass::DelayButton));
+    if (item == nullptr) {
+        return QString();
+    }
+
+    const auto buttonRect = item->boundingRect();
+    const auto clickPos = item->mapFromGlobal(event->globalPos());
+    if (buttonRect.contains(clickPos)) {
+        bool isProgressReadable;
+        const auto buttonProgress
+            = QQmlProperty::read(item, "progress").toReal(&isProgressReadable);
+        assert(isProgressReadable == true);
+        return QStringLiteral("setDelayProgress('%1', %2);")
+            .arg(utils::objectPath(item))
+            .arg(buttonProgress);
+    }
+
+    return qMouseEventHandler(item, event);
+}
 } // namespace QtAda::core::filters
 
 namespace QtAda::core {
 QuickEventFilter::QuickEventFilter(QObject *parent) noexcept
 {
     mouseFilters_ = {
+        filters::qDelayButtonFilter,
+        // Обязательно последним:
         filters::qButtonsFilter,
     };
 }

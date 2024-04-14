@@ -33,6 +33,8 @@ enum class QuickClass {
     MouseArea,
     RadioButton,
     CheckBox,
+    Switch,
+    DelayButton,
     None,
 };
 
