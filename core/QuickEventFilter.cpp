@@ -16,12 +16,6 @@ static const std::map<QuickClass, std::pair<QLatin1String, size_t>> s_quickMetaM
 
 //! TODO: если будут использоваться только в одной функции, то перенести объявление в эти функции
 static const std::vector<QuickClass> s_processedTextWidgets = {};
-static const std::vector<QuickClass> processedButtons = {
-    QuickClass::Button,
-    QuickClass::MouseArea,
-    QuickClass::RadioButton,
-    QuickClass::CheckBox,
-};
 
 //! TODO: нужна ли обработка зажатия кастомной кнопки?
 static QString qButtonsFilter(const QQuickItem *item, const QMouseEvent *event) noexcept
@@ -29,6 +23,14 @@ static QString qButtonsFilter(const QQuickItem *item, const QMouseEvent *event) 
     if (!utils::mouseEventCanBeFiltered(item, event)) {
         return QString();
     }
+
+    static const std::vector<QuickClass> processedButtons = {
+        QuickClass::MouseArea,
+        QuickClass::RadioButton,
+        QuickClass::CheckBox,
+        // Обязательно последним:
+        QuickClass::Button,
+    };
 
     QuickClass currentClass = QuickClass::None;
     const QQuickItem *currentItem = nullptr;
@@ -64,7 +66,8 @@ static QString qButtonsFilter(const QQuickItem *item, const QMouseEvent *event) 
     const auto isCheckable = currentClass != QuickClass::RadioButton
                                  ? QQmlProperty::read(currentItem, "checkable").toBool()
                                  : false;
-    const auto isChecked = QQmlProperty::read(currentItem, "checked").toBool();
+    // Во время события Release состояние checked еще не поменяется, поэтому инвертируем значение
+    const auto isChecked = !QQmlProperty::read(currentItem, "checked").toBool();
     const auto buttonText = QQmlProperty::read(currentItem, "text").toString();
 
     if (rectContains && isCheckable) {
@@ -79,10 +82,10 @@ static QString qButtonsFilter(const QQuickItem *item, const QMouseEvent *event) 
         };
 
         if (event->type() == QEvent::MouseButtonDblClick) {
-            return QStringLiteral("%1\n%2").arg(generate(isChecked)).arg(generate(!isChecked));
+            return QStringLiteral("%1\n%2").arg(generate(!isChecked)).arg(generate(isChecked));
         }
         else {
-            return generate(!isChecked);
+            return generate(isChecked);
         }
     }
 

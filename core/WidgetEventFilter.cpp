@@ -76,108 +76,98 @@ static const std::vector<WidgetClass> s_processedTextWidgets = {
 };
 
 //! TODO: нужна ли обработка зажатия кастомной кнопки?
-static QString qButtonFilter(const QWidget *widget, const QMouseEvent *event) noexcept
+static QString qButtonsFilter(const QWidget *widget, const QMouseEvent *event) noexcept
 {
     if (!utils::mouseEventCanBeFiltered(widget, event)) {
         return QString();
     }
 
-    //! TODO: скорее всего нужно будет уточнять какие именно классы, а не просто QAbstractButton
-    widget = utils::searchSpecificComponent(widget, s_widgetMetaMap.at(WidgetClass::Button));
-    if (widget == nullptr) {
-        return QString();
+    static const std::vector<WidgetClass> processedButtons = {
+        WidgetClass::RadioButton,
+        WidgetClass::CheckBox,
+        // Обязательно последним:
+        WidgetClass::Button,
+    };
+
+    WidgetClass currentClass = WidgetClass::None;
+    const QWidget *currentWidget = nullptr;
+    for (const auto &btnClass : processedButtons) {
+        currentWidget = utils::searchSpecificComponent(widget, s_widgetMetaMap.at(btnClass));
+        if (currentWidget != nullptr) {
+            currentClass = btnClass;
+            break;
+        }
     }
 
-    auto *button = qobject_cast<const QAbstractButton *>(widget);
+    if (currentClass == WidgetClass::None) {
+        assert(currentWidget == nullptr);
+        return QString();
+    }
+    assert(currentWidget != nullptr);
+
+    bool rectContains = false;
+    const auto clickPos = currentWidget->mapFromGlobal(event->globalPos());
+    if (currentClass == WidgetClass::Button) {
+        rectContains = currentWidget->rect().contains(clickPos);
+    }
+    else {
+
+        //! TODO: Для QRadioButton и QCheckBox может быть такое, что "область нажатия"
+        //! не совпадает с размерами самого объекта (для QButton такой проблемы нет),
+        //! поэтому дополнительно используем minimumSizeHint(), который как раз должен
+        //! и говорить о размерах области нажатия. Это, возможно, не лучший вариант
+        //! проверки, поэтому в будущем нужно найти лучше.
+        const auto fitSize = currentWidget->minimumSizeHint();
+        const auto widgetSize = currentWidget->size();
+        if (fitSize.isValid() && widgetSize.isValid()) {
+            const auto clickableArea
+                = QRect(QPoint(0, 0), QSize(std::min(fitSize.width(), widgetSize.width()),
+                                            std::min(fitSize.height(), widgetSize.height())));
+            rectContains = clickableArea.contains(clickPos);
+        }
+        else {
+            return qMouseEventHandler(currentWidget, event);
+        }
+    }
+
+    auto clickType = [rectContains, event] {
+        return rectContains ? (event->type() == QEvent::MouseButtonDblClick ? "DblClick" : "Click")
+                            : "Press";
+    };
+
+    auto *button = qobject_cast<const QAbstractButton *>(currentWidget);
     assert(button != nullptr);
-    const auto buttonRect = button->rect();
-    const auto clickPos = button->mapFromGlobal(event->globalPos());
+    // Для QRadioButton, хоть он и checkable, нам это не важно, так как сколько по нему не кликай,
+    // он всегда будет checked.
+    const auto isCheckable
+        = currentClass != WidgetClass::RadioButton ? button->isCheckable() : false;
+    // Во время события Release состояние checked еще не поменяется, поэтому инвертируем значение
+    const auto isChecked = !button->isChecked();
+    const auto buttonText = button->text();
+
+    if (rectContains && isCheckable) {
+        const auto buttonPath = utils::objectPath(currentWidget);
+        auto generate = [buttonPath, buttonText](bool isChecked) {
+            return QStringLiteral("checkButton('%1', %2);%3")
+                .arg(buttonPath)
+                .arg(isChecked ? "true" : "false")
+                .arg(buttonText.isEmpty()
+                         ? ""
+                         : QStringLiteral(" // Button text: '%1'").arg(buttonText));
+        };
+
+        if (event->type() == QEvent::MouseButtonDblClick) {
+            return QStringLiteral("%1\n%2").arg(generate(!isChecked)).arg(generate(isChecked));
+        }
+        else {
+            return generate(isChecked);
+        }
+    }
 
     return QStringLiteral("button%1('%2');%3")
-        .arg(buttonRect.contains(clickPos)
-                 ? (event->type() == QEvent::MouseButtonDblClick ? "DblClick" : "Click")
-                 : "Press")
-        .arg(utils::objectPath(widget))
-        .arg(button->text().isEmpty()
-                 ? ""
-                 : QStringLiteral(" // Button text: '%1'").arg(button->text()));
-}
-
-static QString qRadioButtonFilter(const QWidget *widget, const QMouseEvent *event) noexcept
-{
-    if (!utils::mouseEventCanBeFiltered(widget, event)) {
-        return QString();
-    }
-
-    widget = utils::searchSpecificComponent(widget, s_widgetMetaMap.at(WidgetClass::RadioButton));
-    if (widget == nullptr) {
-        return QString();
-    }
-
-    //! TODO: не лучший вариант проверки нажатия, нужно придумать лучше
-    const auto fitSize = widget->minimumSizeHint();
-    const auto checkBoxSize = widget->size();
-    if (fitSize.isValid() && checkBoxSize.isValid()) {
-        const auto clickableArea
-            = QRect(QPoint(0, 0), QSize(std::min(fitSize.width(), checkBoxSize.width()),
-                                        std::min(fitSize.height(), checkBoxSize.height())));
-        const auto clickPos = widget->mapFromGlobal(event->globalPos());
-        if (clickableArea.contains(clickPos)) {
-            auto *radioButton = qobject_cast<const QRadioButton *>(widget);
-            assert(radioButton != nullptr);
-            return QStringLiteral("button%1Click('%2');%3")
-                .arg(event->type() == QEvent::MouseButtonDblClick ? "Dbl" : "")
-                .arg(utils::objectPath(widget))
-                .arg(radioButton->text().isEmpty()
-                         ? ""
-                         : QStringLiteral(" // Button text: '%1'").arg(radioButton->text()));
-        }
-    }
-    return filters::qMouseEventHandler(widget, event);
-}
-
-static QString qCheckBoxFilter(const QWidget *widget, const QMouseEvent *event) noexcept
-{
-    if (!utils::mouseEventCanBeFiltered(widget, event)) {
-        return QString();
-    }
-
-    widget = utils::searchSpecificComponent(widget, s_widgetMetaMap.at(WidgetClass::CheckBox));
-    if (widget == nullptr) {
-        return QString();
-    }
-
-    //! TODO: не лучший вариант проверки нажатия, нужно придумать лучше
-    const auto fitSize = widget->minimumSizeHint();
-    const auto checkBoxSize = widget->size();
-    if (fitSize.isValid() && checkBoxSize.isValid()) {
-        const auto clickableArea
-            = QRect(QPoint(0, 0), QSize(std::min(fitSize.width(), checkBoxSize.width()),
-                                        std::min(fitSize.height(), checkBoxSize.height())));
-        const auto clickPos = widget->mapFromGlobal(event->globalPos());
-        if (clickableArea.contains(clickPos)) {
-            auto *checkBox = qobject_cast<const QCheckBox *>(widget);
-            assert(checkBox != nullptr);
-            //! TODO: разобраться с tristate
-
-            auto generate = [widget, checkBox](bool isChecked) {
-                return QStringLiteral("checkButton('%1', %2);%3")
-                    .arg(utils::objectPath(widget))
-                    .arg(isChecked ? "true" : "false")
-                    .arg(checkBox->text().isEmpty()
-                             ? ""
-                             : QStringLiteral(" // Button text: '%1'").arg(checkBox->text()));
-            };
-
-            if (event->type() == QEvent::MouseButtonDblClick) {
-                return QStringLiteral("%1\n%2")
-                    .arg(generate(checkBox->isChecked()))
-                    .arg(generate(!checkBox->isChecked()));
-            }
-            return generate(!checkBox->isChecked());
-        }
-    }
-    return filters::qMouseEventHandler(widget, event);
+        .arg(clickType())
+        .arg(utils::objectPath(currentWidget))
+        .arg(buttonText.isEmpty() ? "" : QStringLiteral(" // Button text: '%1'").arg(buttonText));
 }
 
 static QString qComboBoxFilter(const QWidget *widget, const QMouseEvent *event) noexcept
@@ -787,14 +777,12 @@ WidgetEventFilter::WidgetEventFilter(QObject *parent) noexcept
     : GuiEventFilter{ parent }
 {
     mouseFilters_ = {
-        filters::qRadioButtonFilter,
-        filters::qCheckBoxFilter,
         filters::qComboBoxFilter,
         filters::qMenuFilter,
         filters::qTabBarFilter,
         filters::qItemViewFilter,
         // Обязательно в таком порядке:
-        filters::qButtonFilter,
+        filters::qButtonsFilter,
         filters::qTextFocusFilters,
     };
 
