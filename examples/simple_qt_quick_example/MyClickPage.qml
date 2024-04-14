@@ -47,7 +47,7 @@ MyPage {
             Button {
                 text: "Simple Button"
                 font.pixelSize: MyStyle.px(15)
-
+                checkable: true
                 anchors {
                     left: parent.horizontalCenter
                     right: parent.right

@@ -10,52 +10,86 @@ namespace QtAda::core::filters {
 static const std::map<QuickClass, std::pair<QLatin1String, size_t>> s_quickMetaMap = {
     { QuickClass::Button, { QLatin1String("QQuickButton"), 1 } },
     { QuickClass::MouseArea, { QLatin1String("QQuickMouseArea"), 1 } },
+    { QuickClass::RadioButton, { QLatin1String("QQuickRadioButton"), 1 } },
+    { QuickClass::CheckBox, { QLatin1String("QQuickCheckBox"), 1 } },
 };
 
+//! TODO: если будут использоваться только в одной функции, то перенести объявление в эти функции
 static const std::vector<QuickClass> s_processedTextWidgets = {};
+static const std::vector<QuickClass> processedButtons = {
+    QuickClass::Button,
+    QuickClass::MouseArea,
+    QuickClass::RadioButton,
+    QuickClass::CheckBox,
+};
 
 //! TODO: нужна ли обработка зажатия кастомной кнопки?
-static QString qButtonFilter(const QQuickItem *item, const QMouseEvent *event) noexcept
+static QString qButtonsFilter(const QQuickItem *item, const QMouseEvent *event) noexcept
 {
     if (!utils::mouseEventCanBeFiltered(item, event)) {
         return QString();
     }
 
-    item = utils::searchSpecificComponent(item, s_quickMetaMap.at(QuickClass::Button));
-    if (item == nullptr) {
+    QuickClass currentClass = QuickClass::None;
+    const QQuickItem *currentItem = nullptr;
+    for (const auto &btnClass : processedButtons) {
+        currentItem = utils::searchSpecificComponent(item, s_quickMetaMap.at(btnClass));
+        if (currentItem != nullptr) {
+            currentClass = btnClass;
+            break;
+        }
+    }
+    if (currentClass == QuickClass::None) {
+        assert(currentItem == nullptr);
         return QString();
     }
+    assert(currentItem != nullptr);
 
-    const auto buttonRect = item->boundingRect();
-    const auto buttonText = QQmlProperty::read(item, "text").toString();
-    const auto clickPos = item->mapFromGlobal(event->globalPos());
+    const auto buttonRect = currentItem->boundingRect();
+    const auto clickPos = currentItem->mapFromGlobal(event->globalPos());
+    const auto rectContains = buttonRect.contains(clickPos);
+    auto clickType = [rectContains, event] {
+        return rectContains ? (event->type() == QEvent::MouseButtonDblClick ? "DblClick" : "Click")
+                            : "Press";
+    };
+
+    if (currentClass == QuickClass::MouseArea) {
+        return QStringLiteral("mouseArea%1('%2');")
+            .arg(clickType())
+            .arg(utils::objectPath(currentItem));
+    }
+
+    // Для QRadioButton, хоть он и checkable, нам это не важно, так как сколько по нему не кликай,
+    // он всегда будет checked.
+    const auto isCheckable = currentClass != QuickClass::RadioButton
+                                 ? QQmlProperty::read(currentItem, "checkable").toBool()
+                                 : false;
+    const auto isChecked = QQmlProperty::read(currentItem, "checked").toBool();
+    const auto buttonText = QQmlProperty::read(currentItem, "text").toString();
+
+    if (rectContains && isCheckable) {
+        const auto buttonPath = utils::objectPath(currentItem);
+        auto generate = [buttonPath, buttonText](bool isChecked) {
+            return QStringLiteral("checkButton('%1', %2);%3")
+                .arg(buttonPath)
+                .arg(isChecked ? "true" : "false")
+                .arg(buttonText.isEmpty()
+                         ? ""
+                         : QStringLiteral(" // Button text: '%1'").arg(buttonText));
+        };
+
+        if (event->type() == QEvent::MouseButtonDblClick) {
+            return QStringLiteral("%1\n%2").arg(generate(isChecked)).arg(generate(!isChecked));
+        }
+        else {
+            return generate(!isChecked);
+        }
+    }
 
     return QStringLiteral("button%1('%2');%3")
-        .arg(buttonRect.contains(clickPos)
-                 ? (event->type() == QEvent::MouseButtonDblClick ? "DblClick" : "Click")
-                 : "Press")
-        .arg(utils::objectPath(item))
+        .arg(clickType())
+        .arg(utils::objectPath(currentItem))
         .arg(buttonText.isEmpty() ? "" : QStringLiteral(" // Button text: '%1'").arg(buttonText));
-}
-
-static QString qMouseAreaFilter(const QQuickItem *item, const QMouseEvent *event) noexcept
-{
-    if (!utils::mouseEventCanBeFiltered(item, event)) {
-        return QString();
-    }
-
-    item = utils::searchSpecificComponent(item, s_quickMetaMap.at(QuickClass::MouseArea));
-    if (item == nullptr) {
-        return QString();
-    }
-
-    const auto mouseAreaRect = item->boundingRect();
-    const auto clickPos = item->mapFromGlobal(event->globalPos());
-    return QStringLiteral("mouseArea%1('%2');")
-        .arg(mouseAreaRect.contains(clickPos)
-                 ? (event->type() == QEvent::MouseButtonDblClick ? "DblClick" : "Click")
-                 : "Press")
-        .arg(utils::objectPath(item));
 }
 } // namespace QtAda::core::filters
 
@@ -63,8 +97,7 @@ namespace QtAda::core {
 QuickEventFilter::QuickEventFilter(QObject *parent) noexcept
 {
     mouseFilters_ = {
-        filters::qButtonFilter,
-        filters::qMouseAreaFilter,
+        filters::qButtonsFilter,
     };
 }
 
