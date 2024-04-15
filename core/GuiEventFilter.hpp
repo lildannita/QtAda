@@ -125,6 +125,7 @@ protected:
         const QEvent *causedEvent = nullptr;
         std::optional<DelayedMouseFilterFunction> mouseFilter = std::nullopt;
         bool signalDetected = false;
+        bool isFake = false;
         Connections connections;
         ExtraInfoForDelayed extra;
         QString specificResult;
@@ -166,6 +167,17 @@ protected:
             connections = connections;
         }
 
+        // Пока что используется только для QQuickSpinBox.
+        void initFakeDelay(const GuiComponent *component, const QEvent *event,
+                           const DelayedMouseFilterFunction &filter) noexcept
+        {
+            causedEvent = event;
+            causedEventType = event->type();
+            causedComponent = component;
+            mouseFilter = filter;
+            isFake = true;
+        }
+
         void initSpecific(const GuiComponent *component, const QEvent *event,
                           const QString &result) noexcept
         {
@@ -184,6 +196,7 @@ protected:
             mouseFilter = std::nullopt;
             extra.clear();
             signalDetected = false;
+            isFake = false;
 
             disconnectAll();
         }
@@ -198,7 +211,7 @@ protected:
 
         bool delayedFilterCanBeCalled(const GuiComponent *component) const noexcept
         {
-            return signalDetected && !connectionIsInit() && mouseFilter.has_value()
+            return (isFake || signalDetected) && !connectionIsInit() && mouseFilter.has_value()
                    && causedComponent != nullptr && causedComponent == component;
         }
 

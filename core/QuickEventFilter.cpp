@@ -195,7 +195,8 @@ static QString qScrollBarFilter(const QQuickItem *item, const QMouseEvent *event
         item, utils::getFromVariant<double>(QQmlProperty::read(item, "position")));
 }
 
-static QString qSpinBoxFilter(const QQuickItem *item, const QMouseEvent *event) noexcept
+static QString qSpinBoxFilter(const QQuickItem *item, const QMouseEvent *event,
+                              const ExtraInfoForDelayed &extra) noexcept
 {
     if (!utils::mouseEventCanBeFiltered(item, event)) {
         return QString();
@@ -209,20 +210,52 @@ static QString qSpinBoxFilter(const QQuickItem *item, const QMouseEvent *event) 
     //! TODO: DoubleClick неправильно обрабатывается, т.к. при двойном клике происходит следующее:
     //! (P - Press, R - Release, D - DblClick)
     //! P -> R (valueModified) -> P -> D -> R -> valueModified (сильно позже Release!)
+    //!
+    //! Единственное, что может "спасти" - это changeValueStatement с DblUp/DblDown, который
+    //! генерируется при !extra.isContinuous. Возможно, лучше, при !extra.isContinuous все-таки
+    //! не генерировать setValueStatement.
     const auto value = utils::getFromVariant<int>(QQmlProperty::read(item, "value"));
     QVariant varValue;
     QMetaObject::invokeMethod(const_cast<QQuickItem *>(item), "textFromValue",
                               Q_RETURN_ARG(QVariant, varValue), Q_ARG(int, value));
+    QString setValueStatement;
     if (varValue.canConvert<double>()) {
-        return utils::setValueStatement(item, utils::getFromVariant<double>(varValue));
+        setValueStatement = utils::setValueStatement(item, utils::getFromVariant<double>(varValue));
     }
     else if (varValue.canConvert<int>()) {
-        return utils::setValueStatement(item, utils::getFromVariant<int>(varValue));
+        setValueStatement = utils::setValueStatement(item, utils::getFromVariant<int>(varValue));
     }
     else if (varValue.canConvert<QString>()) {
-        return utils::setValueStatement(item, utils::getFromVariant<QString>(varValue));
+        setValueStatement
+            = utils::setValueStatement(item, utils::getFromVariant<QString>(varValue));
     }
-    return utils::setValueStatement(item, value);
+    else {
+        setValueStatement = utils::setValueStatement(item, value);
+    }
+
+    if (!extra.isContinuous) {
+        const auto upHovered = utils::getFromVariant<bool>(QQmlProperty::read(item, "up.hovered"));
+        const auto downHovered
+            = utils::getFromVariant<bool>(QQmlProperty::read(item, "down.hovered"));
+
+        auto generate = [&](const QLatin1String &type) {
+            return QStringLiteral("%1\n// %2")
+                .arg(setValueStatement)
+                .arg(utils::changeValueStatement(
+                    item, QStringLiteral("%1%2")
+                              .arg(event->type() == QEvent::MouseButtonDblClick ? "Dbl" : "")
+                              .arg(type)));
+        };
+
+        if (upHovered) {
+            return generate(QLatin1String("Up"));
+        }
+        else if (downHovered) {
+            return generate(QLatin1String("Down"));
+        }
+    }
+
+    return setValueStatement;
 }
 } // namespace QtAda::core::filters
 
@@ -232,7 +265,6 @@ QuickEventFilter::QuickEventFilter(QObject *parent) noexcept
     mouseFilters_ = {
         filters::qDelayButtonFilter,
         filters::qScrollBarFilter,
-        filters::qSpinBoxFilter,
         // Обязательно последним:
         filters::qButtonsFilter,
     };
@@ -241,6 +273,7 @@ QuickEventFilter::QuickEventFilter(QObject *parent) noexcept
         { QuickClass::Slider, filters::qSliderFilter },
         { QuickClass::RangeSlider, filters::qRangeSliderFilter },
         { QuickClass::Dial, filters::qSliderFilter },
+        { QuickClass::SpinBox, filters::qSpinBoxFilter },
     };
 }
 
@@ -299,6 +332,7 @@ void QuickEventFilter::setMousePressFilter(const QObject *obj, const QEvent *eve
         }
     }
 
+    bool isFakeDelay = false;
     switch (foundQuickClass) {
     case QuickClass::Slider:
     case QuickClass::Dial:
@@ -317,15 +351,31 @@ void QuickEventFilter::setMousePressFilter(const QObject *obj, const QEvent *eve
         break;
     }
     case QuickClass::None:
+        if (auto *foundItem = utils::searchSpecificComponent(
+                item, filters::s_quickMetaMap.at(QuickClass::SpinBox))) {
+            /*
+             * Для QQuickSpinBox бесполезно пытаться отследить сигнал об изменении, так как идет
+             * сильное несовпадение по таймингу: либо практически одновременно с Press (обычный
+             * клик), либо сильно позже Release (двойной клик). Но тем не менее нам важно передать в
+             * эту функцию isContinuous.
+             */
+            foundQuickClass = QuickClass::SpinBox;
+            isFakeDelay = true;
+        }
         break;
     default:
         Q_UNREACHABLE();
     }
 
     if (foundQuickClass != QuickClass::None) {
-        assert(delayedData_.connectionIsInit(connections) == true);
-        delayedData_.initDelay(item, mouseEvent, delayedMouseFilters_.at(foundQuickClass),
-                               connections);
+        if (isFakeDelay) {
+            delayedData_.initFakeDelay(item, mouseEvent, delayedMouseFilters_.at(foundQuickClass));
+        }
+        else {
+            assert(delayedData_.connectionIsInit(connections) == true);
+            delayedData_.initDelay(item, mouseEvent, delayedMouseFilters_.at(foundQuickClass),
+                                   connections);
+        }
     }
 }
 } // namespace QtAda::core

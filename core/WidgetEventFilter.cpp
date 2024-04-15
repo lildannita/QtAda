@@ -297,13 +297,14 @@ static QString qSpinBoxFilter(const QWidget *widget, const QMouseEvent *event,
     if (!extra.isContinuous) {
         const QRect upButtonRect(0, 0, widget->width(), widget->height() / 2);
         const QRect downButtonRect(0, widget->height() / 2, widget->width(), widget->height() / 2);
-        bool isDblClick = event->type() == QEvent::MouseButtonDblClick;
 
         auto generate = [&](const QLatin1String &type) {
             return QStringLiteral("%1\n// %2")
                 .arg(setValueStatement)
                 .arg(utils::changeValueStatement(
-                    widget, QStringLiteral("%1%2").arg(isDblClick ? "Dbl" : "").arg(type)));
+                    widget, QStringLiteral("%1%2")
+                                .arg(event->type() == QEvent::MouseButtonDblClick ? "Dbl" : "")
+                                .arg(type)));
         };
 
         if (upButtonRect.contains(event->pos())) {
