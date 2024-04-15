@@ -18,6 +18,7 @@ static const std::map<QuickClass, std::pair<QLatin1String, size_t>> s_quickMetaM
     { QuickClass::RangeSlider, { QLatin1String("QQuickRangeSlider"), 1 } },
     { QuickClass::Dial, { QLatin1String("QQuickDial"), 1 } },
     { QuickClass::ScrollBar, { QLatin1String("QQuickScrollBar"), 1 } },
+    { QuickClass::SpinBox, { QLatin1String("QQuickSpinBox"), 1 } },
 };
 
 //! TODO: если будут использоваться только в одной функции, то перенести объявление в эти функции
@@ -76,12 +77,13 @@ static QString qButtonsFilter(const QQuickItem *item, const QMouseEvent *event) 
 
     // Для QRadioButton, хоть он и checkable, нам это не важно, так как сколько по нему не кликай,
     // он всегда будет checked.
-    const auto isCheckable = currentClass != QuickClass::RadioButton
-                                 ? QQmlProperty::read(currentItem, "checkable").toBool()
-                                 : false;
+    const auto isCheckable
+        = currentClass != QuickClass::RadioButton
+              ? utils::getFromVariant<bool>(QQmlProperty::read(currentItem, "checkable"))
+              : false;
     // Во время события Release состояние checked еще не поменяется, поэтому инвертируем значение
-    const auto isChecked = !QQmlProperty::read(currentItem, "checked").toBool();
-    const auto buttonText = QQmlProperty::read(currentItem, "text").toString();
+    const auto isChecked = !utils::getFromVariant<bool>(QQmlProperty::read(currentItem, "checked"));
+    const auto buttonText = utils::getFromVariant<QString>(QQmlProperty::read(currentItem, "text"));
 
     if (rectContains && isCheckable) {
         const auto buttonPath = utils::objectPath(currentItem);
@@ -122,10 +124,8 @@ static QString qDelayButtonFilter(const QQuickItem *item, const QMouseEvent *eve
     const auto buttonRect = item->boundingRect();
     const auto clickPos = item->mapFromGlobal(event->globalPos());
     if (buttonRect.contains(clickPos)) {
-        bool isProgressReadable = false;
         const auto buttonProgress
-            = QQmlProperty::read(item, "progress").toReal(&isProgressReadable);
-        assert(isProgressReadable == true);
+            = utils::getFromVariant<double>(QQmlProperty::read(item, "progress"));
         return QStringLiteral("setDelayProgress('%1', %2);")
             .arg(utils::objectPath(item))
             .arg(buttonProgress);
@@ -157,10 +157,8 @@ static QString qSliderFilter(const QQuickItem *item, const QMouseEvent *event,
         return QString();
     }
 
-    bool isValueReadable = false;
-    const auto value = QQmlProperty::read(currentItem, "value").toReal(&isValueReadable);
-    assert(isValueReadable == true);
-    return utils::setValueStatement(currentItem, value);
+    return utils::setValueStatement(
+        currentItem, utils::getFromVariant<double>(QQmlProperty::read(item, "value")));
 }
 
 static QString qRangeSliderFilter(const QQuickItem *item, const QMouseEvent *event,
@@ -176,11 +174,9 @@ static QString qRangeSliderFilter(const QQuickItem *item, const QMouseEvent *eve
         return QString();
     }
 
-    bool isValueReadable = false;
-    const auto firstValue = QQmlProperty::read(item, "first.value").toReal(&isValueReadable);
-    assert(isValueReadable == true);
-    const auto secondValue = QQmlProperty::read(item, "second.value").toReal(&isValueReadable);
-    assert(isValueReadable == true);
+    const auto firstValue = utils::getFromVariant<double>(QQmlProperty::read(item, "first.value"));
+    const auto secondValue
+        = utils::getFromVariant<double>(QQmlProperty::read(item, "second.value"));
     return utils::setValueStatement(item, firstValue, std::make_optional(secondValue));
 }
 
@@ -195,9 +191,37 @@ static QString qScrollBarFilter(const QQuickItem *item, const QMouseEvent *event
         return QString();
     }
 
-    bool isValueReadable = false;
-    const auto value = QQmlProperty::read(item, "position").toReal(&isValueReadable);
-    assert(isValueReadable == true);
+    return utils::setValueStatement(
+        item, utils::getFromVariant<double>(QQmlProperty::read(item, "position")));
+}
+
+static QString qSpinBoxFilter(const QQuickItem *item, const QMouseEvent *event) noexcept
+{
+    if (!utils::mouseEventCanBeFiltered(item, event)) {
+        return QString();
+    }
+
+    item = utils::searchSpecificComponent(item, s_quickMetaMap.at(QuickClass::SpinBox));
+    if (item == nullptr) {
+        return QString();
+    }
+
+    //! TODO: DoubleClick неправильно обрабатывается, т.к. при двойном клике происходит следующее:
+    //! (P - Press, R - Release, D - DblClick)
+    //! P -> R (valueModified) -> P -> D -> R -> valueModified (сильно позже Release!)
+    const auto value = utils::getFromVariant<int>(QQmlProperty::read(item, "value"));
+    QVariant varValue;
+    QMetaObject::invokeMethod(const_cast<QQuickItem *>(item), "textFromValue",
+                              Q_RETURN_ARG(QVariant, varValue), Q_ARG(int, value));
+    if (varValue.canConvert<double>()) {
+        return utils::setValueStatement(item, utils::getFromVariant<double>(varValue));
+    }
+    else if (varValue.canConvert<int>()) {
+        return utils::setValueStatement(item, utils::getFromVariant<int>(varValue));
+    }
+    else if (varValue.canConvert<QString>()) {
+        return utils::setValueStatement(item, utils::getFromVariant<QString>(varValue));
+    }
     return utils::setValueStatement(item, value);
 }
 } // namespace QtAda::core::filters
@@ -208,6 +232,7 @@ QuickEventFilter::QuickEventFilter(QObject *parent) noexcept
     mouseFilters_ = {
         filters::qDelayButtonFilter,
         filters::qScrollBarFilter,
+        filters::qSpinBoxFilter,
         // Обязательно последним:
         filters::qButtonsFilter,
     };
@@ -289,6 +314,7 @@ void QuickEventFilter::setMousePressFilter(const QObject *obj, const QEvent *eve
             QObject::connect(first, SIGNAL(moved()), this, SLOT(classicCallSlot())));
         connections.push_back(
             QObject::connect(second, SIGNAL(moved()), this, SLOT(classicCallSlot())));
+        break;
     }
     case QuickClass::None:
         break;

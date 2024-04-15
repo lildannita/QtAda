@@ -39,6 +39,7 @@ enum class QuickClass {
     RangeSlider,
     Dial,
     ScrollBar,
+    SpinBox,
     None,
 };
 

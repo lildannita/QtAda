@@ -131,6 +131,28 @@ inline std::unique_ptr<const QEvent> cloneMouseEvent(const QEvent *event) noexce
     return nullptr;
 }
 
+template <typename Type> Type getFromVariant(const QVariant &variant) noexcept
+{
+    static_assert(std::is_same_v<Type, int> || std::is_same_v<Type, double>
+                      || std::is_same_v<Type, bool> || std::is_same_v<Type, QString>,
+                  "Unsupported type");
+
+    assert(variant.canConvert<Type>());
+    if constexpr (std::is_same_v<Type, int>) {
+        return variant.toInt();
+    }
+    else if constexpr (std::is_same_v<Type, double>) {
+        return variant.toDouble();
+    }
+    else if constexpr (std::is_same_v<Type, bool>) {
+        return variant.toBool();
+    }
+    else if constexpr (std::is_same_v<Type, QString>) {
+        return variant.toString();
+    }
+    Q_UNREACHABLE();
+}
+
 // Special filters for QWidgets:
 QString widgetIdInView(const QWidget *widget, const int index,
                        const WidgetClass widgetClass) noexcept;

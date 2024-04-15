@@ -89,6 +89,7 @@ bool UserEventFilter::eventFilter(QObject *obj, QEvent *event) noexcept
                     flushScriptLine(*delayedScriptLine_);
                     clearDelayed();
                     doubleClickTimer_.start(QApplication::doubleClickInterval());
+                    currentFilter_->setMousePressFilter(obj, event);
                 }
                 else if (currentFilter_ == quickFilter_) {
                     doubleClickTimer_.stop();
@@ -96,8 +97,8 @@ bool UserEventFilter::eventFilter(QObject *obj, QEvent *event) noexcept
             }
             else {
                 doubleClickTimer_.start(QApplication::doubleClickInterval());
+                currentFilter_->setMousePressFilter(obj, event);
             }
-            currentFilter_->setMousePressFilter(obj, event);
             break;
         }
         case QEvent::MouseButtonRelease: {
