@@ -207,44 +207,16 @@ static QString qSpinBoxFilter(const QQuickItem *item, const QMouseEvent *event,
         return QString();
     }
 
-    //! TODO: DoubleClick неправильно обрабатывается, т.к. при двойном клике происходит следующее:
-    //! (P - Press, R - Release, D - DblClick)
-    //! P -> R (valueModified) -> P -> D -> R -> valueModified (сильно позже Release!)
-    //!
-    //! Единственное, что может "спасти" - это changeValueStatement с DblUp/DblDown, который
-    //! генерируется при !extra.isContinuous. Возможно, лучше, при !extra.isContinuous все-таки
-    //! не генерировать setValueStatement.
-    const auto value = utils::getFromVariant<int>(QQmlProperty::read(item, "value"));
-    QVariant varValue;
-    QMetaObject::invokeMethod(const_cast<QQuickItem *>(item), "textFromValue",
-                              Q_RETURN_ARG(QVariant, varValue), Q_ARG(int, value));
-    QString setValueStatement;
-    if (varValue.canConvert<double>()) {
-        setValueStatement = utils::setValueStatement(item, utils::getFromVariant<double>(varValue));
-    }
-    else if (varValue.canConvert<int>()) {
-        setValueStatement = utils::setValueStatement(item, utils::getFromVariant<int>(varValue));
-    }
-    else if (varValue.canConvert<QString>()) {
-        setValueStatement
-            = utils::setValueStatement(item, utils::getFromVariant<QString>(varValue));
-    }
-    else {
-        setValueStatement = utils::setValueStatement(item, value);
-    }
-
     if (!extra.isContinuous) {
         const auto upHovered = utils::getFromVariant<bool>(QQmlProperty::read(item, "up.hovered"));
         const auto downHovered
             = utils::getFromVariant<bool>(QQmlProperty::read(item, "down.hovered"));
 
         auto generate = [&](const QLatin1String &type) {
-            return QStringLiteral("%1\n// %2")
-                .arg(setValueStatement)
-                .arg(utils::changeValueStatement(
-                    item, QStringLiteral("%1%2")
-                              .arg(event->type() == QEvent::MouseButtonDblClick ? "Dbl" : "")
-                              .arg(type)));
+            return utils::changeValueStatement(
+                item, QStringLiteral("%1%2")
+                          .arg(event->type() == QEvent::MouseButtonDblClick ? "Dbl" : "")
+                          .arg(type));
         };
 
         if (upHovered) {
@@ -255,7 +227,21 @@ static QString qSpinBoxFilter(const QQuickItem *item, const QMouseEvent *event,
         }
     }
 
-    return setValueStatement;
+    const auto value = utils::getFromVariant<int>(QQmlProperty::read(item, "value"));
+    QVariant varValue;
+    QMetaObject::invokeMethod(const_cast<QQuickItem *>(item), "textFromValue",
+                              Q_RETURN_ARG(QVariant, varValue), Q_ARG(int, value));
+    QString setValueStatement;
+    if (varValue.canConvert<double>()) {
+        return utils::setValueStatement(item, utils::getFromVariant<double>(varValue));
+    }
+    else if (varValue.canConvert<int>()) {
+        return utils::setValueStatement(item, utils::getFromVariant<int>(varValue));
+    }
+    else if (varValue.canConvert<QString>()) {
+        return utils::setValueStatement(item, utils::getFromVariant<QString>(varValue));
+    }
+    return utils::setValueStatement(item, value);
 }
 } // namespace QtAda::core::filters
 

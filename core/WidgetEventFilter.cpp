@@ -282,29 +282,14 @@ static QString qSpinBoxFilter(const QWidget *widget, const QMouseEvent *event,
         return utils::setValueStatement(widget, dateTimeEdit->dateTime().toString(Qt::ISODate));
     }
 
-    QString setValueStatement;
-    if (auto *spinBox = qobject_cast<const QSpinBox *>(widget)) {
-        setValueStatement = utils::setValueStatement(widget, spinBox->value());
-    }
-    else if (auto *doubleSpinBox = qobject_cast<const QDoubleSpinBox *>(widget)) {
-        setValueStatement = utils::setValueStatement(widget, doubleSpinBox->value());
-    }
-    else {
-        Q_UNREACHABLE();
-    }
-    assert(!setValueStatement.isEmpty());
-
     if (!extra.isContinuous) {
         const QRect upButtonRect(0, 0, widget->width(), widget->height() / 2);
         const QRect downButtonRect(0, widget->height() / 2, widget->width(), widget->height() / 2);
-
         auto generate = [&](const QLatin1String &type) {
-            return QStringLiteral("%1\n// %2")
-                .arg(setValueStatement)
-                .arg(utils::changeValueStatement(
-                    widget, QStringLiteral("%1%2")
-                                .arg(event->type() == QEvent::MouseButtonDblClick ? "Dbl" : "")
-                                .arg(type)));
+            return utils::changeValueStatement(
+                widget, QStringLiteral("%1%2")
+                            .arg(event->type() == QEvent::MouseButtonDblClick ? "Dbl" : "")
+                            .arg(type));
         };
 
         if (upButtonRect.contains(event->pos())) {
@@ -315,7 +300,15 @@ static QString qSpinBoxFilter(const QWidget *widget, const QMouseEvent *event,
         }
     }
 
-    return setValueStatement;
+    if (auto *spinBox = qobject_cast<const QSpinBox *>(widget)) {
+        return utils::setValueStatement(widget, spinBox->value());
+    }
+    else if (auto *doubleSpinBox = qobject_cast<const QDoubleSpinBox *>(widget)) {
+        return utils::setValueStatement(widget, doubleSpinBox->value());
+    }
+    else {
+        Q_UNREACHABLE();
+    }
 }
 
 static QString qCalendarFilter(const QWidget *widget, const QMouseEvent *event,
