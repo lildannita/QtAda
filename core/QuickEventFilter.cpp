@@ -17,6 +17,7 @@ static const std::map<QuickClass, std::pair<QLatin1String, size_t>> s_quickMetaM
     { QuickClass::Slider, { QLatin1String("QQuickSlider"), 1 } },
     { QuickClass::RangeSlider, { QLatin1String("QQuickRangeSlider"), 1 } },
     { QuickClass::Dial, { QLatin1String("QQuickDial"), 1 } },
+    { QuickClass::ScrollBar, { QLatin1String("QQuickScrollBar"), 1 } },
 };
 
 //! TODO: если будут использоваться только в одной функции, то перенести объявление в эти функции
@@ -182,6 +183,23 @@ static QString qRangeSliderFilter(const QQuickItem *item, const QMouseEvent *eve
     assert(isValueReadable == true);
     return utils::setValueStatement(item, firstValue, std::make_optional(secondValue));
 }
+
+static QString qScrollBarFilter(const QQuickItem *item, const QMouseEvent *event) noexcept
+{
+    if (!utils::mouseEventCanBeFiltered(item, event)) {
+        return QString();
+    }
+
+    item = utils::searchSpecificComponent(item, s_quickMetaMap.at(QuickClass::ScrollBar));
+    if (item == nullptr) {
+        return QString();
+    }
+
+    bool isValueReadable = false;
+    const auto value = QQmlProperty::read(item, "position").toReal(&isValueReadable);
+    assert(isValueReadable == true);
+    return utils::setValueStatement(item, value);
+}
 } // namespace QtAda::core::filters
 
 namespace QtAda::core {
@@ -189,6 +207,7 @@ QuickEventFilter::QuickEventFilter(QObject *parent) noexcept
 {
     mouseFilters_ = {
         filters::qDelayButtonFilter,
+        filters::qScrollBarFilter,
         // Обязательно последним:
         filters::qButtonsFilter,
     };
