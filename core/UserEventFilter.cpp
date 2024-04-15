@@ -27,8 +27,8 @@ UserEventFilter::UserEventFilter(QObject *parent) noexcept
     connect(&doubleClickTimer_, &QTimer::timeout, this, [this]() {
         if (delayedScriptLine_.has_value()) {
             flushScriptLine(*delayedScriptLine_);
-            delayedScriptLine_ = std::nullopt;
         }
+        clearDelayed();
     });
 
     //! TODO: убрать
@@ -87,7 +87,7 @@ bool UserEventFilter::eventFilter(QObject *obj, QEvent *event) noexcept
             if (doubleClickTimer_.isActive()) {
                 if (currentFilter_ == widgetFilter_ && delayedScriptLine_.has_value()) {
                     flushScriptLine(*delayedScriptLine_);
-                    delayedScriptLine_ = std::nullopt;
+                    clearDelayed();
                     doubleClickTimer_.start(QApplication::doubleClickInterval());
                 }
                 else if (currentFilter_ == quickFilter_) {
@@ -117,15 +117,17 @@ bool UserEventFilter::eventFilter(QObject *obj, QEvent *event) noexcept
                         flushScriptLine(currentFilter_->handleMouseEvent(
                             obj, event, mouseEventInfo(false, std::move(path))));
                     }
-                    else if (delayedScriptLine_.has_value()) {
-                        flushScriptLine(*delayedScriptLine_);
+                    else if (delayedEvent_.has_value()) {
+                        assert(*delayedEvent_ != nullptr);
+                        flushScriptLine(currentFilter_->handleMouseEvent(
+                            obj, delayedEvent_->get(), mouseEventInfo(false, std::move(path))));
                     }
+                    clearDelayed();
                 }
                 else {
                     flushScriptLine(currentFilter_->handleMouseEvent(
                         obj, event, mouseEventInfo(false, std::move(path))));
                 }
-                delayedScriptLine_ = std::nullopt;
             }
             lastPressEvent_.clearEvent();
             break;
@@ -138,8 +140,7 @@ bool UserEventFilter::eventFilter(QObject *obj, QEvent *event) noexcept
             currentFilter_->setMousePressFilter(obj, event);
             doubleClickTimer_.stop();
             doubleClickDetected_ = true;
-            delayedScriptLine_ = currentFilter_->handleMouseEvent(
-                obj, event, mouseEventInfo(false, std::move(path)));
+            delayedEvent_ = utils::cloneMouseEvent(event);
             lastReleaseEvent_.clearEvent();
             break;
         }

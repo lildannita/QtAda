@@ -282,38 +282,39 @@ static QString qSpinBoxFilter(const QWidget *widget, const QMouseEvent *event,
         return utils::setValueStatement(widget, dateTimeEdit->dateTime().toString(Qt::ISODate));
     }
 
-    bool isDblClick = event->type() == QEvent::MouseButtonDblClick;
-    if (extra.isContinuous || isDblClick) {
-        auto handleSpinBox = [&](auto *spinBox) {
-            //! TODO: костыль, так как spinBoxWidget->value() при
-            //! MouseButtonDblClick почему-то не соответствует действительности, что
-            //! странно, так как значение изменяется при событии нажатия, а не
-            //! отпускания, а на этапе обработки MouseButtonDblClick значение должно
-            //! было измениться два раза
-            return utils::setValueStatement(widget, spinBox->value()
-                                                        + (isDblClick ? spinBox->singleStep() : 0));
-        };
-        if (auto *spinBox = qobject_cast<const QSpinBox *>(widget)) {
-            return handleSpinBox(spinBox);
-        }
-        else if (auto *doubleSpinBox = qobject_cast<const QDoubleSpinBox *>(widget)) {
-            return handleSpinBox(doubleSpinBox);
-        }
-        Q_UNREACHABLE();
+    QString setValueStatement;
+    if (auto *spinBox = qobject_cast<const QSpinBox *>(widget)) {
+        setValueStatement = utils::setValueStatement(widget, spinBox->value());
+    }
+    else if (auto *doubleSpinBox = qobject_cast<const QDoubleSpinBox *>(widget)) {
+        setValueStatement = utils::setValueStatement(widget, doubleSpinBox->value());
     }
     else {
+        Q_UNREACHABLE();
+    }
+    assert(!setValueStatement.isEmpty());
+
+    if (!extra.isContinuous) {
         const QRect upButtonRect(0, 0, widget->width(), widget->height() / 2);
         const QRect downButtonRect(0, widget->height() / 2, widget->width(), widget->height() / 2);
+        bool isDblClick = event->type() == QEvent::MouseButtonDblClick;
+
+        auto generate = [&](const QLatin1String &type) {
+            return QStringLiteral("%1\n// %2")
+                .arg(setValueStatement)
+                .arg(utils::changeValueStatement(
+                    widget, QStringLiteral("%1%2").arg(isDblClick ? "Dbl" : "").arg(type)));
+        };
 
         if (upButtonRect.contains(event->pos())) {
-            return utils::changeValueStatement(widget, "Up");
+            return generate(QLatin1String("Up"));
         }
         else if (downButtonRect.contains(event->pos())) {
-            return utils::changeValueStatement(widget, "Down");
+            return generate(QLatin1String("Down"));
         }
     }
 
-    return QString();
+    return setValueStatement;
 }
 
 static QString qCalendarFilter(const QWidget *widget, const QMouseEvent *event,

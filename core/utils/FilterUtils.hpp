@@ -121,6 +121,16 @@ QMetaObject::Connection connectObject(const GuiComponent *sender, Signal signal,
     return QObject::connect(sender, signal, reciever, slot);
 }
 
+inline std::unique_ptr<const QEvent> cloneMouseEvent(const QEvent *event) noexcept
+{
+    if (auto *mouseEvent = static_cast<const QMouseEvent *>(event)) {
+        return std::make_unique<const QMouseEvent>(mouseEvent->type(), mouseEvent->pos(),
+                                                   mouseEvent->globalPos(), mouseEvent->button(),
+                                                   mouseEvent->buttons(), mouseEvent->modifiers());
+    }
+    return nullptr;
+}
+
 // Special filters for QWidgets:
 QString widgetIdInView(const QWidget *widget, const int index,
                        const WidgetClass widgetClass) noexcept;

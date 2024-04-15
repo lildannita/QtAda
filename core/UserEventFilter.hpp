@@ -39,7 +39,15 @@ signals:
 private:
     LastMouseEvent lastPressEvent_;
     LastMouseEvent lastReleaseEvent_;
+
     std::optional<QString> delayedScriptLine_;
+    std::optional<std::unique_ptr<const QEvent>> delayedEvent_;
+    void clearDelayed()
+    {
+        doubleClickDetected_ = false;
+        delayedScriptLine_ = std::nullopt;
+        delayedEvent_ = std::nullopt;
+    }
 
     LastKeyEvent lastKeyEvent_;
     LastWheelEvent lastWheelEvent_;
