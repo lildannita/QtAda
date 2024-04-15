@@ -99,9 +99,16 @@ bool LastWheelEvent::registerEvent(const QString &path, const QEvent *event) noe
     //! Поэтому если путь до источника сигнала состоит из одного компонента, то считаем, что
     //! этот источник - самый старший родитель и игнорируем событие. Однако, нужно проверить, бывает
     //! ли полезен WheelEvent для объектов типа QMainWindow.
-    if (path.lastIndexOf('/') == -1) {
+    const auto now = QDateTime::currentDateTime();
+    if ((event->type() == type && std::llabs(now.msecsTo(timestamp)) < EVENT_TIME_DIFF_MS)
+        || path.lastIndexOf('/') == -1) {
+        //! TODO: Для WheelEvent не проверяем objPath, из-за путей источников сигнала в QtQuick -
+        //! для одного сигнала может быть куча источников, имеющих "непоследовательных" родителей
         return false;
     }
+
+    type = event->type();
+    timestamp = now;
 
     return LastEvent::registerEvent(path, event);
 }
