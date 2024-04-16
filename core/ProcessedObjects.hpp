@@ -40,6 +40,8 @@ enum class QuickClass {
     Dial,
     ScrollBar,
     SpinBox,
+    ComboBox,
+    ItemDelegate,
     None,
 };
 

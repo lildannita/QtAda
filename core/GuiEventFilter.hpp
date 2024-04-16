@@ -25,7 +25,8 @@ struct ExtraInfoForDelayed final {
 
     bool isContinuous = false;
     std::optional<int> changeType = std::nullopt;
-    QModelIndex changeIndex;
+    QModelIndex changeModelIndex;
+    std::optional<int> changeIndex;
 
     std::vector<int> collectedIndexes;
 
@@ -33,7 +34,8 @@ struct ExtraInfoForDelayed final {
     {
         isContinuous = false;
         changeType = std::nullopt;
-        changeIndex = QModelIndex();
+        changeModelIndex = QModelIndex();
+        changeIndex = std::nullopt;
         collectedIndexes.clear();
     }
 };
@@ -56,10 +58,16 @@ public:
     virtual ~GuiEventFilterBase() = default;
 
     virtual void setMousePressFilter(const QObject *obj, const QEvent *event) noexcept = 0;
-    QString handleMouseEvent(const QObject *obj, const QEvent *event,
-                             const MouseEventInfo &info) noexcept
+    std::optional<QString> handleMouseEvent(const QObject *obj, const QEvent *event,
+                                            const MouseEventInfo &info) noexcept
     {
-        auto scriptLine = callMouseFilters(obj, event, info.isContinuous, info.isSpecialEvent);
+        auto [scriptLine, skip]
+            = callMouseFilters(obj, event, info.isContinuous, info.isSpecialEvent);
+        if (skip) {
+            // skip нужен для пропуска генерации в случае ожидания генерации от PostRelease
+            return std::nullopt;
+        }
+
         if (scriptLine.isEmpty()) {
             scriptLine = filters::qMouseEventHandler(obj, event, info.objPath);
         }
@@ -84,8 +92,9 @@ signals:
 
 protected:
     virtual void processKeyEvent(const QString &text) noexcept = 0;
-    virtual QString callMouseFilters(const QObject *obj, const QEvent *event, bool isContinuous,
-                                     bool isSpecialEvent) noexcept
+    virtual std::pair<QString, bool> callMouseFilters(const QObject *obj, const QEvent *event,
+                                                      bool isContinuous,
+                                                      bool isSpecialEvent) noexcept
         = 0;
 
 protected slots:
@@ -97,7 +106,7 @@ class GuiEventFilter : public GuiEventFilterBase {
 protected:
     using FilterFunction = std::function<QString(const GuiComponent *, const QEvent *)>;
     using MouseFilterFunction = std::function<QString(const GuiComponent *, const QMouseEvent *)>;
-    using DelayedMouseFilterFunction = std::function<QString(
+    using SignalMouseFilterFunction = std::function<QString(
         const GuiComponent *, const QMouseEvent *, const ExtraInfoForDelayed &)>;
 
     using Connections = std::vector<QMetaObject::Connection>;
@@ -116,14 +125,14 @@ protected:
 
     std::vector<MouseFilterFunction> mouseFilters_;
     std::vector<MouseFilterFunction> specificMouseFilters_;
-    std::map<EnumType, DelayedMouseFilterFunction> delayedMouseFilters_;
+    std::map<EnumType, SignalMouseFilterFunction> signalMouseFilters_;
     std::vector<FilterFunction> specialFilters_;
 
-    struct DelayedData {
+    struct DelayedWatchDog {
         const GuiComponent *causedComponent = nullptr;
         QEvent::Type causedEventType = QEvent::None;
         const QEvent *causedEvent = nullptr;
-        std::optional<DelayedMouseFilterFunction> mouseFilter = std::nullopt;
+        std::optional<SignalMouseFilterFunction> mouseFilter = std::nullopt;
         bool signalDetected = false;
         bool isFake = false;
         Connections connections;
@@ -146,34 +155,31 @@ protected:
             }
         }
 
-        bool connectionIsInit(std::optional<Connections> extConnections
-                              = std::nullopt) const noexcept
+        bool connectionIsInit() const noexcept
         {
-            for (auto &connection : extConnections.has_value() ? *extConnections : connections) {
-                if (connection) {
-                    return true;
-                }
-            }
-            return false;
+            return utils::connectionIsInit(connections);
         }
 
-        void initDelay(const GuiComponent *component, const QEvent *event,
-                       const DelayedMouseFilterFunction &filter, Connections &connections) noexcept
+        void init(const GuiComponent *component, const QEvent *event)
         {
             causedEvent = event;
             causedEventType = event->type();
             causedComponent = component;
+        }
+
+        void initDelay(const GuiComponent *component, const QEvent *event,
+                       const SignalMouseFilterFunction &filter, Connections &connections) noexcept
+        {
+            init(component, event);
             mouseFilter = filter;
             connections = connections;
         }
 
         // Пока что используется только для QQuickSpinBox.
         void initFakeDelay(const GuiComponent *component, const QEvent *event,
-                           const DelayedMouseFilterFunction &filter) noexcept
+                           const SignalMouseFilterFunction &filter) noexcept
         {
-            causedEvent = event;
-            causedEventType = event->type();
-            causedComponent = component;
+            init(component, event);
             mouseFilter = filter;
             isFake = true;
         }
@@ -181,9 +187,7 @@ protected:
         void initSpecific(const GuiComponent *component, const QEvent *event,
                           const QString &result) noexcept
         {
-            causedEvent = event;
-            causedEventType = event->type();
-            causedComponent = component;
+            init(component, event);
             specificResult = std::move(result);
         }
 
@@ -225,7 +229,7 @@ protected:
             return callable ? std::make_optional((*mouseFilter)(component, event, extra))
                             : std::nullopt;
         }
-    } delayedData_;
+    } delayedWatchDog_;
 
     struct KeyWatchDog {
         QTimer timer;

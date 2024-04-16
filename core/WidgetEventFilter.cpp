@@ -419,12 +419,12 @@ static QString qTreeViewFilter(const QWidget *widget, const QMouseEvent *event,
     assert(extra.changeType.has_value());
     assert(*extra.changeType == ExtraInfoForDelayed::TreeViewExtra::Collapsed
            || *extra.changeType == ExtraInfoForDelayed::TreeViewExtra::Expanded);
-    assert(extra.changeIndex.isValid());
+    assert(extra.changeModelIndex.isValid());
 
     auto *view = qobject_cast<const QAbstractItemView *>(widget);
     assert(view != nullptr);
 
-    const auto currentItem = view->model()->data(extra.changeIndex);
+    const auto currentItem = view->model()->data(extra.changeModelIndex);
     const auto currentItemText
         = currentItem.canConvert<QString>() ? currentItem.toString() : QString();
     return QStringLiteral("%1Delegate('%2');%3")
@@ -797,7 +797,7 @@ WidgetEventFilter::WidgetEventFilter(QObject *parent) noexcept
         filters::qMenuBarFilter,
     };
 
-    delayedMouseFilters_ = {
+    signalMouseFilters_ = {
         { WidgetClass::Slider, filters::qSliderFilter },
         { WidgetClass::SpinBox, filters::qSpinBoxFilter },
         { WidgetClass::Calendar, filters::qCalendarFilter },
@@ -811,12 +811,14 @@ WidgetEventFilter::WidgetEventFilter(QObject *parent) noexcept
     };
 }
 
-QString WidgetEventFilter::callMouseFilters(const QObject *obj, const QEvent *event,
-                                            bool isContinuous, bool isSpecialEvent) noexcept
+std::pair<QString, bool> WidgetEventFilter::callMouseFilters(const QObject *obj,
+                                                             const QEvent *event, bool isContinuous,
+                                                             bool isSpecialEvent) noexcept
 {
+    const std::pair<QString, bool> empty = { QString(), false };
     auto *widget = qobject_cast<const QWidget *>(obj);
     if (widget == nullptr) {
-        return QString();
+        return empty;
     }
 
     // Считаем, что любое нажатие мышью или какое-либо специальное событие
@@ -827,32 +829,32 @@ QString WidgetEventFilter::callMouseFilters(const QObject *obj, const QEvent *ev
         for (auto &filter : specialFilters_) {
             const auto result = filter(widget, event);
             if (!result.isEmpty()) {
-                return result;
+                return { result, false };
             }
         }
-        return QString();
+        return empty;
     }
 
-    if (delayedData_.specificResultCanBeShown(widget)) {
-        return delayedData_.specificResult;
+    if (delayedWatchDog_.specificResultCanBeShown(widget)) {
+        return { delayedWatchDog_.specificResult, false };
     }
 
     auto *mouseEvent = static_cast<const QMouseEvent *>(event);
     if (mouseEvent == nullptr) {
-        return QString();
+        return empty;
     }
-    const auto delayedResult = delayedData_.callDelayedFilter(widget, mouseEvent, isContinuous);
+    const auto delayedResult = delayedWatchDog_.callDelayedFilter(widget, mouseEvent, isContinuous);
     if (delayedResult.has_value() && !(*delayedResult).isEmpty()) {
-        return *delayedResult;
+        return { *delayedResult, false };
     }
 
     for (auto &filter : mouseFilters_) {
         const auto result = filter(widget, mouseEvent);
         if (!result.isEmpty()) {
-            return result;
+            return { result, false };
         }
     }
-    return QString();
+    return empty;
 }
 
 void WidgetEventFilter::setMousePressFilter(const QObject *obj, const QEvent *event) noexcept
@@ -860,18 +862,18 @@ void WidgetEventFilter::setMousePressFilter(const QObject *obj, const QEvent *ev
     auto *widget = qobject_cast<const QWidget *>(obj);
     auto *mouseEvent = static_cast<const QMouseEvent *>(event);
     if (mouseEvent == nullptr || widget == nullptr
-        || (widget == delayedData_.causedComponent && event == delayedData_.causedEvent
-            && delayedData_.causedEventType == QEvent::MouseButtonPress
+        || (widget == delayedWatchDog_.causedComponent && event == delayedWatchDog_.causedEvent
+            && delayedWatchDog_.causedEventType == QEvent::MouseButtonPress
             && event->type() == QEvent::MouseButtonDblClick)) {
         return;
     }
 
-    delayedData_.clear();
+    delayedWatchDog_.clear();
 
     for (auto &filter : specificMouseFilters_) {
         const auto result = filter(widget, mouseEvent);
         if (!result.isEmpty()) {
-            delayedData_.initSpecific(widget, event, std::move(result));
+            delayedWatchDog_.initSpecific(widget, event, std::move(result));
             return;
         }
     }
@@ -880,7 +882,7 @@ void WidgetEventFilter::setMousePressFilter(const QObject *obj, const QEvent *ev
     std::vector<QMetaObject::Connection> connections;
     if (auto *foundWidget = utils::searchSpecificComponent(
             widget, filters::s_widgetMetaMap.at(WidgetClass::SpinBox))) {
-        auto slot = [this] { this->delayedData_.processSignal(); };
+        auto slot = [this] { this->delayedWatchDog_.processSignal(); };
         foundWidgetClass = WidgetClass::SpinBox;
         QMetaObject::Connection spinBoxConnection = utils::connectIfType<QSpinBox>(
             widget, static_cast<void (QSpinBox::*)(int)>(&QSpinBox::valueChanged), this, slot);
@@ -906,8 +908,8 @@ void WidgetEventFilter::setMousePressFilter(const QObject *obj, const QEvent *ev
             foundWidget,
             static_cast<void (QAbstractSlider::*)(int)>(&QAbstractSlider::actionTriggered), this,
             [this](int type) {
-                this->delayedData_.extra.changeType = type;
-                this->delayedData_.processSignal();
+                this->delayedWatchDog_.extra.changeType = type;
+                this->delayedWatchDog_.processSignal();
             }));
     }
     else if (auto *foundWidget = utils::searchSpecificComponent(
@@ -919,7 +921,7 @@ void WidgetEventFilter::setMousePressFilter(const QObject *obj, const QEvent *ev
             itemView->selectionModel(),
             static_cast<void (QItemSelectionModel::*)(const QModelIndex &, const QModelIndex &)>(
                 &QItemSelectionModel::currentChanged),
-            this, [this] { this->delayedData_.processSignal(); }));
+            this, [this] { this->delayedWatchDog_.processSignal(); }));
     }
     else if (auto *foundWidget = utils::searchSpecificComponent(
                  widget, filters::s_widgetMetaMap.at(WidgetClass::TreeView))) {
@@ -928,17 +930,19 @@ void WidgetEventFilter::setMousePressFilter(const QObject *obj, const QEvent *ev
             foundWidget,
             static_cast<void (QTreeView::*)(const QModelIndex &)>(&QTreeView::expanded), this,
             [this](const QModelIndex &index) {
-                this->delayedData_.extra.changeIndex = index;
-                this->delayedData_.extra.changeType = ExtraInfoForDelayed::TreeViewExtra::Expanded;
-                this->delayedData_.processSignal();
+                this->delayedWatchDog_.extra.changeModelIndex = index;
+                this->delayedWatchDog_.extra.changeType
+                    = ExtraInfoForDelayed::TreeViewExtra::Expanded;
+                this->delayedWatchDog_.processSignal();
             }));
         connections.push_back(utils::connectIfType<QTreeView>(
             foundWidget,
             static_cast<void (QTreeView::*)(const QModelIndex &)>(&QTreeView::collapsed), this,
             [this](const QModelIndex &index) {
-                this->delayedData_.extra.changeIndex = index;
-                this->delayedData_.extra.changeType = ExtraInfoForDelayed::TreeViewExtra::Collapsed;
-                this->delayedData_.processSignal();
+                this->delayedWatchDog_.extra.changeModelIndex = index;
+                this->delayedWatchDog_.extra.changeType
+                    = ExtraInfoForDelayed::TreeViewExtra::Collapsed;
+                this->delayedWatchDog_.processSignal();
             }));
     }
     else if (auto *foundWidget = utils::searchSpecificComponent(
@@ -949,8 +953,8 @@ void WidgetEventFilter::setMousePressFilter(const QObject *obj, const QEvent *ev
         connections.push_back(utils::connectObject(
             undoView->stack(), static_cast<void (QUndoStack::*)(int)>(&QUndoStack::indexChanged),
             this, [this](int index) {
-                this->delayedData_.extra.collectedIndexes.push_back(index);
-                this->delayedData_.processSignal(false);
+                this->delayedWatchDog_.extra.collectedIndexes.push_back(index);
+                this->delayedWatchDog_.processSignal(false);
             }));
     }
     else if (auto *foundWidget = utils::searchSpecificComponent(
@@ -963,13 +967,13 @@ void WidgetEventFilter::setMousePressFilter(const QObject *obj, const QEvent *ev
                              static_cast<void (QItemSelectionModel::*)(const QItemSelection &,
                                                                        const QItemSelection &)>(
                                  &QItemSelectionModel::selectionChanged),
-                             this, [this] { this->delayedData_.processSignal(); }));
+                             this, [this] { this->delayedWatchDog_.processSignal(); }));
     }
 
     if (foundWidgetClass != WidgetClass::None) {
-        assert(delayedData_.connectionIsInit(connections) == true);
-        delayedData_.initDelay(widget, mouseEvent, delayedMouseFilters_.at(foundWidgetClass),
-                               connections);
+        assert(utils::connectionIsInit(connections) == true);
+        delayedWatchDog_.initDelay(widget, mouseEvent, signalMouseFilters_.at(foundWidgetClass),
+                                   connections);
     }
 }
 

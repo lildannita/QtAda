@@ -20,7 +20,9 @@ UserEventFilter::UserEventFilter(QObject *parent) noexcept
 
     connect(widgetFilter_.get(), &WidgetEventFilter::newKeyScriptLine, this,
             &UserEventFilter::newScriptLine);
-    connect(quickFilter_.get(), &WidgetEventFilter::newKeyScriptLine, this,
+    connect(quickFilter_.get(), &QuickEventFilter::newKeyScriptLine, this,
+            &UserEventFilter::newScriptLine);
+    connect(quickFilter_.get(), &QuickEventFilter::newPostReleaseScriptLine, this,
             &UserEventFilter::newScriptLine);
 
     doubleClickTimer_.setSingleShot(true);
@@ -118,10 +120,11 @@ bool UserEventFilter::eventFilter(QObject *obj, QEvent *event) noexcept
                         flushScriptLine(currentFilter_->handleMouseEvent(
                             obj, event, mouseEventInfo(false, std::move(path))));
                     }
-                    else if (delayedEvent_.has_value()) {
-                        assert(*delayedEvent_ != nullptr);
+                    else if (delayedMouseEvent_.has_value()) {
+                        assert(*delayedMouseEvent_ != nullptr);
                         flushScriptLine(currentFilter_->handleMouseEvent(
-                            obj, delayedEvent_->get(), mouseEventInfo(false, std::move(path))));
+                            obj, delayedMouseEvent_->get(),
+                            mouseEventInfo(false, std::move(path))));
                     }
                     clearDelayed();
                 }
@@ -141,7 +144,7 @@ bool UserEventFilter::eventFilter(QObject *obj, QEvent *event) noexcept
             currentFilter_->setMousePressFilter(obj, event);
             doubleClickTimer_.stop();
             doubleClickDetected_ = true;
-            delayedEvent_ = utils::cloneMouseEvent(event);
+            delayedMouseEvent_ = utils::cloneMouseEvent(event);
             lastReleaseEvent_.clearEvent();
             break;
         }

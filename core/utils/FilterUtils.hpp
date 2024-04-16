@@ -112,16 +112,16 @@ QMetaObject::Connection connectIfType(const GuiComponent *sender, Signal signal,
     return {};
 }
 
-template <typename GuiComponent, typename Signal, typename Slot>
-QMetaObject::Connection connectObject(const GuiComponent *sender, Signal signal,
-                                      const QObject *reciever, Slot slot)
+template <typename T, typename Signal, typename Slot>
+QMetaObject::Connection connectObject(const T *sender, Signal signal, const QObject *reciever,
+                                      Slot slot)
 {
     assert(sender != nullptr);
     assert(reciever != nullptr);
     return QObject::connect(sender, signal, reciever, slot);
 }
 
-inline std::unique_ptr<const QEvent> cloneMouseEvent(const QEvent *event) noexcept
+inline std::unique_ptr<const QMouseEvent> cloneMouseEvent(const QEvent *event) noexcept
 {
     if (auto *mouseEvent = static_cast<const QMouseEvent *>(event)) {
         return std::make_unique<const QMouseEvent>(mouseEvent->type(), mouseEvent->pos(),
@@ -151,6 +151,65 @@ template <typename Type> Type getFromVariant(const QVariant &variant) noexcept
         return variant.toString();
     }
     Q_UNREACHABLE();
+}
+
+enum class ClickInformation {
+    ClickInsideComponent,
+    ClickOutsideComponent,
+    ClickOnAnotherComponent,
+    None,
+};
+
+template <typename GuiComponent>
+ClickInformation
+getClickInformation(const GuiComponent *component, const QMouseEvent *event,
+                    const std::pair<QLatin1String, size_t> &classDesignation) noexcept
+{
+    CHECK_GUI_CLASS(GuiComponent);
+    if (!mouseEventCanBeFiltered(component, event)) {
+        return ClickInformation::None;
+    }
+
+    component = searchSpecificComponent(component, classDesignation);
+    if (component == nullptr) {
+        return ClickInformation::ClickOnAnotherComponent;
+    }
+
+    const auto delegateRect = component->boundingRect();
+    const auto clickPos = component->mapFromGlobal(event->globalPos());
+    if (delegateRect.contains(clickPos)) {
+        return ClickInformation::ClickInsideComponent;
+    }
+    return ClickInformation::ClickOutsideComponent;
+}
+
+inline bool connectionIsInit(const std::vector<QMetaObject::Connection> &connections) noexcept
+{
+    for (auto &connection : connections) {
+        if (connection) {
+            return true;
+        }
+    }
+    return false;
+}
+
+template <typename GuiComponent>
+bool isObjectAncestor(const GuiComponent *ancestorComponent,
+                      const GuiComponent *descendantComponent)
+{
+    CHECK_GUI_CLASS(GuiComponent);
+    auto *ancestor = qobject_cast<const QObject *>(ancestorComponent);
+    assert(ancestor != nullptr);
+    auto *descendant = qobject_cast<const QObject *>(descendantComponent);
+    assert(descendant != nullptr);
+
+    while (descendant != nullptr) {
+        if (descendant == ancestor) {
+            return true;
+        }
+        descendant = descendant->parent();
+    }
+    return false;
 }
 
 // Special filters for QWidgets:

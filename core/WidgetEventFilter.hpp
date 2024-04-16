@@ -36,7 +36,8 @@ private slots:
 
 private:
     void processKeyEvent(const QString &text) noexcept override;
-    QString callMouseFilters(const QObject *obj, const QEvent *event, bool isContinuous,
-                             bool isSpecialEvent) noexcept override;
+    std::pair<QString, bool> callMouseFilters(const QObject *obj, const QEvent *event,
+                                              bool isContinuous,
+                                              bool isSpecialEvent) noexcept override;
 };
 } // namespace QtAda::core

@@ -19,6 +19,8 @@ static const std::map<QuickClass, std::pair<QLatin1String, size_t>> s_quickMetaM
     { QuickClass::Dial, { QLatin1String("QQuickDial"), 1 } },
     { QuickClass::ScrollBar, { QLatin1String("QQuickScrollBar"), 1 } },
     { QuickClass::SpinBox, { QLatin1String("QQuickSpinBox"), 1 } },
+    { QuickClass::ComboBox, { QLatin1String("QQuickComboBox"), 1 } },
+    { QuickClass::ItemDelegate, { QLatin1String("QQuickItemDelegate"), 1 } },
 };
 
 //! TODO: если будут использоваться только в одной функции, то перенести объявление в эти функции
@@ -243,6 +245,48 @@ static QString qSpinBoxFilter(const QQuickItem *item, const QMouseEvent *event,
     }
     return utils::setValueStatement(item, value);
 }
+
+static QString qComboBoxContainerFilter(const QQuickItem *item, const QMouseEvent *event) noexcept
+{
+    if (!utils::mouseEventCanBeFiltered(item, event)) {
+        return QString();
+    }
+
+    item = utils::searchSpecificComponent(item, s_quickMetaMap.at(QuickClass::ComboBox));
+    if (item == nullptr) {
+        return QString();
+    }
+
+    const auto comboBoxRect = item->boundingRect();
+    const auto clickPos = item->mapFromGlobal(event->globalPos());
+    if (!comboBoxRect.contains(clickPos)) {
+        return QString();
+    }
+    return QStringLiteral("// Looks like QComboBox container clicked\n// %1")
+        .arg(qMouseEventHandler(item, event));
+}
+
+static QString qComboBoxFilter(const QQuickItem *item, const QMouseEvent *event,
+                               const ExtraInfoForDelayed &extra) noexcept
+{
+    if (!utils::mouseEventCanBeFiltered(item, event, true)) {
+        return QString();
+    }
+
+    item = utils::searchSpecificComponent(item, s_quickMetaMap.at(QuickClass::ComboBox));
+    if (item == nullptr) {
+        return QString();
+    }
+
+    assert(extra.changeIndex.has_value());
+    const auto delegateCount = utils::getFromVariant<int>(QQmlProperty::read(item, "count"));
+    assert(extra.changeIndex < delegateCount);
+
+    QString textValue;
+    QMetaObject::invokeMethod(const_cast<QQuickItem *>(item), "textAt",
+                              Q_RETURN_ARG(QString, textValue), Q_ARG(int, *extra.changeIndex));
+    return QStringLiteral("selectItem('%1', '%2');").arg(utils::objectPath(item)).arg(textValue);
+}
 } // namespace QtAda::core::filters
 
 namespace QtAda::core {
@@ -251,45 +295,113 @@ QuickEventFilter::QuickEventFilter(QObject *parent) noexcept
     mouseFilters_ = {
         filters::qDelayButtonFilter,
         filters::qScrollBarFilter,
+        filters::qComboBoxContainerFilter,
         // Обязательно последним:
         filters::qButtonsFilter,
     };
 
-    delayedMouseFilters_ = {
+    signalMouseFilters_ = {
         { QuickClass::Slider, filters::qSliderFilter },
         { QuickClass::RangeSlider, filters::qRangeSliderFilter },
         { QuickClass::Dial, filters::qSliderFilter },
         { QuickClass::SpinBox, filters::qSpinBoxFilter },
+        { QuickClass::ComboBox, filters::qComboBoxFilter },
     };
+
+    auto &postReleaseWatchDogTimer = postReleaseWatchDog_.timer;
+    postReleaseWatchDogTimer.setInterval(500);
+    postReleaseWatchDogTimer.setSingleShot(true);
+    connect(&postReleaseWatchDogTimer, &QTimer::timeout, this,
+            &QuickEventFilter::handlePostReleaseTimeout);
 }
 
-QString QuickEventFilter::callMouseFilters(const QObject *obj, const QEvent *event,
-                                           bool isContinuous, bool isSpecialEvent) noexcept
+std::pair<QString, bool> QuickEventFilter::callMouseFilters(const QObject *obj, const QEvent *event,
+                                                            bool isContinuous,
+                                                            bool isSpecialEvent) noexcept
 {
+    const std::pair<QString, bool> empty = { QString(), false };
     auto *item = qobject_cast<const QQuickItem *>(obj);
     if (item == nullptr) {
-        return QString();
+        return empty;
     }
 
     //! TODO: место под specificFilters
 
     auto *mouseEvent = static_cast<const QMouseEvent *>(event);
     if (mouseEvent == nullptr) {
-        return QString();
+        return empty;
     }
 
-    const auto delayedResult = delayedData_.callDelayedFilter(item, mouseEvent, isContinuous);
+    const auto delayedResult = delayedWatchDog_.callDelayedFilter(item, mouseEvent, isContinuous);
     if (delayedResult.has_value() && !(*delayedResult).isEmpty()) {
-        return *delayedResult;
+        return { *delayedResult, false };
     }
 
     for (auto &filter : mouseFilters_) {
         const auto result = filter(item, mouseEvent);
         if (!result.isEmpty()) {
-            return result;
+            return { result, false };
         }
     }
-    return QString();
+
+    static auto generateUseless = [item, mouseEvent] {
+        return std::make_pair(QStringLiteral("// Looks like useless click\n// %1")
+                                  .arg(filters::qMouseEventHandler(item, mouseEvent)),
+                              false);
+    };
+
+    if (postReleaseWatchDog_.isInit()) {
+        const auto delegateClickInfo = utils::getClickInformation(
+            item, mouseEvent, filters::s_quickMetaMap.at(QuickClass::ItemDelegate));
+        switch (delegateClickInfo) {
+        case utils::ClickInformation::ClickInsideComponent: {
+            /*
+             * Этот случай для "правильного" нажатия на компонент списка: компонент
+             * выбирается в качестве текущего, список закрывается -> ждем "официального"
+             * сигнала от QQuickSpinBox. На всякий случай запускаем таймер, который,
+             * в случае если сигнал не придет, то сгенерирует строку с обработкой
+             * события нажатия мыши.
+             */
+            if (!postReleaseWatchDog_.isTimerActive()) {
+                postReleaseWatchDog_.startTimer();
+                return { QString(), true };
+            }
+            return empty;
+        }
+        case utils::ClickInformation::ClickOutsideComponent: {
+            /*
+             * Этот случай для зажатия компонента списка и отведения курсора в сторону:
+             * компонент не выбирается, но и список не закрывается.
+             */
+            return generateUseless();
+        }
+        case utils::ClickInformation::ClickOnAnotherComponent: {
+            /*
+             * В качестве примера возьмем QQuickSpinBox. При зажатии на элемент выпадающего
+             * списка и движении курсора (то есть по сути - скроллинг View элемента), то этот
+             * элемент списка не выбирается в качестве текущего в SpinBox, но и диалог не
+             * закрывается. При этом источником сигнала становится уже не ItemDelegate, а
+             * сам View компонент. Соответственно, считается, что было нажатие типа
+             * ClickInformation::ClickOnAnotherComponent, хотя по факту это такой же
+             * бесполезный клик.
+             * Так как вся механика с PostReleaseWatchDog нацелена на обработку событий
+             * с QQuickItemDelegate, которые не имеют родителя, то проверяем является
+             * ли текущий item потомком postReleaseWatchDog_.causedComponent (чем и должен
+             * являться View компонент), и если item все-таки потомок, то считаем это бесполезным
+             * действием.
+             */
+            if (utils::isObjectAncestor(postReleaseWatchDog_.causedComponent, item)) {
+                return generateUseless();
+            }
+            postReleaseWatchDog_.clear();
+            return empty;
+        }
+        default:
+            Q_UNREACHABLE();
+        }
+    }
+
+    return empty;
 }
 
 void QuickEventFilter::setMousePressFilter(const QObject *obj, const QEvent *event) noexcept
@@ -297,14 +409,15 @@ void QuickEventFilter::setMousePressFilter(const QObject *obj, const QEvent *eve
     auto *item = qobject_cast<const QQuickItem *>(obj);
     auto *mouseEvent = static_cast<const QMouseEvent *>(event);
     if (mouseEvent == nullptr || item == nullptr
-        || (item == delayedData_.causedComponent && event == delayedData_.causedEvent
-            && delayedData_.causedEventType == QEvent::MouseButtonPress
+        || (item == delayedWatchDog_.causedComponent && event == delayedWatchDog_.causedEvent
+            && delayedWatchDog_.causedEventType == QEvent::MouseButtonPress
             && event->type() == QEvent::MouseButtonDblClick)) {
         return;
     }
 
-    delayedData_.clear();
+    delayedWatchDog_.clear();
 
+    PressFilterType type = PressFilterType::Default;
     auto foundQuickClass = QuickClass::None;
     std::vector<QMetaObject::Connection> connections;
 
@@ -318,12 +431,11 @@ void QuickEventFilter::setMousePressFilter(const QObject *obj, const QEvent *eve
         }
     }
 
-    bool isFakeDelay = false;
     switch (foundQuickClass) {
     case QuickClass::Slider:
     case QuickClass::Dial:
         connections.push_back(
-            QObject::connect(currentSlider, SIGNAL(moved()), this, SLOT(classicCallSlot())));
+            QObject::connect(currentSlider, SIGNAL(moved()), this, SLOT(processSignalSlot())));
         break;
     case QuickClass::RangeSlider: {
         auto *first = QQmlProperty::read(item, "first").value<QObject *>();
@@ -331,9 +443,9 @@ void QuickEventFilter::setMousePressFilter(const QObject *obj, const QEvent *eve
         auto *second = QQmlProperty::read(item, "second").value<QObject *>();
         assert(second != nullptr);
         connections.push_back(
-            QObject::connect(first, SIGNAL(moved()), this, SLOT(classicCallSlot())));
+            QObject::connect(first, SIGNAL(moved()), this, SLOT(processSignalSlot())));
         connections.push_back(
-            QObject::connect(second, SIGNAL(moved()), this, SLOT(classicCallSlot())));
+            QObject::connect(second, SIGNAL(moved()), this, SLOT(processSignalSlot())));
         break;
     }
     case QuickClass::None:
@@ -346,7 +458,14 @@ void QuickEventFilter::setMousePressFilter(const QObject *obj, const QEvent *eve
              * эту функцию isContinuous.
              */
             foundQuickClass = QuickClass::SpinBox;
-            isFakeDelay = true;
+            type = PressFilterType::Fake;
+        }
+        else if (auto *foundItem = utils::searchSpecificComponent(
+                     item, filters::s_quickMetaMap.at(QuickClass::ComboBox))) {
+            foundQuickClass = QuickClass::ComboBox;
+            type = PressFilterType::PostRelease;
+            connections.push_back(QObject::connect(foundItem, SIGNAL(activated(int)), this,
+                                                   SLOT(callPostReleaseSlot(int))));
         }
         break;
     default:
@@ -354,13 +473,26 @@ void QuickEventFilter::setMousePressFilter(const QObject *obj, const QEvent *eve
     }
 
     if (foundQuickClass != QuickClass::None) {
-        if (isFakeDelay) {
-            delayedData_.initFakeDelay(item, mouseEvent, delayedMouseFilters_.at(foundQuickClass));
+        switch (type) {
+        case PressFilterType::Default: {
+            assert(utils::connectionIsInit(connections) == true);
+            delayedWatchDog_.initDelay(item, mouseEvent, signalMouseFilters_.at(foundQuickClass),
+                                       connections);
+            break;
         }
-        else {
-            assert(delayedData_.connectionIsInit(connections) == true);
-            delayedData_.initDelay(item, mouseEvent, delayedMouseFilters_.at(foundQuickClass),
-                                   connections);
+        case PressFilterType::Fake: {
+            delayedWatchDog_.initFakeDelay(item, mouseEvent,
+                                           signalMouseFilters_.at(foundQuickClass));
+            break;
+        }
+        case PressFilterType::PostRelease: {
+            assert(utils::connectionIsInit(connections) == true);
+            postReleaseWatchDog_.initPostRelease(
+                item, mouseEvent, signalMouseFilters_.at(foundQuickClass), connections);
+            break;
+        }
+        default:
+            Q_UNREACHABLE();
         }
     }
 }

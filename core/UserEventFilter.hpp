@@ -41,12 +41,12 @@ private:
     LastMouseEvent lastReleaseEvent_;
 
     std::optional<QString> delayedScriptLine_;
-    std::optional<std::unique_ptr<const QEvent>> delayedEvent_;
+    std::optional<std::unique_ptr<const QMouseEvent>> delayedMouseEvent_;
     void clearDelayed()
     {
         doubleClickDetected_ = false;
         delayedScriptLine_ = std::nullopt;
-        delayedEvent_ = std::nullopt;
+        delayedMouseEvent_ = std::nullopt;
     }
 
     LastKeyEvent lastKeyEvent_;
@@ -60,10 +60,12 @@ private:
     std::shared_ptr<WidgetEventFilter> widgetFilter_ = nullptr;
     std::shared_ptr<QuickEventFilter> quickFilter_ = nullptr;
 
-    void flushScriptLine(const QString &line) const noexcept
+    void flushScriptLine(const std::optional<QString> &line) const noexcept
     {
-        assert(!line.isEmpty());
-        emit newScriptLine(line);
+        if (line.has_value()) {
+            assert(!line->isEmpty());
+            emit newScriptLine(*line);
+        }
     }
     MouseEventInfo mouseEventInfo(bool isSpecial = false,
                                   const QString &objPath = QString()) const noexcept;
