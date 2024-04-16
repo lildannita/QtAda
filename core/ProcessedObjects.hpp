@@ -42,6 +42,7 @@ enum class QuickClass {
     SpinBox,
     ComboBox,
     ItemDelegate,
+    Tumbler,
     None,
 };
 

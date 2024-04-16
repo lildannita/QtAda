@@ -21,6 +21,7 @@ static const std::map<QuickClass, std::pair<QLatin1String, size_t>> s_quickMetaM
     { QuickClass::SpinBox, { QLatin1String("QQuickSpinBox"), 1 } },
     { QuickClass::ComboBox, { QLatin1String("QQuickComboBox"), 1 } },
     { QuickClass::ItemDelegate, { QLatin1String("QQuickItemDelegate"), 1 } },
+    { QuickClass::Tumbler, { QLatin1String("QQuickTumbler"), 3 } },
 };
 
 //! TODO: если будут использоваться только в одной функции, то перенести объявление в эти функции
@@ -287,6 +288,26 @@ static QString qComboBoxFilter(const QQuickItem *item, const QMouseEvent *event,
                               Q_RETURN_ARG(QString, textValue), Q_ARG(int, *extra.changeIndex));
     return QStringLiteral("selectItem('%1', '%2');").arg(utils::objectPath(item)).arg(textValue);
 }
+
+static QString qTumblerFilter(const QQuickItem *item, const QMouseEvent *event) noexcept
+{
+    if (!utils::mouseEventCanBeFiltered(item, event)) {
+        return QString();
+    }
+
+    item = utils::searchSpecificComponent(item, s_quickMetaMap.at(QuickClass::Tumbler));
+    if (item == nullptr) {
+        return QString();
+    }
+    //! TODO:
+    //! 1) Нужно будет учитывать, что при отпускании мыши тумблер может продолжить
+    //! движение и нужно записывать то значение, на котором была произведена остановка
+    //! 2) Для QML в принципе "тяжело" вытаскивать текстовое описание разных компонентов,
+    //! но оно предпочительнее, чем просто индекс. В будущем надо будет реализовать поиск
+    //! текстового описания элементов.
+    const auto delegateCount = utils::getFromVariant<int>(QQmlProperty::read(item, "currentIndex"));
+    return QStringLiteral("selectItem('%1', %2);").arg(utils::objectPath(item)).arg(delegateCount);
+}
 } // namespace QtAda::core::filters
 
 namespace QtAda::core {
@@ -296,6 +317,7 @@ QuickEventFilter::QuickEventFilter(QObject *parent) noexcept
         filters::qDelayButtonFilter,
         filters::qScrollBarFilter,
         filters::qComboBoxContainerFilter,
+        filters::qTumblerFilter,
         // Обязательно последним:
         filters::qButtonsFilter,
     };
