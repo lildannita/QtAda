@@ -57,6 +57,8 @@ static const std::map<WidgetClass, std::pair<QLatin1String, size_t>> s_widgetMet
     { WidgetClass::ItemView, { QLatin1String("QAbstractItemView"), 3 } },
     { WidgetClass::TreeView, { QLatin1String("QTreeView"), 2 } },
     { WidgetClass::UndoView, { QLatin1String("QUndoView"), 2 } },
+    //! TODO: Компоненты QDateTimeEdit (и его потомки) имеют возможность
+    //! открывать QCalendarPopup, открытие которого на текущий момент плохо обрабатывается.
     { WidgetClass::Calendar, { QLatin1String("QCalendarView"), 2 } },
     //! TODO: в официальной документации по 5.15 ни слова об этом классе,
     //! однако он в составе QColumnView. Если его не обрабатывать, то
