@@ -9,6 +9,7 @@ namespace QtAda::core::filters {
 // Принцип построения этого std::map смотри в WidgetEventFilter.cpp
 static const std::map<QuickClass, std::pair<QLatin1String, size_t>> s_quickMetaMap = {
     { QuickClass::Button, { QLatin1String("QQuickButton"), 1 } },
+    { QuickClass::TabButton, { QLatin1String("QQuickTabButton"), 1 } },
     { QuickClass::MouseArea, { QLatin1String("QQuickMouseArea"), 1 } },
     { QuickClass::RadioButton, { QLatin1String("QQuickRadioButton"), 1 } },
     { QuickClass::CheckBox, { QLatin1String("QQuickCheckBox"), 1 } },
@@ -42,6 +43,7 @@ static QString qButtonsFilter(const QQuickItem *item, const QMouseEvent *event) 
 
     static const std::vector<QuickClass> processedButtons = {
         QuickClass::MouseArea,
+        QuickClass::TabButton,
         QuickClass::RadioButton,
         QuickClass::CheckBox,
         QuickClass::Switch,
@@ -78,10 +80,10 @@ static QString qButtonsFilter(const QQuickItem *item, const QMouseEvent *event) 
             .arg(utils::objectPath(currentItem));
     }
 
-    // Для QRadioButton, хоть он и checkable, нам это не важно, так как сколько по нему не кликай,
-    // он всегда будет checked.
+    // Для QRadioButton и QTabButton, хоть они и checkable, нам это не важно,
+    // так как сколько по нему не кликай, он всегда будет checked.
     const auto isCheckable
-        = currentClass != QuickClass::RadioButton
+        = currentClass != QuickClass::RadioButton && currentClass != QuickClass::TabButton
               ? utils::getFromVariant<bool>(QQmlProperty::read(currentItem, "checkable"))
               : false;
     // Во время события Release состояние checked еще не поменяется, поэтому инвертируем значение

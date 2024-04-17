@@ -31,6 +31,7 @@ enum class WidgetClass {
 enum class QuickClass {
     Button,
     MouseArea,
+    TabButton,
     RadioButton,
     CheckBox,
     Switch,
