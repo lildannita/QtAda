@@ -46,6 +46,7 @@ enum class QuickClass {
     Tumbler,
     MenuBarItem,
     MenuItem,
+    ItemView,
     None,
 };
 

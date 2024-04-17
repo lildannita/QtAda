@@ -25,6 +25,7 @@ static const std::map<QuickClass, std::pair<QLatin1String, size_t>> s_quickMetaM
     { QuickClass::Tumbler, { QLatin1String("QQuickTumbler"), 3 } },
     { QuickClass::MenuBarItem, { QLatin1String("QQuickMenuBarItem"), 1 } },
     { QuickClass::MenuItem, { QLatin1String("QQuickMenuItem"), 1 } },
+    { QuickClass::ItemView, { QLatin1String("QQuickItemView"), 1 } },
 };
 
 //! TODO: если будут использоваться только в одной функции, то перенести объявление в эти функции
@@ -314,6 +315,30 @@ static QString qTumblerFilter(const QQuickItem *item, const QMouseEvent *event) 
     const auto delegateCount = utils::getFromVariant<int>(QQmlProperty::read(item, "currentIndex"));
     return QStringLiteral("selectItem('%1', %2);").arg(utils::objectPath(item)).arg(delegateCount);
 }
+static QString qItemViewFilter(const QQuickItem *item, const QMouseEvent *event) noexcept
+{
+    if (!utils::mouseEventCanBeFiltered(item, event)) {
+        return QString();
+    }
+
+    item = utils::searchSpecificComponent(item, s_quickMetaMap.at(QuickClass::ItemView));
+    if (item == nullptr) {
+        return QString();
+    }
+
+    const auto clickPos = item->mapFromGlobal(event->globalPos());
+    int index;
+    QMetaObject::invokeMethod(const_cast<QQuickItem *>(item), "indexAt", Q_RETURN_ARG(int, index),
+                              Q_ARG(double, clickPos.x()), Q_ARG(double, clickPos.y()));
+    if (index == -1) {
+        return qMouseEventHandler(item, event);
+    }
+
+    return QStringLiteral("delegate%1Click('%2', %3)")
+        .arg(event->type() == QEvent::MouseButtonDblClick ? "Dbl" : "")
+        .arg(utils::objectPath(item))
+        .arg(index);
+}
 } // namespace QtAda::core::filters
 
 namespace QtAda::core {
@@ -324,8 +349,9 @@ QuickEventFilter::QuickEventFilter(QObject *parent) noexcept
         filters::qScrollBarFilter,
         filters::qComboBoxContainerFilter,
         filters::qTumblerFilter,
-        // Обязательно последним:
+        // Обязательно в таком порядке:
         filters::qButtonsFilter,
+        filters::qItemViewFilter,
     };
 
     signalMouseFilters_ = {
