@@ -44,6 +44,8 @@ enum class QuickClass {
     ComboBox,
     ItemDelegate,
     Tumbler,
+    MenuBarItem,
+    MenuItem,
     None,
 };
 

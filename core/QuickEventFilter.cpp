@@ -23,6 +23,8 @@ static const std::map<QuickClass, std::pair<QLatin1String, size_t>> s_quickMetaM
     { QuickClass::ComboBox, { QLatin1String("QQuickComboBox"), 1 } },
     { QuickClass::ItemDelegate, { QLatin1String("QQuickItemDelegate"), 1 } },
     { QuickClass::Tumbler, { QLatin1String("QQuickTumbler"), 3 } },
+    { QuickClass::MenuBarItem, { QLatin1String("QQuickMenuBarItem"), 1 } },
+    { QuickClass::MenuItem, { QLatin1String("QQuickMenuItem"), 1 } },
 };
 
 //! TODO: если будут использоваться только в одной функции, то перенести объявление в эти функции
@@ -47,6 +49,8 @@ static QString qButtonsFilter(const QQuickItem *item, const QMouseEvent *event) 
         QuickClass::RadioButton,
         QuickClass::CheckBox,
         QuickClass::Switch,
+        QuickClass::MenuBarItem,
+        QuickClass::MenuItem,
         // Обязательно последним:
         QuickClass::Button,
     };
@@ -80,7 +84,7 @@ static QString qButtonsFilter(const QQuickItem *item, const QMouseEvent *event) 
             .arg(utils::objectPath(currentItem));
     }
 
-    // Для QRadioButton и QTabButton, хоть они и checkable, нам это не важно,
+    // Для RadioButton и TabButton, хоть они и checkable, нам это не важно,
     // так как сколько по нему не кликай, он всегда будет checked.
     const auto isCheckable
         = currentClass != QuickClass::RadioButton && currentClass != QuickClass::TabButton
