@@ -9,16 +9,15 @@ public:
     QuickEventFilter(QObject *parent = nullptr) noexcept;
 
     void setMousePressFilter(const QObject *obj, const QEvent *event) noexcept override;
-    void handleKeyEvent(const QObject *obj, const QEvent *event) noexcept override
-    {
-        return;
-    }
+    void handleKeyEvent(const QObject *obj, const QEvent *event) noexcept override;
 
 signals:
     void newScriptKeyLine(const QString &line) const;
     void newPostReleaseScriptLine(const QString &line) const;
 
 private slots:
+    void callKeyFilters() noexcept override;
+
     //! TODO: на текущий момент для QtQuick-компонентов приходится использовать
     //! "стандартную" систему `сигнал-слот`, из-за чего приходится явно прописывать слоты.
     void processSignalSlot() noexcept
@@ -52,11 +51,6 @@ private slots:
         postReleaseWatchDog_.clear();
     }
 
-    void callKeyFilters() noexcept override
-    {
-        return;
-    }
-
 private:
     enum class PressFilterType {
         Default,
@@ -65,13 +59,10 @@ private:
         PostReleaseWithoutTimer,
     };
 
-    void processKeyEvent(const QString &text) noexcept override
-    {
-        return;
-    }
     std::pair<QString, bool> callMouseFilters(const QObject *obj, const QEvent *event,
                                               bool isContinuous,
                                               bool isSpecialEvent) noexcept override;
+    void processKeyEvent(const QString &text) noexcept override;
 
     /*
      * Сейчас используется только для QtQuick. Проблема в том, что много 'важных для нас'

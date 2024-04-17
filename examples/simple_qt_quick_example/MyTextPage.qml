@@ -76,7 +76,7 @@ MyPage {
 
                 TextEdit {
                     anchors.fill: parent
-                    text: "Orignal TextField"
+                    text: "Orignal TextEdit"
                     font.pixelSize: MyStyle.px(20)
                 }
 

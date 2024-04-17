@@ -738,7 +738,7 @@ static QString qTextFocusFilters(const QWidget *widget, const QMouseEvent *event
     for (const auto &widgetClass : s_processedTextWidgets) {
         if (auto *foundWidget
             = utils::searchSpecificComponent(widget, s_widgetMetaMap.at(widgetClass))) {
-            QString widgetClassStr;
+            QLatin1String widgetClassStr;
             switch (widgetClass) {
             case WidgetClass::TextEdit:
                 widgetClassStr = QLatin1String("QTextEdit");
@@ -758,7 +758,6 @@ static QString qTextFocusFilters(const QWidget *widget, const QMouseEvent *event
                 Q_UNREACHABLE();
             }
 
-            const auto clickPos = foundWidget->mapFromGlobal(event->globalPos());
             return QStringLiteral("// Looks like focus click on %1\n// %2")
                 .arg(widgetClassStr)
                 .arg(filters::qMouseEventHandler(foundWidget, event));
@@ -766,7 +765,6 @@ static QString qTextFocusFilters(const QWidget *widget, const QMouseEvent *event
     }
     return QString();
 }
-
 } // namespace QtAda::core::filters
 
 namespace QtAda::core {
@@ -1054,7 +1052,7 @@ void WidgetEventFilter::callKeyFilters() noexcept
     case WidgetClass::PlainTextEdit: {
         auto *plainTextEdit = qobject_cast<const QPlainTextEdit *>(keyWidget);
         assert(plainTextEdit != nullptr);
-        processKeyEvent(std::move(plainTextEdit->toPlainText()));
+        processKeyEvent(plainTextEdit->toPlainText());
         return;
     }
     case WidgetClass::LineEdit: {
@@ -1082,6 +1080,7 @@ void WidgetEventFilter::callKeyFilters() noexcept
 
 void WidgetEventFilter::processKeyEvent(const QString &text) noexcept
 {
+    assert(keyWatchDog_.component != nullptr);
     QModelIndex index;
     const auto viewWidget = utils::searchSpecificComponent(
         keyWatchDog_.component, filters::s_widgetMetaMap.at(WidgetClass::ItemView));

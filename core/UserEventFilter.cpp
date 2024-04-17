@@ -149,6 +149,7 @@ bool UserEventFilter::eventFilter(QObject *obj, QEvent *event) noexcept
             break;
         }
         case QEvent::KeyPress: {
+            const auto path = utils::objectPath(obj);
             if (lastKeyEvent_.registerEvent(utils::objectPath(obj), event)) {
                 currentFilter_->handleKeyEvent(obj, event);
             }

@@ -28,10 +28,18 @@ static const std::map<QuickClass, std::pair<QLatin1String, size_t>> s_quickMetaM
     { QuickClass::ItemView, { QLatin1String("QQuickItemView"), 1 } },
     { QuickClass::PathView, { QLatin1String("QQuickPathView"), 1 } },
     { QuickClass::SwipeView, { QLatin1String("QQuickSwipeView"), 2 } },
+    { QuickClass::TextInput, { QLatin1String("QQuickTextInput"), 1 } },
+    { QuickClass::TextEdit, { QLatin1String("QQuickTextEdit"), 1 } },
+    //! { QuickClass::TextField, { QLatin1String("QQuickTextField"), 1 } },
+    //! { QuickClass::TextArea, { QLatin1String("QQuickTextArea"), 1 } },
 };
 
-//! TODO: если будут использоваться только в одной функции, то перенести объявление в эти функции
-static const std::vector<QuickClass> s_processedTextWidgets = {};
+static const std::vector<QuickClass> s_processedTextItems = {
+    //! QuickClass::TextArea,
+    //! QuickClass::TextField,
+    QuickClass::TextEdit,
+    QuickClass::TextInput,
+};
 
 static const std::vector<QuickClass> s_processedSliders = {
     QuickClass::RangeSlider,
@@ -383,6 +391,31 @@ static QString qSwipeViewFilter(const QQuickItem *item, const QMouseEvent *event
         .arg(utils::objectPath(item))
         .arg(index);
 }
+
+static QString qTextFocusFilters(const QQuickItem *item, const QMouseEvent *event) noexcept
+{
+    for (const auto &quickClass : s_processedTextItems) {
+        if (auto *foundWidget
+            = utils::searchSpecificComponent(item, s_quickMetaMap.at(quickClass))) {
+            QLatin1String quickClassStr;
+            switch (quickClass) {
+            case QuickClass::TextInput:
+                quickClassStr = QLatin1String("TextInput");
+                break;
+            case QuickClass::TextEdit:
+                quickClassStr = QLatin1String("TextEdit");
+                break;
+            default:
+                Q_UNREACHABLE();
+            }
+
+            return QStringLiteral("// Looks like focus click on %1\n// %2")
+                .arg(quickClassStr)
+                .arg(filters::qMouseEventHandler(foundWidget, event));
+        }
+    }
+    return QString();
+}
 } // namespace QtAda::core::filters
 
 namespace QtAda::core {
@@ -397,6 +430,7 @@ QuickEventFilter::QuickEventFilter(QObject *parent) noexcept
         filters::qButtonsFilter,
         filters::qSwipeViewFilter,
         filters::qItemViewFilter,
+        filters::qTextFocusFilters,
     };
 
     signalMouseFilters_ = {
@@ -424,6 +458,10 @@ std::pair<QString, bool> QuickEventFilter::callMouseFilters(const QObject *obj, 
     if (item == nullptr) {
         return empty;
     }
+
+    // Считаем, что любое нажатие мышью или какое-либо специальное событие
+    // обозначает конец редактирования текста.
+    callKeyFilters();
 
     //! TODO: место под specificFilters
 
@@ -612,5 +650,71 @@ void QuickEventFilter::setMousePressFilter(const QObject *obj, const QEvent *eve
             Q_UNREACHABLE();
         }
     }
+}
+
+void QuickEventFilter::handleKeyEvent(const QObject *obj, const QEvent *event) noexcept
+{
+    auto *item = qobject_cast<const QQuickItem *>(obj);
+    if (item == nullptr || event == nullptr) {
+        return;
+    }
+
+    // Изменение фокуса (при условии, что фокус переводится с уже зарегестрированного объекта)
+    // считаем сигналом о завершении редактирования текста
+    if (event->type() == QEvent::FocusAboutToChange && item == keyWatchDog_.component) {
+        callKeyFilters();
+    }
+
+    if (event->type() != QEvent::KeyPress) {
+        return;
+    }
+
+    if (keyWatchDog_.component != item) {
+        callKeyFilters();
+    }
+
+    for (const auto &quickClass : filters::s_processedTextItems) {
+        if (auto *foundItem
+            = utils::searchSpecificComponent(item, filters::s_quickMetaMap.at(quickClass))) {
+            keyWatchDog_.component = foundItem;
+            keyWatchDog_.componentClass = quickClass;
+            keyWatchDog_.timer.start();
+            return;
+        }
+    }
+
+    flushKeyEvent(filters::qKeyEventHandler(item, event));
+}
+
+void QuickEventFilter::callKeyFilters() noexcept
+{
+    if (keyWatchDog_.component == nullptr || keyWatchDog_.componentClass == QuickClass::None) {
+        return;
+    }
+
+    switch (keyWatchDog_.componentClass) {
+    case QuickClass::TextInput:
+    case QuickClass::TextEdit: {
+        const auto text
+            = utils::getFromVariant<QString>(QQmlProperty::read(keyWatchDog_.component, "text"));
+        processKeyEvent(std::move(text));
+        return;
+    }
+    default:
+        Q_UNREACHABLE();
+    }
+}
+
+void QuickEventFilter::processKeyEvent(const QString &text) noexcept
+{
+    assert(keyWatchDog_.component != nullptr);
+    //! TODO: Как и для QtWidgets, для QtQuick желательно учитывать, если текстовый
+    //! элемент находится в View компоненте, но так как для делегатов "трудно" получать
+    //! родителя, то пока откладываем.
+    const auto keyLine = QStringLiteral("setText('%1', '%3');")
+                             .arg(utils::objectPath(keyWatchDog_.component))
+                             .arg(utils::escapeText(std::move(text)));
+    flushKeyEvent(std::move(keyLine));
+    keyWatchDog_.clear();
 }
 } // namespace QtAda::core

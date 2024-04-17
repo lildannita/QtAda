@@ -110,6 +110,6 @@ bool LastWheelEvent::registerEvent(const QString &path, const QEvent *event) noe
     type = event->type();
     timestamp = now;
 
-    return LastEvent::registerEvent(path, event);
+    return true;
 }
 } // namespace QtAda::core
