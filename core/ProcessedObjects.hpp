@@ -48,7 +48,8 @@ enum class QuickClass {
     MenuItem,
     ItemView,
     PathView,
-    // SwipeView,
+    SwipeView,
+    Flickable,
     None,
 };
 

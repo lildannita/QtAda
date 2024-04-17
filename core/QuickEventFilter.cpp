@@ -27,7 +27,8 @@ static const std::map<QuickClass, std::pair<QLatin1String, size_t>> s_quickMetaM
     { QuickClass::MenuItem, { QLatin1String("QQuickMenuItem"), 1 } },
     { QuickClass::ItemView, { QLatin1String("QQuickItemView"), 1 } },
     { QuickClass::PathView, { QLatin1String("QQuickPathView"), 1 } },
-    // { QuickClass::SwipeView, { QLatin1String("QQuickSwipeView"), 2 } },
+    { QuickClass::SwipeView, { QLatin1String("QQuickSwipeView"), 2 } },
+    { QuickClass::Flickable, { QLatin1String("QQuickFlickable"), 1 } },
 };
 
 //! TODO: если будут использоваться только в одной функции, то перенести объявление в эти функции
@@ -346,6 +347,7 @@ static QString qItemViewFilter(const QQuickItem *item, const QMouseEvent *event)
 static QString qPathViewFilter(const QQuickItem *item, const QMouseEvent *event,
                                const ExtraInfoForDelayed &extra) noexcept
 {
+    Q_UNUSED(extra);
     if (!utils::mouseEventCanBeFiltered(item, event, true)) {
         return QString();
     }
@@ -361,22 +363,24 @@ static QString qPathViewFilter(const QQuickItem *item, const QMouseEvent *event,
     return QStringLiteral("selectViewItem('%1', %2)").arg(utils::objectPath(item)).arg(index);
 }
 
-// static QString qSwipeViewFilter(const QQuickItem *item, const QMouseEvent *event) noexcept
-// {
-//     if (!utils::mouseEventCanBeFiltered(item, event)) {
-//         return QString();
-//     }
+static QString qSwipeViewFilter(const QQuickItem *item, const QMouseEvent *event,
+                                const ExtraInfoForDelayed &extra) noexcept
+{
+    Q_UNUSED(extra);
+    if (!utils::mouseEventCanBeFiltered(item, event, true)) {
+        return QString();
+    }
 
-//     item = utils::searchSpecificComponent(item, s_quickMetaMap.at(QuickClass::SwipeView));
-//     if (item == nullptr) {
-//         return QString();
-//     }
+    item = utils::searchSpecificComponent(item, s_quickMetaMap.at(QuickClass::SwipeView));
+    if (item == nullptr) {
+        return QString();
+    }
 
-//     const auto index = utils::getFromVariant<int>(QQmlProperty::read(item, "currentIndex"));
-//     const auto count = utils::getFromVariant<int>(QQmlProperty::read(item, "count"));
-//     assert(index < count);
-//     return QStringLiteral("selectViewItem('%1', %2)").arg(utils::objectPath(item)).arg(index);
-// }
+    const auto index = utils::getFromVariant<int>(QQmlProperty::read(item, "currentIndex"));
+    const auto count = utils::getFromVariant<int>(QQmlProperty::read(item, "count"));
+    assert(index < count);
+    return QStringLiteral("selectViewItem('%1', %2)").arg(utils::objectPath(item)).arg(index);
+}
 } // namespace QtAda::core::filters
 
 namespace QtAda::core {
@@ -391,7 +395,10 @@ QuickEventFilter::QuickEventFilter(QObject *parent) noexcept
         filters::qButtonsFilter,
         //! TODO: Пока что вообще непонятно как правильно обрабатывать изменение индекса
         //! в QQuickSwipeView, так как он не имеет никаких сигналов об "окончании" движения
-        //! или хотя бы об изменении индекса.
+        //! или хотя бы об изменении индекса. Сигнал об окончании движения может быть в
+        //! Flickable компоненте, но он не является родителем QQuickSwipeView, а может
+        //! являться родителем QQuickListView, который часто и используется в качестве
+        //! потомка QQuickSwipeView.
         // filters::qSwipeViewFilter,
         filters::qItemViewFilter,
     };
@@ -403,6 +410,7 @@ QuickEventFilter::QuickEventFilter(QObject *parent) noexcept
         { QuickClass::SpinBox, filters::qSpinBoxFilter },
         { QuickClass::ComboBox, filters::qComboBoxFilter },
         { QuickClass::PathView, filters::qPathViewFilter },
+        { QuickClass::SwipeView, filters::qSwipeViewFilter },
     };
 
     auto &postReleaseWatchDogTimer = postReleaseWatchDog_.timer;
@@ -432,13 +440,6 @@ std::pair<QString, bool> QuickEventFilter::callMouseFilters(const QObject *obj, 
     const auto delayedResult = delayedWatchDog_.callDelayedFilter(item, mouseEvent, isContinuous);
     if (delayedResult.has_value() && !(*delayedResult).isEmpty()) {
         return { *delayedResult, false };
-    }
-
-    for (auto &filter : mouseFilters_) {
-        const auto result = filter(item, mouseEvent);
-        if (!result.isEmpty()) {
-            return { result, false };
-        }
     }
 
     static auto generateUseless = [item, mouseEvent] {
@@ -503,6 +504,13 @@ std::pair<QString, bool> QuickEventFilter::callMouseFilters(const QObject *obj, 
         }
     }
 
+    for (auto &filter : mouseFilters_) {
+        const auto result = filter(item, mouseEvent);
+        if (!result.isEmpty()) {
+            return { result, false };
+        }
+    }
+
     return empty;
 }
 
@@ -525,6 +533,7 @@ void QuickEventFilter::setMousePressFilter(const QObject *obj, const QEvent *eve
     PressFilterType type = PressFilterType::Default;
     auto foundQuickClass = QuickClass::None;
     std::vector<QMetaObject::Connection> connections;
+    const QQuickItem *flickable = nullptr;
 
     const QQuickItem *currentSlider = nullptr;
     for (const auto &sliderClass : filters::s_processedSliders) {
@@ -568,16 +577,34 @@ void QuickEventFilter::setMousePressFilter(const QObject *obj, const QEvent *eve
         else if (auto *foundItem = utils::searchSpecificComponent(
                      item, filters::s_quickMetaMap.at(QuickClass::ComboBox))) {
             foundQuickClass = QuickClass::ComboBox;
-            type = PressFilterType::PostReleaseWithTimer;
+            type = PressFilterType::PostReleaseWithDelayedTimer;
             connections.push_back(QObject::connect(foundItem, SIGNAL(activated(int)), this,
                                                    SLOT(callPostReleaseSlotWithIntArgument(int))));
         }
         else if (auto *foundItem = utils::searchSpecificComponent(
                      item, filters::s_quickMetaMap.at(QuickClass::PathView))) {
+            flickable = utils::findQuickChild(foundItem,
+                                              filters::s_quickMetaMap.at(QuickClass::Flickable));
+            if (flickable == nullptr) {
+                break;
+            }
             foundQuickClass = QuickClass::PathView;
-            type = PressFilterType::PostReleaseWithoutTimer;
-            connections.push_back(QObject::connect(foundItem, SIGNAL(movementEnded()), this,
-                                                   SLOT(callPostReleaseSlotWithEmptyArgument())));
+            type = PressFilterType::PostReleaseWithTimer;
+            connections.push_back(QObject::connect(flickable, SIGNAL(movementStarted()), this,
+                                                   SLOT(initFlickableConnection())));
+        }
+        else if (auto *foundItem = utils::searchSpecificComponent(
+                     item, filters::s_quickMetaMap.at(QuickClass::SwipeView))) {
+            flickable = utils::findQuickChild(foundItem,
+                                              filters::s_quickMetaMap.at(QuickClass::Flickable));
+            if (flickable == nullptr) {
+                break;
+            }
+            foundQuickClass = QuickClass::SwipeView;
+            type = PressFilterType::PostReleaseWithTimer;
+            connections.push_back(QObject::connect(flickable, SIGNAL(movementStarted()), this,
+                                                   SLOT(initFlickableConnection())));
+            item = foundItem;
         }
         break;
     default:
@@ -597,12 +624,15 @@ void QuickEventFilter::setMousePressFilter(const QObject *obj, const QEvent *eve
                                            signalMouseFilters_.at(foundQuickClass));
             break;
         }
-        case PressFilterType::PostReleaseWithTimer:
-        case PressFilterType::PostReleaseWithoutTimer: {
+        case PressFilterType::PostReleaseWithDelayedTimer:
+        case PressFilterType::PostReleaseWithTimer: {
             assert(utils::connectionIsInit(connections) == true);
             postReleaseWatchDog_.initPostRelease(
                 item, mouseEvent, signalMouseFilters_.at(foundQuickClass), connections,
-                type == PressFilterType::PostReleaseWithTimer);
+                type == PressFilterType::PostReleaseWithDelayedTimer, flickable);
+            if (type == PressFilterType::PostReleaseWithTimer) {
+                postReleaseWatchDog_.startTimer();
+            }
             break;
         }
         default:

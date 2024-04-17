@@ -26,6 +26,18 @@ private slots:
         delayedWatchDog_.processSignal();
     }
 
+    void initFlickableConnection() noexcept
+    {
+        if (postReleaseWatchDog_.isInitForFlickableConnection()) {
+            handlePostReleaseTimeout();
+            return;
+        }
+        postReleaseWatchDog_.disconnectAll();
+        postReleaseWatchDog_.connections.push_back(
+            QObject::connect(postReleaseWatchDog_.flickable, SIGNAL(movementEnded()), this,
+                             SLOT(callPostReleaseSlotWithEmptyArgument())));
+    }
+
     void callPostReleaseSlotWithEmptyArgument()
     {
         callPostReleaseSlot(std::nullopt);
@@ -62,16 +74,8 @@ private:
         Default,
         Fake,
         PostReleaseWithTimer,
-        PostReleaseWithoutTimer,
+        PostReleaseWithDelayedTimer,
     };
-
-    void processKeyEvent(const QString &text) noexcept override
-    {
-        return;
-    }
-    std::pair<QString, bool> callMouseFilters(const QObject *obj, const QEvent *event,
-                                              bool isContinuous,
-                                              bool isSpecialEvent) noexcept override;
 
     /*
      * Сейчас используется только для QtQuick. Проблема в том, что много 'важных для нас'
@@ -89,15 +93,25 @@ private:
         ExtraInfoForDelayed extra;
         bool needToStartTimer = false;
 
+        /*
+         * Используется для правильной обработки изменения текущего индекса в компонентах
+         * типа QQuickPathView и QQuickSwitchView. Когда мы находим эти компоненты, то
+         * подключаем только сигнал movementStarted(), слот которого должен подключить
+         * этот же указатель на QQuickFlickable к movementEnded(), который и приведет к
+         * обработке события изменения текущего индекса.
+         */
+        const QQuickItem *flickable = nullptr;
+
         void initPostRelease(const QQuickItem *component, const QEvent *event,
                              const SignalMouseFilterFunction &filter, Connections &connections,
-                             bool timerNeed) noexcept
+                             bool timerNeed, const QQuickItem *flick = nullptr) noexcept
         {
             causedEvent = utils::cloneMouseEvent(event);
             causedComponent = component;
             mouseFilter = filter;
             connections = connections;
             needToStartTimer = timerNeed;
+            flickable = flick;
         }
 
         void startTimer() noexcept
@@ -135,6 +149,11 @@ private:
             return mouseFilter.has_value() && causedComponent != nullptr;
         }
 
+        bool isInitForFlickableConnection()
+        {
+            return isInit() && flickable != nullptr;
+        }
+
         std::optional<QString> callPostReleaseFilter(std::optional<QVariant> forExtra) noexcept
         {
             if (forExtra.has_value() && forExtra->canConvert<int>()) {
@@ -145,5 +164,14 @@ private:
                             : std::nullopt;
         }
     } postReleaseWatchDog_;
+
+    void processKeyEvent(const QString &text) noexcept override
+    {
+        return;
+    }
+
+    std::pair<QString, bool> callMouseFilters(const QObject *obj, const QEvent *event,
+                                              bool isContinuous,
+                                              bool isSpecialEvent) noexcept override;
 };
 } // namespace QtAda::core

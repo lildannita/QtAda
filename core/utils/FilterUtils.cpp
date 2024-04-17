@@ -230,4 +230,21 @@ QString selectedCellsData(const QItemSelectionModel *selectionModel) noexcept
 
     return result;
 }
+
+const QQuickItem *findQuickChild(const QQuickItem *item,
+                                 const std::pair<QLatin1String, size_t> &classDesignation) noexcept
+{
+    for (auto *child : item->children()) {
+        auto *childItem = qobject_cast<const QQuickItem *>(child);
+        if (childItem == nullptr) {
+            continue;
+        }
+
+        if (searchSpecificComponent(childItem, classDesignation) != nullptr) {
+            return childItem;
+            break;
+        }
+    }
+    return nullptr;
+}
 } // namespace QtAda::core::utils

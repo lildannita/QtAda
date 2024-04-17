@@ -51,7 +51,9 @@ std::pair<const GuiComponent *, size_t> searchSpecificComponentWithIteration(
         parentGetter = [](const GuiComponent *component) { return component->parentWidget(); };
     }
     else {
-        parentGetter = [](const GuiComponent *component) { return component->parentItem(); };
+        parentGetter = [](const GuiComponent *component) {
+            return qobject_cast<const QQuickItem *>(component->parent());
+        };
     }
 
     for (size_t i = 1; i <= classDesignation.second && component != nullptr; i++) {
@@ -216,4 +218,7 @@ bool isObjectAncestor(const GuiComponent *ancestorComponent,
 QString widgetIdInView(const QWidget *widget, const int index,
                        const WidgetClass widgetClass) noexcept;
 QString selectedCellsData(const QItemSelectionModel *model) noexcept;
+
+const QQuickItem *findQuickChild(const QQuickItem *item,
+                                 const std::pair<QLatin1String, size_t> &classDesignation) noexcept;
 } // namespace QtAda::core::utils

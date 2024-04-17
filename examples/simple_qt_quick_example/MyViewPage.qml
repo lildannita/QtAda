@@ -258,6 +258,16 @@ MyPage {
                     verticalAlignment: Text.AlignVCenter
                 }
 
+                Item {
+                    Button {
+                        anchors.centerIn: parent
+                        width: parent.width / 3
+                        height: parent.height / 3
+                        text: "BUTTON"
+                        font.pixelSize: MyStyle.px(25)
+                    }
+                }
+
             }
 
             PageIndicator {
