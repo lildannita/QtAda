@@ -26,6 +26,7 @@ static const std::map<QuickClass, std::pair<QLatin1String, size_t>> s_quickMetaM
     { QuickClass::MenuBarItem, { QLatin1String("QQuickMenuBarItem"), 1 } },
     { QuickClass::MenuItem, { QLatin1String("QQuickMenuItem"), 1 } },
     { QuickClass::ItemView, { QLatin1String("QQuickItemView"), 1 } },
+    { QuickClass::PathView, { QLatin1String("QQuickPathView"), 1 } },
 };
 
 //! TODO: если будут использоваться только в одной функции, то перенести объявление в эти функции
@@ -315,6 +316,7 @@ static QString qTumblerFilter(const QQuickItem *item, const QMouseEvent *event) 
     const auto delegateCount = utils::getFromVariant<int>(QQmlProperty::read(item, "currentIndex"));
     return QStringLiteral("selectItem('%1', %2);").arg(utils::objectPath(item)).arg(delegateCount);
 }
+
 static QString qItemViewFilter(const QQuickItem *item, const QMouseEvent *event) noexcept
 {
     if (!utils::mouseEventCanBeFiltered(item, event)) {
@@ -339,6 +341,24 @@ static QString qItemViewFilter(const QQuickItem *item, const QMouseEvent *event)
         .arg(utils::objectPath(item))
         .arg(index);
 }
+
+static QString qPathViewFilter(const QQuickItem *item, const QMouseEvent *event,
+                               const ExtraInfoForDelayed &extra) noexcept
+{
+    if (!utils::mouseEventCanBeFiltered(item, event, true)) {
+        return QString();
+    }
+
+    item = utils::searchSpecificComponent(item, s_quickMetaMap.at(QuickClass::PathView));
+    if (item == nullptr) {
+        return QString();
+    }
+
+    const auto index = utils::getFromVariant<int>(QQmlProperty::read(item, "currentIndex"));
+    const auto count = utils::getFromVariant<int>(QQmlProperty::read(item, "count"));
+    assert(index < count);
+    return QStringLiteral("selectPathItem('%1', %2)").arg(utils::objectPath(item)).arg(index);
+}
 } // namespace QtAda::core::filters
 
 namespace QtAda::core {
@@ -360,6 +380,7 @@ QuickEventFilter::QuickEventFilter(QObject *parent) noexcept
         { QuickClass::Dial, filters::qSliderFilter },
         { QuickClass::SpinBox, filters::qSpinBoxFilter },
         { QuickClass::ComboBox, filters::qComboBoxFilter },
+        { QuickClass::PathView, filters::qPathViewFilter },
     };
 
     auto &postReleaseWatchDogTimer = postReleaseWatchDog_.timer;
@@ -404,7 +425,12 @@ std::pair<QString, bool> QuickEventFilter::callMouseFilters(const QObject *obj, 
                               false);
     };
 
+    const std::pair<QString, bool> skip = { QString(), true };
     if (postReleaseWatchDog_.isInit()) {
+        if (!postReleaseWatchDog_.needToStartTimer) {
+            return skip;
+        }
+
         const auto delegateClickInfo = utils::getClickInformation(
             item, mouseEvent, filters::s_quickMetaMap.at(QuickClass::ItemDelegate));
         switch (delegateClickInfo) {
@@ -418,7 +444,7 @@ std::pair<QString, bool> QuickEventFilter::callMouseFilters(const QObject *obj, 
              */
             if (!postReleaseWatchDog_.isTimerActive()) {
                 postReleaseWatchDog_.startTimer();
-                return { QString(), true };
+                return skip;
             }
             return empty;
         }
@@ -470,6 +496,9 @@ void QuickEventFilter::setMousePressFilter(const QObject *obj, const QEvent *eve
     }
 
     delayedWatchDog_.clear();
+    if (postReleaseWatchDog_.isInit() && !postReleaseWatchDog_.needToStartTimer) {
+        postReleaseWatchDog_.clear();
+    }
 
     PressFilterType type = PressFilterType::Default;
     auto foundQuickClass = QuickClass::None;
@@ -517,9 +546,16 @@ void QuickEventFilter::setMousePressFilter(const QObject *obj, const QEvent *eve
         else if (auto *foundItem = utils::searchSpecificComponent(
                      item, filters::s_quickMetaMap.at(QuickClass::ComboBox))) {
             foundQuickClass = QuickClass::ComboBox;
-            type = PressFilterType::PostRelease;
+            type = PressFilterType::PostReleaseWithTimer;
             connections.push_back(QObject::connect(foundItem, SIGNAL(activated(int)), this,
-                                                   SLOT(callPostReleaseSlot(int))));
+                                                   SLOT(callPostReleaseSlotWithIntArgument(int))));
+        }
+        else if (auto *foundItem = utils::searchSpecificComponent(
+                     item, filters::s_quickMetaMap.at(QuickClass::PathView))) {
+            foundQuickClass = QuickClass::PathView;
+            type = PressFilterType::PostReleaseWithoutTimer;
+            connections.push_back(QObject::connect(foundItem, SIGNAL(movementEnded()), this,
+                                                   SLOT(callPostReleaseSlotWithEmptyArgument())));
         }
         break;
     default:
@@ -539,10 +575,12 @@ void QuickEventFilter::setMousePressFilter(const QObject *obj, const QEvent *eve
                                            signalMouseFilters_.at(foundQuickClass));
             break;
         }
-        case PressFilterType::PostRelease: {
+        case PressFilterType::PostReleaseWithTimer:
+        case PressFilterType::PostReleaseWithoutTimer: {
             assert(utils::connectionIsInit(connections) == true);
             postReleaseWatchDog_.initPostRelease(
-                item, mouseEvent, signalMouseFilters_.at(foundQuickClass), connections);
+                item, mouseEvent, signalMouseFilters_.at(foundQuickClass), connections,
+                type == PressFilterType::PostReleaseWithTimer);
             break;
         }
         default:

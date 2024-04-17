@@ -26,7 +26,17 @@ private slots:
         delayedWatchDog_.processSignal();
     }
 
-    void callPostReleaseSlot(int data) noexcept
+    void callPostReleaseSlotWithEmptyArgument()
+    {
+        callPostReleaseSlot(std::nullopt);
+    }
+
+    void callPostReleaseSlotWithIntArgument(int data)
+    {
+        callPostReleaseSlot(data);
+    }
+
+    void callPostReleaseSlot(std::optional<QVariant> data) noexcept
     {
         const auto result = postReleaseWatchDog_.callPostReleaseFilter(data);
         if (result.has_value() && !result->isEmpty()) {
@@ -51,7 +61,8 @@ private:
     enum class PressFilterType {
         Default,
         Fake,
-        PostRelease,
+        PostReleaseWithTimer,
+        PostReleaseWithoutTimer,
     };
 
     void processKeyEvent(const QString &text) noexcept override
@@ -76,15 +87,17 @@ private:
         Connections connections;
         std::optional<SignalMouseFilterFunction> mouseFilter = std::nullopt;
         ExtraInfoForDelayed extra;
+        bool needToStartTimer = false;
 
         void initPostRelease(const QQuickItem *component, const QEvent *event,
-                             const SignalMouseFilterFunction &filter,
-                             Connections &connections) noexcept
+                             const SignalMouseFilterFunction &filter, Connections &connections,
+                             bool timerNeed) noexcept
         {
             causedEvent = utils::cloneMouseEvent(event);
             causedComponent = component;
             mouseFilter = filter;
             connections = connections;
+            needToStartTimer = timerNeed;
         }
 
         void startTimer() noexcept
@@ -114,6 +127,7 @@ private:
             causedComponent = nullptr;
             causedEvent = nullptr;
             mouseFilter = std::nullopt;
+            needToStartTimer = false;
         }
 
         bool isInit() const noexcept
@@ -121,10 +135,10 @@ private:
             return mouseFilter.has_value() && causedComponent != nullptr;
         }
 
-        std::optional<QString> callPostReleaseFilter(QVariant forExtra) noexcept
+        std::optional<QString> callPostReleaseFilter(std::optional<QVariant> forExtra) noexcept
         {
-            if (forExtra.canConvert<int>()) {
-                extra.changeIndex = forExtra.toInt();
+            if (forExtra.has_value() && forExtra->canConvert<int>()) {
+                extra.changeIndex = forExtra->toInt();
             }
             return isInit() ? std::make_optional(
                        (*mouseFilter)(causedComponent, causedEvent.get(), extra))
