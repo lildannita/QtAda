@@ -27,7 +27,7 @@ static const std::map<QuickClass, std::pair<QLatin1String, size_t>> s_quickMetaM
     { QuickClass::MenuItem, { QLatin1String("QQuickMenuItem"), 1 } },
     { QuickClass::ItemView, { QLatin1String("QQuickItemView"), 1 } },
     { QuickClass::PathView, { QLatin1String("QQuickPathView"), 1 } },
-    // { QuickClass::SwipeView, { QLatin1String("QQuickSwipeView"), 2 } },
+    { QuickClass::SwipeView, { QLatin1String("QQuickSwipeView"), 2 } },
 };
 
 //! TODO: если будут использоваться только в одной функции, то перенести объявление в эти функции
@@ -361,22 +361,28 @@ static QString qPathViewFilter(const QQuickItem *item, const QMouseEvent *event,
     return QStringLiteral("selectViewItem('%1', %2)").arg(utils::objectPath(item)).arg(index);
 }
 
-// static QString qSwipeViewFilter(const QQuickItem *item, const QMouseEvent *event) noexcept
-// {
-//     if (!utils::mouseEventCanBeFiltered(item, event)) {
-//         return QString();
-//     }
+static QString qSwipeViewFilter(const QQuickItem *item, const QMouseEvent *event) noexcept
+{
+    if (!utils::mouseEventCanBeFiltered(item, event)) {
+        return QString();
+    }
 
-//     item = utils::searchSpecificComponent(item, s_quickMetaMap.at(QuickClass::SwipeView));
-//     if (item == nullptr) {
-//         return QString();
-//     }
+    item = utils::searchSpecificComponent(item, s_quickMetaMap.at(QuickClass::SwipeView));
+    if (item == nullptr) {
+        return QString();
+    }
 
-//     const auto index = utils::getFromVariant<int>(QQmlProperty::read(item, "currentIndex"));
-//     const auto count = utils::getFromVariant<int>(QQmlProperty::read(item, "count"));
-//     assert(index < count);
-//     return QStringLiteral("selectViewItem('%1', %2)").arg(utils::objectPath(item)).arg(index);
-// }
+    //! TODO: Пока эта обработка работает "плохо". Для правильной генерации пользователю
+    //! нужно четко довести мышью до полного отображения нужной страницы. Идея правильной
+    //! обработки этого компонента, а также и для PathView, лежит в ветке feature-flickablefilter.
+
+    const auto index = utils::getFromVariant<int>(QQmlProperty::read(item, "currentIndex"));
+    const auto count = utils::getFromVariant<int>(QQmlProperty::read(item, "count"));
+    assert(index < count);
+    return QStringLiteral("// It's better to checkout setted index.\nselectViewItem('%1', %2)")
+        .arg(utils::objectPath(item))
+        .arg(index);
+}
 } // namespace QtAda::core::filters
 
 namespace QtAda::core {
@@ -389,10 +395,7 @@ QuickEventFilter::QuickEventFilter(QObject *parent) noexcept
         filters::qTumblerFilter,
         // Обязательно в таком порядке:
         filters::qButtonsFilter,
-        //! TODO: Пока что вообще непонятно как правильно обрабатывать изменение индекса
-        //! в QQuickSwipeView, так как он не имеет никаких сигналов об "окончании" движения
-        //! или хотя бы об изменении индекса.
-        // filters::qSwipeViewFilter,
+        filters::qSwipeViewFilter,
         filters::qItemViewFilter,
     };
 

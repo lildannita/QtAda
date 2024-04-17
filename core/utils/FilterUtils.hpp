@@ -51,7 +51,13 @@ std::pair<const GuiComponent *, size_t> searchSpecificComponentWithIteration(
         parentGetter = [](const GuiComponent *component) { return component->parentWidget(); };
     }
     else {
-        parentGetter = [](const GuiComponent *component) { return component->parentItem(); };
+        //! TODO: Почему-то parentItem() часто возвращает каких-то "странных" родителей: либо не
+        //! тех, либо не всех. Причем текущий вариант делает по факту то же самое, но работает
+        //! правильнее. Нужно потестировать и понять в чем разница.
+        //! parentGetter = [](const GuiComponent *component) { return component->parentItem(); };
+        parentGetter = [](const GuiComponent *component) {
+            return qobject_cast<const QQuickItem *>(component->parent());
+        };
     }
 
     for (size_t i = 1; i <= classDesignation.second && component != nullptr; i++) {
