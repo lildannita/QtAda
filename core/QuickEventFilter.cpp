@@ -32,6 +32,7 @@ static const std::map<QuickClass, std::pair<QLatin1String, size_t>> s_quickMetaM
     { QuickClass::TextEdit, { QLatin1String("QQuickTextEdit"), 1 } },
     //! { QuickClass::TextField, { QLatin1String("QQuickTextField"), 1 } },
     //! { QuickClass::TextArea, { QLatin1String("QQuickTextArea"), 1 } },
+    { QuickClass::Window, { QLatin1String("QQuickWindow"), 1 } },
 };
 
 static const std::vector<QuickClass> s_processedTextItems = {
@@ -450,8 +451,7 @@ QuickEventFilter::QuickEventFilter(QObject *parent) noexcept
 }
 
 std::pair<QString, bool> QuickEventFilter::callMouseFilters(const QObject *obj, const QEvent *event,
-                                                            bool isContinuous,
-                                                            bool isSpecialEvent) noexcept
+                                                            bool isContinuous) noexcept
 {
     const std::pair<QString, bool> empty = { QString(), false };
     auto *item = qobject_cast<const QQuickItem *>(obj);
@@ -462,8 +462,6 @@ std::pair<QString, bool> QuickEventFilter::callMouseFilters(const QObject *obj, 
     // Считаем, что любое нажатие мышью или какое-либо специальное событие
     // обозначает конец редактирования текста.
     callKeyFilters();
-
-    //! TODO: место под specificFilters
 
     auto *mouseEvent = static_cast<const QMouseEvent *>(event);
     if (mouseEvent == nullptr) {
@@ -716,5 +714,19 @@ void QuickEventFilter::processKeyEvent(const QString &text) noexcept
                              .arg(utils::escapeText(std::move(text)));
     flushKeyEvent(std::move(keyLine));
     keyWatchDog_.clear();
+}
+
+QString QuickEventFilter::handleCloseEvent(const QObject *obj, const QEvent *event) noexcept
+{
+    if (obj == nullptr || event == nullptr
+        || (event != nullptr && event->type() != QEvent::Close)) {
+        return QString();
+    }
+
+    if (utils::metaObjectWatcher(obj->metaObject(),
+                                 filters::s_quickMetaMap.at(QuickClass::Window).first)) {
+        return QStringLiteral("closeWindow(%1);").arg(utils::objectPath(obj));
+    }
+    Q_UNREACHABLE();
 }
 } // namespace QtAda::core

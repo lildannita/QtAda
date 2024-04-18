@@ -10,6 +10,7 @@ public:
 
     void setMousePressFilter(const QObject *obj, const QEvent *event) noexcept override;
     void handleKeyEvent(const QObject *obj, const QEvent *event) noexcept override;
+    QString handleCloseEvent(const QObject *obj, const QEvent *event) noexcept override;
 
 signals:
     void newScriptKeyLine(const QString &line) const;
@@ -60,8 +61,7 @@ private:
     };
 
     std::pair<QString, bool> callMouseFilters(const QObject *obj, const QEvent *event,
-                                              bool isContinuous,
-                                              bool isSpecialEvent) noexcept override;
+                                              bool isContinuous) noexcept override;
     void processKeyEvent(const QString &text) noexcept override;
 
     /*

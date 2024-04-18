@@ -67,7 +67,6 @@ private:
             emit newScriptLine(*line);
         }
     }
-    MouseEventInfo mouseEventInfo(bool isSpecial = false,
-                                  const QString &objPath = QString()) const noexcept;
+    MouseEventInfo mouseEventInfo(const QString &objPath = QString()) const noexcept;
 };
 } // namespace QtAda::core

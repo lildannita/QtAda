@@ -38,12 +38,10 @@ UserEventFilter::UserEventFilter(QObject *parent) noexcept
             [](const QString &line) { std::cout << line.toStdString() << std::endl; });
 }
 
-MouseEventInfo UserEventFilter::mouseEventInfo(bool isSpecial,
-                                               const QString &objPath) const noexcept
+MouseEventInfo UserEventFilter::mouseEventInfo(const QString &objPath) const noexcept
 {
     MouseEventInfo result;
     result.duplicateMouseEvent = duplicateMouseEvent_;
-    result.isSpecialEvent = isSpecial;
     result.isContinuous = lastReleaseEvent_.isContinuous(lastPressEvent_);
     result.objPath = std::move(objPath);
     return result;
@@ -67,6 +65,11 @@ bool UserEventFilter::eventFilter(QObject *obj, QEvent *event) noexcept
             currentFilter_ = quickFilter_;
         }
         else {
+            if (event->type() == QEvent::Close) {
+                // Для QtQuick дилоги и окна приложений не являются QQuickItem.
+                flushScriptLine(quickFilter_->handleCloseEvent(obj, event));
+            }
+
             // Если оба каста не получились, то QObject - не компонент GUI
             return QObject::eventFilter(obj, event);
         }
@@ -110,27 +113,26 @@ bool UserEventFilter::eventFilter(QObject *obj, QEvent *event) noexcept
             }
 
             if (doubleClickTimer_.isActive()) {
-                delayedScriptLine_ = currentFilter_->handleMouseEvent(
-                    obj, event, mouseEventInfo(false, std::move(path)));
+                delayedScriptLine_
+                    = currentFilter_->handleMouseEvent(obj, event, mouseEventInfo(std::move(path)));
             }
             else {
                 if (doubleClickDetected_) {
                     doubleClickDetected_ = false;
                     if (lastReleaseEvent_.isContinuous(lastPressEvent_)) {
                         flushScriptLine(currentFilter_->handleMouseEvent(
-                            obj, event, mouseEventInfo(false, std::move(path))));
+                            obj, event, mouseEventInfo(std::move(path))));
                     }
                     else if (delayedMouseEvent_.has_value()) {
                         assert(*delayedMouseEvent_ != nullptr);
                         flushScriptLine(currentFilter_->handleMouseEvent(
-                            obj, delayedMouseEvent_->get(),
-                            mouseEventInfo(false, std::move(path))));
+                            obj, delayedMouseEvent_->get(), mouseEventInfo(std::move(path))));
                     }
                     clearDelayed();
                 }
                 else {
                     flushScriptLine(currentFilter_->handleMouseEvent(
-                        obj, event, mouseEventInfo(false, std::move(path))));
+                        obj, event, mouseEventInfo(std::move(path))));
                 }
             }
             lastPressEvent_.clearEvent();
@@ -163,7 +165,7 @@ bool UserEventFilter::eventFilter(QObject *obj, QEvent *event) noexcept
             break;
         }
         case QEvent::Close: {
-            flushScriptLine(currentFilter_->handleMouseEvent(obj, event, mouseEventInfo(true)));
+            flushScriptLine(currentFilter_->handleCloseEvent(obj, event));
             break;
         }
         default:

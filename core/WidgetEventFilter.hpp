@@ -27,6 +27,7 @@ public:
 
     void setMousePressFilter(const QObject *obj, const QEvent *event) noexcept override;
     void handleKeyEvent(const QObject *obj, const QEvent *event) noexcept override;
+    QString handleCloseEvent(const QObject *obj, const QEvent *event) noexcept override;
 
 signals:
     void newScriptKeyLine(const QString &line) const;
@@ -35,9 +36,10 @@ private slots:
     void callKeyFilters() noexcept override;
 
 private:
+    std::vector<MouseFilterFunction> specificMouseFilters_;
+
     void processKeyEvent(const QString &text) noexcept override;
     std::pair<QString, bool> callMouseFilters(const QObject *obj, const QEvent *event,
-                                              bool isContinuous,
-                                              bool isSpecialEvent) noexcept override;
+                                              bool isContinuous) noexcept override;
 };
 } // namespace QtAda::core

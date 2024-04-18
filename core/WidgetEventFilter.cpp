@@ -708,31 +708,6 @@ static QString qTabBarFilter(const QWidget *widget, const QMouseEvent *event) no
                                    : QStringLiteral(" // Tab item text: '%1'").arg(currentText));
 }
 
-static QString qCloseFilter(const QWidget *widget, const QEvent *event) noexcept
-{
-    // Здесь обрабатываем только закрытие какого-либо окна приложения
-    if (widget == nullptr || event == nullptr
-        || (event != nullptr && event->type() != QEvent::Close)) {
-        return QString();
-    }
-
-    if (utils::searchSpecificComponent(widget, s_widgetMetaMap.at(WidgetClass::Dialog))
-        != nullptr) {
-        return QStringLiteral("closeDialog(%1);").arg(utils::objectPath(widget));
-    }
-    if (utils::searchSpecificComponent(widget, s_widgetMetaMap.at(WidgetClass::Window))
-        != nullptr) {
-        return QStringLiteral("closeWindow(%1);").arg(utils::objectPath(widget));
-    }
-
-    //! TODO: Сейчас проблема в том, что при закрытии QMenu эта строка генерируется, чем
-    //! произведено нажатие на какой-либо QAction в этом QMenu. Но нужна ли нам вообще
-    //! строка?
-    //! return QStringLiteral("// Looks like this QEvent::Close is not important\nclose(%1);")
-    //!    .arg(utils::objectPath(widget));
-    return QString();
-}
-
 static QString qTextFocusFilters(const QWidget *widget, const QMouseEvent *event) noexcept
 {
     for (const auto &widgetClass : s_processedTextWidgets) {
@@ -803,15 +778,11 @@ WidgetEventFilter::WidgetEventFilter(QObject *parent) noexcept
         { WidgetClass::UndoView, filters::qUndoViewFilter },
         { WidgetClass::ItemView, filters::qItemViewSelectionFilter },
     };
-
-    specialFilters_ = {
-        filters::qCloseFilter,
-    };
 }
 
 std::pair<QString, bool> WidgetEventFilter::callMouseFilters(const QObject *obj,
-                                                             const QEvent *event, bool isContinuous,
-                                                             bool isSpecialEvent) noexcept
+                                                             const QEvent *event,
+                                                             bool isContinuous) noexcept
 {
     const std::pair<QString, bool> empty = { QString(), false };
     auto *widget = qobject_cast<const QWidget *>(obj);
@@ -822,16 +793,6 @@ std::pair<QString, bool> WidgetEventFilter::callMouseFilters(const QObject *obj,
     // Считаем, что любое нажатие мышью или какое-либо специальное событие
     // обозначает конец редактирования текста.
     callKeyFilters();
-
-    if (isSpecialEvent) {
-        for (auto &filter : specialFilters_) {
-            const auto result = filter(widget, event);
-            if (!result.isEmpty()) {
-                return { result, false };
-            }
-        }
-        return empty;
-    }
 
     if (delayedWatchDog_.specificResultCanBeShown(widget)) {
         return { delayedWatchDog_.specificResult, false };
@@ -1100,5 +1061,33 @@ void WidgetEventFilter::processKeyEvent(const QString &text) noexcept
     flushKeyEvent(std::move(keyLine));
 
     keyWatchDog_.clear();
+}
+
+QString WidgetEventFilter::handleCloseEvent(const QObject *obj, const QEvent *event) noexcept
+{
+    if (obj == nullptr || event == nullptr
+        || (event != nullptr && event->type() != QEvent::Close)) {
+        return QString();
+    }
+
+    auto *widget = qobject_cast<const QWidget *>(obj);
+    assert(widget != nullptr);
+
+    if (utils::searchSpecificComponent(widget, filters::s_widgetMetaMap.at(WidgetClass::Dialog))
+        != nullptr) {
+        return QStringLiteral("closeDialog(%1);").arg(utils::objectPath(widget));
+    }
+    else if (utils::searchSpecificComponent(widget,
+                                            filters::s_widgetMetaMap.at(WidgetClass::Window))
+             != nullptr) {
+        return QStringLiteral("closeWindow(%1);").arg(utils::objectPath(widget));
+    }
+
+    //! TODO: Сейчас проблема в том, что при закрытии QMenu эта строка генерируется, чем
+    //! произведено нажатие на какой-либо QAction в этом QMenu. Но нужна ли нам вообще
+    //! строка?
+    //! return QStringLiteral("// Looks like this QEvent::Close is not important\nclose(%1);")
+    //!    .arg(utils::objectPath(widget));
+    Q_UNREACHABLE();
 }
 } // namespace QtAda::core

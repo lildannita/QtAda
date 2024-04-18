@@ -59,6 +59,7 @@ enum class QuickClass {
     //! так что на этапе обработки событий может *скорее всего* они не нужны.
     //! TextField,
     //! TextArea,
+    Window,
     None,
 };
 

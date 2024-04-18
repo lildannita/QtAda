@@ -39,6 +39,18 @@ bool mouseEventCanBeFiltered(const GuiComponent *component, const QMouseEvent *e
                || type == QEvent::MouseButtonDblClick);
 }
 
+inline bool metaObjectWatcher(const QMetaObject *metaObject,
+                              const QLatin1String &className) noexcept
+{
+    while (metaObject != nullptr) {
+        if (className == metaObject->className()) {
+            return true;
+        }
+        metaObject = metaObject->superClass();
+    }
+    return false;
+}
+
 template <typename GuiComponent>
 std::pair<const GuiComponent *, size_t> searchSpecificComponentWithIteration(
     const GuiComponent *component,
@@ -61,12 +73,8 @@ std::pair<const GuiComponent *, size_t> searchSpecificComponentWithIteration(
     }
 
     for (size_t i = 1; i <= classDesignation.second && component != nullptr; i++) {
-        const auto *metaObject = component->metaObject();
-        while (metaObject != nullptr) {
-            if (classDesignation.first == metaObject->className()) {
-                return std::make_pair(component, i);
-            }
-            metaObject = metaObject->superClass();
+        if (metaObjectWatcher(component->metaObject(), classDesignation.first)) {
+            return std::make_pair(component, i);
         }
         component = parentGetter(component);
     }

@@ -42,7 +42,6 @@ struct ExtraInfoForDelayed final {
 
 struct MouseEventInfo final {
     bool isContinuous = false;
-    bool isSpecialEvent = false;
     bool duplicateMouseEvent = false;
     QString objPath = QString();
 };
@@ -61,8 +60,7 @@ public:
     std::optional<QString> handleMouseEvent(const QObject *obj, const QEvent *event,
                                             const MouseEventInfo &info) noexcept
     {
-        auto [scriptLine, skip]
-            = callMouseFilters(obj, event, info.isContinuous, info.isSpecialEvent);
+        auto [scriptLine, skip] = callMouseFilters(obj, event, info.isContinuous);
         if (skip) {
             // skip нужен для пропуска генерации в случае ожидания генерации от PostRelease
             return std::nullopt;
@@ -83,6 +81,7 @@ public:
     }
 
     virtual void handleKeyEvent(const QObject *obj, const QEvent *event) noexcept = 0;
+    virtual QString handleCloseEvent(const QObject *obj, const QEvent *event) noexcept = 0;
 
 signals:
     // Для MouseEvent имеется потребность "откладывать" сгенерированную строку, поэтому используем
@@ -93,8 +92,7 @@ signals:
 protected:
     virtual void processKeyEvent(const QString &text) noexcept = 0;
     virtual std::pair<QString, bool> callMouseFilters(const QObject *obj, const QEvent *event,
-                                                      bool isContinuous,
-                                                      bool isSpecialEvent) noexcept
+                                                      bool isContinuous) noexcept
         = 0;
 
 protected slots:
@@ -104,7 +102,6 @@ protected slots:
 template <typename GuiComponent, typename EnumType>
 class GuiEventFilter : public GuiEventFilterBase {
 protected:
-    using FilterFunction = std::function<QString(const GuiComponent *, const QEvent *)>;
     using MouseFilterFunction = std::function<QString(const GuiComponent *, const QMouseEvent *)>;
     using SignalMouseFilterFunction = std::function<QString(
         const GuiComponent *, const QMouseEvent *, const ExtraInfoForDelayed &)>;
@@ -124,9 +121,7 @@ protected:
     }
 
     std::vector<MouseFilterFunction> mouseFilters_;
-    std::vector<MouseFilterFunction> specificMouseFilters_;
     std::map<EnumType, SignalMouseFilterFunction> signalMouseFilters_;
-    std::vector<FilterFunction> specialFilters_;
 
     struct DelayedWatchDog {
         const GuiComponent *causedComponent = nullptr;
