@@ -66,6 +66,11 @@ bool LastMouseEvent::isContinuous(const LastMouseEvent &pressEvent) const noexce
 
 bool LastKeyEvent::registerEvent(const QString &path, const QEvent *event) noexcept
 {
+    //! TODO: KeyEvent для QtQuick работает очень странно - источниками сигнала
+    //! могут быть совершенно несвязанные друг с другом объекты, и вызов eventFilter()
+    //! для этих объектов вызывается непоследовательно, поэтому пути не проверяем,
+    //! ориентируемся только на timestamp события.
+    Q_UNUSED(path);
     auto *keyEvent = static_cast<const QKeyEvent *>(event);
     if (keyEvent == nullptr) {
         return false;
@@ -74,20 +79,21 @@ bool LastKeyEvent::registerEvent(const QString &path, const QEvent *event) noexc
     const auto now = QDateTime::currentDateTime();
     if (keyEvent->type() == type && std::llabs(now.msecsTo(timestamp)) < EVENT_TIME_DIFF_MS
         && keyEvent->key() == key) {
-        if (objectPath == path) {
-            return false;
-        }
-        const auto parentPath = objectPath.left(objectPath.lastIndexOf('/'));
-        if (parentPath == path) {
-            objectPath = path;
-            return false;
-        }
+        // if (objectPath == path) {
+        //     return false;
+        // }
+        // const auto parentPath = objectPath.left(objectPath.lastIndexOf('/'));
+        // if (parentPath == path) {
+        //     objectPath = path;
+        //     return false;
+        // }
+        return false;
     }
 
     type = keyEvent->type();
     timestamp = now;
     key = keyEvent->key();
-    objectPath = path;
+    // objectPath = path;
 
     return true;
 }
