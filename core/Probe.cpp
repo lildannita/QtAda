@@ -33,11 +33,11 @@ struct LilProbe {
 };
 Q_GLOBAL_STATIC(LilProbe, s_lilProbe)
 
-Probe::Probe(QObject *parent) noexcept
+Probe::Probe(const GenerationSettings &settings, QObject *parent) noexcept
     : QObject{ parent }
     , queueTimer_{ new QTimer(this) }
     , metaObjectHandler_{ new MetaObjectHandler(this) }
-    , userEventFilter_{ new UserEventFilter(this) }
+    , userEventFilter_{ new UserEventFilter(settings, this) }
 {
     Q_ASSERT(thread() == qApp->thread());
 
@@ -75,7 +75,7 @@ void Probe::kill() noexcept
     delete this;
 }
 
-void Probe::initProbe() noexcept
+void Probe::initProbe(const GenerationSettings &settings) noexcept
 {
     assert(qApp);
     assert(!initialized());
@@ -83,7 +83,7 @@ void Probe::initProbe() noexcept
     Probe *probe = nullptr;
     {
         ProbeGuard guard;
-        probe = new Probe();
+        probe = new Probe(settings);
     }
 
     connect(qApp, &QCoreApplication::aboutToQuit, probe, &Probe::kill);
@@ -126,14 +126,6 @@ bool Probe::eventFilter(QObject *reciever, QEvent *event)
     if (ProbeGuard::locked() && reciever->thread() == QThread::currentThread()) {
         return QObject::eventFilter(reciever, event);
     }
-
-    // const void *address = static_cast<const void*>(reciever);
-    // Получение имени типа события
-    // QEvent::Type eventType = event->type();
-    // const char* eventName = typeid(*event).name(); // Может требовать деманглинга в зависимости
-    // от компилятора Вывод информации std::cout << "Receiver address: " << address
-    //          << ", Event type: " << eventType
-    //          << ", Event name: " << eventName << std::endl;
 
     if (event->type() == QEvent::ChildAdded || event->type() == QEvent::ChildRemoved) {
         QChildEvent *childEvent = static_cast<QChildEvent *>(event);
@@ -198,7 +190,7 @@ bool Probe::eventFilter(QObject *reciever, QEvent *event)
         }
     }
 
-    /*!
+    /*
      * Если переопределение хуков не установлено, то и addObject/removeObject не работает,
      * из-за чего приходится на основе получаемых сигналов строить дерево элементов. Но такая
      * ситуация теоретически не может быть, однако это может быть полезно в будущем при

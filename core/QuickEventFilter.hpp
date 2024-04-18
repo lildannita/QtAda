@@ -6,7 +6,7 @@ namespace QtAda::core {
 class QuickEventFilter : public GuiEventFilter<QQuickItem, QuickClass> {
     Q_OBJECT
 public:
-    QuickEventFilter(QObject *parent = nullptr) noexcept;
+    QuickEventFilter(const GenerationSettings &settings, QObject *parent = nullptr) noexcept;
 
     void setMousePressFilter(const QObject *obj, const QEvent *event) noexcept override;
     void handleKeyEvent(const QObject *obj, const QEvent *event) noexcept override;
@@ -79,6 +79,11 @@ private:
         std::optional<SignalMouseFilterFunction> mouseFilter = std::nullopt;
         ExtraInfoForDelayed extra;
         bool needToStartTimer = false;
+
+        PostReleaseWatchDog(const GenerationSettings &settings)
+            : extra{ settings }
+        {
+        }
 
         void initPostRelease(const QQuickItem *component, const QEvent *event,
                              const SignalMouseFilterFunction &filter, Connections &connections,

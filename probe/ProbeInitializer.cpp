@@ -4,9 +4,10 @@
 
 #include <QCoreApplication>
 #include <QThread>
-#include <QDebug>
+#include <QFileInfo>
 
 namespace QtAda::probe {
+using namespace core;
 ProbeInitializer::ProbeInitializer() noexcept
 {
     moveToThread(QCoreApplication::instance()->thread());
@@ -25,9 +26,49 @@ void ProbeInitializer::initProbe() noexcept
 
     assert(QThread::currentThread() == qApp->thread());
 
-    core::Probe::initProbe();
-    assert(core::Probe::initialized());
+    Probe::initProbe(readSettings());
+    assert(Probe::initialized());
 
     deleteLater();
+}
+
+GenerationSettings ProbeInitializer::readSettings() const noexcept
+{
+    //! TODO: remove, когда будет готов GUI QtAda
+    qputenv("QTADA_GENERATION_SETTINGS",
+            "textIndexBehavoir=0;duplicateMouseEvent=0;scriptPath=/files/trash/qtada.js");
+
+    const auto envValue = qgetenv("QTADA_GENERATION_SETTINGS");
+    const auto settings = QString(envValue).split(';');
+    assert(settings.size() == GENERATION_SETTINGS_COUNT);
+
+    GenerationSettings generationSettings;
+    for (const auto &setting : settings) {
+        QStringList keyValuePair = setting.split('=');
+        assert(keyValuePair.size() == 2);
+        const auto key = keyValuePair[0].trimmed();
+        const auto value = keyValuePair[1].trimmed();
+
+        if (key == QLatin1String("textIndexBehavoir")) {
+            bool isOk = false;
+            const auto tibValue = value.toInt(&isOk);
+            assert(isOk && tibValue >= 0
+                   && tibValue < static_cast<int>(GenerationSettings::TextIndexBehavior::None));
+            generationSettings.textIndexBehavior
+                = static_cast<GenerationSettings::TextIndexBehavior>(tibValue);
+        }
+        else if (key == QLatin1String("duplicateMouseEvent")) {
+            bool isOk = false;
+            const auto dmeValue = value.toInt(&isOk);
+            assert(isOk && (dmeValue == 0 || dmeValue == 1));
+            generationSettings.duplicateMouseEvent = dmeValue != 0;
+        }
+        else if (key == QLatin1String("scriptPath")) {
+            generationSettings.scriptFileInfo = QFileInfo(value);
+        }
+    }
+
+    assert(generationSettings.isInit());
+    return generationSettings;
 }
 } // namespace QtAda::probe

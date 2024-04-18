@@ -11,6 +11,7 @@ set(core_MOC_HDRS
   WidgetEventFilter.hpp)
 set(core_HDRS
   ${core_MOC_HDRS}
+  GenerationSettings.hpp
   ProbeGuard.hpp
   MetaTypeDeclarations.hpp
   ProcessedObjects.hpp

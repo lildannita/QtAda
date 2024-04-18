@@ -30,6 +30,11 @@ bool PreloadInjector::launch(const QStringList &launchArgs, const QString &probe
      */
     _env.insert(QStringLiteral("QTADA_NEED_TO_UNSET_PRELOAD"), QStringLiteral("1"));
 
+    //! TODO: remove, когда будет готов GUI QtAda
+    _env.insert(QStringLiteral("QTADA_GENERATION_SETTINGS"),
+                QStringLiteral(
+                    "textIndexBehavoir=0;duplicateMouseEvent=0;scriptPath=/files/trash/qtada.js"));
+
     return injectAndLaunch(launchArgs, _env);
 }
 } // namespace QtAda::launcher::injector

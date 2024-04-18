@@ -9,6 +9,7 @@
 #include <QRegularExpression>
 #include <QString>
 
+#include "GenerationSettings.hpp"
 #include "ProcessedObjects.hpp"
 #include "utils/CommonFilters.hpp"
 
@@ -17,18 +18,29 @@ class QMouseEvent;
 QT_END_NAMESPACE
 
 namespace QtAda::core {
+struct MouseEventInfo final {
+    bool isContinuous = false;
+    QString objPath = QString();
+};
+
 struct ExtraInfoForDelayed final {
     enum TreeViewExtra {
         Expanded,
         Collapsed,
     };
 
+    const GenerationSettings generationSettings;
+
     bool isContinuous = false;
     std::optional<int> changeType = std::nullopt;
     QModelIndex changeModelIndex;
     std::optional<int> changeIndex;
-
     std::vector<int> collectedIndexes;
+
+    ExtraInfoForDelayed(const GenerationSettings &settings)
+        : generationSettings{ settings }
+    {
+    }
 
     void clear() noexcept
     {
@@ -40,18 +52,14 @@ struct ExtraInfoForDelayed final {
     }
 };
 
-struct MouseEventInfo final {
-    bool isContinuous = false;
-    bool duplicateMouseEvent = false;
-    QString objPath = QString();
-};
-
 class GuiEventFilterBase : public QObject {
     Q_OBJECT
 public:
-    GuiEventFilterBase(QObject *parent = nullptr)
+    GuiEventFilterBase(const GenerationSettings &settings, QObject *parent = nullptr)
         : QObject{ parent }
+        , generationSettings_{ settings }
     {
+        assert(generationSettings_.isInit());
     }
 
     virtual ~GuiEventFilterBase() = default;
@@ -69,7 +77,7 @@ public:
         if (scriptLine.isEmpty()) {
             scriptLine = filters::qMouseEventHandler(obj, event, info.objPath);
         }
-        else if (info.duplicateMouseEvent) {
+        else if (generationSettings_.duplicateMouseEvent) {
             static QRegularExpression s_regex("mouse(Dbl)?Click");
             if (!s_regex.match(scriptLine).hasMatch()) {
                 scriptLine += QStringLiteral("// %1").arg(
@@ -90,6 +98,8 @@ signals:
     void newKeyScriptLine(const QString &line) const;
 
 protected:
+    const GenerationSettings generationSettings_;
+
     virtual void processKeyEvent(const QString &text) noexcept = 0;
     virtual std::pair<QString, bool> callMouseFilters(const QObject *obj, const QEvent *event,
                                                       bool isContinuous) noexcept
@@ -102,14 +112,16 @@ protected slots:
 template <typename GuiComponent, typename EnumType>
 class GuiEventFilter : public GuiEventFilterBase {
 protected:
-    using MouseFilterFunction = std::function<QString(const GuiComponent *, const QMouseEvent *)>;
+    using MouseFilterFunction = std::function<QString(const GuiComponent *, const QMouseEvent *,
+                                                      const GenerationSettings &)>;
     using SignalMouseFilterFunction = std::function<QString(
         const GuiComponent *, const QMouseEvent *, const ExtraInfoForDelayed &)>;
 
     using Connections = std::vector<QMetaObject::Connection>;
 
-    GuiEventFilter(QObject *parent = nullptr)
-        : GuiEventFilterBase{ parent }
+    GuiEventFilter(const GenerationSettings &settings, QObject *parent = nullptr)
+        : GuiEventFilterBase{ settings, parent }
+        , delayedWatchDog_{ settings }
     {
         CHECK_GUI_CLASS(GuiComponent);
         CHECK_GUI_ENUM(EnumType);
@@ -133,6 +145,11 @@ protected:
         Connections connections;
         ExtraInfoForDelayed extra;
         QString specificResult;
+
+        DelayedWatchDog(const GenerationSettings &settings)
+            : extra{ settings }
+        {
+        }
 
         void disconnectAll() noexcept
         {

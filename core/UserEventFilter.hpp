@@ -25,13 +25,10 @@ namespace QtAda::core {
 class UserEventFilter final : public QObject {
     Q_OBJECT
 public:
-    UserEventFilter(QObject *parent = nullptr) noexcept;
+    UserEventFilter(const GenerationSettings &generationSettings,
+                    QObject *parent = nullptr) noexcept;
 
     bool eventFilter(QObject *obj, QEvent *event) noexcept override;
-    void setDuplicateMouseEvent(bool value) noexcept
-    {
-        duplicateMouseEvent_ = value;
-    }
 
 signals:
     void newScriptLine(const QString &scriptLine) const;
@@ -55,7 +52,6 @@ private:
 
     QTimer doubleClickTimer_;
     bool doubleClickDetected_ = false;
-    bool duplicateMouseEvent_ = false;
 
     std::shared_ptr<WidgetEventFilter> widgetFilter_ = nullptr;
     std::shared_ptr<QuickEventFilter> quickFilter_ = nullptr;

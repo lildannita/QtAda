@@ -4,6 +4,8 @@
 #include <vector>
 #include <set>
 
+#include "GenerationSettings.hpp"
+
 QT_BEGIN_NAMESPACE
 class QTimer;
 QT_END_NAMESPACE
@@ -16,11 +18,11 @@ class Probe : public QObject {
     Q_OBJECT
 
 public:
-    explicit Probe(QObject *parent = nullptr) noexcept;
+    explicit Probe(const GenerationSettings &settings, QObject *parent = nullptr) noexcept;
     ~Probe() noexcept;
 
     static bool initialized() noexcept;
-    static void initProbe() noexcept;
+    static void initProbe(const GenerationSettings &settings) noexcept;
     static Probe *probeInstance() noexcept;
 
     static void startup() noexcept;
@@ -30,7 +32,6 @@ public:
     bool isKnownObject(QObject *obj) const noexcept;
 
     bool eventFilter(QObject *reciever, QEvent *event) override;
-    void installEventFilter(QObject *filter) noexcept;
 
 signals:
     void objectCreated(QObject *obj);
@@ -64,7 +65,9 @@ private:
 
     QTimer *queueTimer_ = nullptr;
     MetaObjectHandler *metaObjectHandler_ = nullptr;
+
     UserEventFilter *userEventFilter_ = nullptr;
+    void installEventFilter(QObject *filter) noexcept;
 
     void addObjectAndParentsToKnown(QObject *obj) noexcept;
     void findObjectsFromCoreApp() noexcept;

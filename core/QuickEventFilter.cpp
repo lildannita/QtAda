@@ -49,8 +49,10 @@ static const std::vector<QuickClass> s_processedSliders = {
 };
 
 //! TODO: нужна ли обработка зажатия кастомной кнопки?
-static QString qButtonsFilter(const QQuickItem *item, const QMouseEvent *event) noexcept
+static QString qButtonsFilter(const QQuickItem *item, const QMouseEvent *event,
+                              const GenerationSettings &settings) noexcept
 {
+    Q_UNUSED(settings);
     if (!utils::mouseEventCanBeFiltered(item, event)) {
         return QString();
     }
@@ -131,8 +133,10 @@ static QString qButtonsFilter(const QQuickItem *item, const QMouseEvent *event) 
         .arg(buttonText.isEmpty() ? "" : QStringLiteral(" // Button text: '%1'").arg(buttonText));
 }
 
-static QString qDelayButtonFilter(const QQuickItem *item, const QMouseEvent *event) noexcept
+static QString qDelayButtonFilter(const QQuickItem *item, const QMouseEvent *event,
+                                  const GenerationSettings &settings) noexcept
 {
+    Q_UNUSED(settings);
     if (!utils::mouseEventCanBeFiltered(item, event)) {
         return QString();
     }
@@ -201,8 +205,10 @@ static QString qRangeSliderFilter(const QQuickItem *item, const QMouseEvent *eve
     return utils::setValueStatement(item, firstValue, std::make_optional(secondValue));
 }
 
-static QString qScrollBarFilter(const QQuickItem *item, const QMouseEvent *event) noexcept
+static QString qScrollBarFilter(const QQuickItem *item, const QMouseEvent *event,
+                                const GenerationSettings &settings) noexcept
 {
+    Q_UNUSED(settings);
     if (!utils::mouseEventCanBeFiltered(item, event)) {
         return QString();
     }
@@ -265,8 +271,10 @@ static QString qSpinBoxFilter(const QQuickItem *item, const QMouseEvent *event,
     return utils::setValueStatement(item, value);
 }
 
-static QString qComboBoxContainerFilter(const QQuickItem *item, const QMouseEvent *event) noexcept
+static QString qComboBoxContainerFilter(const QQuickItem *item, const QMouseEvent *event,
+                                        const GenerationSettings &settings) noexcept
 {
+    Q_UNUSED(settings);
     if (!utils::mouseEventCanBeFiltered(item, event)) {
         return QString();
     }
@@ -288,6 +296,7 @@ static QString qComboBoxContainerFilter(const QQuickItem *item, const QMouseEven
 static QString qComboBoxFilter(const QQuickItem *item, const QMouseEvent *event,
                                const ExtraInfoForDelayed &extra) noexcept
 {
+    //! TODO: settings
     if (!utils::mouseEventCanBeFiltered(item, event, true)) {
         return QString();
     }
@@ -307,8 +316,10 @@ static QString qComboBoxFilter(const QQuickItem *item, const QMouseEvent *event,
     return QStringLiteral("selectItem('%1', '%2');").arg(utils::objectPath(item)).arg(textValue);
 }
 
-static QString qTumblerFilter(const QQuickItem *item, const QMouseEvent *event) noexcept
+static QString qTumblerFilter(const QQuickItem *item, const QMouseEvent *event,
+                              const GenerationSettings &settings) noexcept
 {
+    //! TODO: settings (надо предупреждение, что не получится текст получить)
     if (!utils::mouseEventCanBeFiltered(item, event)) {
         return QString();
     }
@@ -327,8 +338,10 @@ static QString qTumblerFilter(const QQuickItem *item, const QMouseEvent *event) 
     return QStringLiteral("selectItem('%1', %2);").arg(utils::objectPath(item)).arg(delegateCount);
 }
 
-static QString qItemViewFilter(const QQuickItem *item, const QMouseEvent *event) noexcept
+static QString qItemViewFilter(const QQuickItem *item, const QMouseEvent *event,
+                               const GenerationSettings &settings) noexcept
 {
+    Q_UNUSED(settings);
     if (!utils::mouseEventCanBeFiltered(item, event)) {
         return QString();
     }
@@ -370,8 +383,10 @@ static QString qPathViewFilter(const QQuickItem *item, const QMouseEvent *event,
     return QStringLiteral("selectViewItem('%1', %2)").arg(utils::objectPath(item)).arg(index);
 }
 
-static QString qSwipeViewFilter(const QQuickItem *item, const QMouseEvent *event) noexcept
+static QString qSwipeViewFilter(const QQuickItem *item, const QMouseEvent *event,
+                                const GenerationSettings &settings) noexcept
 {
+    Q_UNUSED(settings);
     if (!utils::mouseEventCanBeFiltered(item, event)) {
         return QString();
     }
@@ -393,8 +408,10 @@ static QString qSwipeViewFilter(const QQuickItem *item, const QMouseEvent *event
         .arg(index);
 }
 
-static QString qTextFocusFilters(const QQuickItem *item, const QMouseEvent *event) noexcept
+static QString qTextFocusFilters(const QQuickItem *item, const QMouseEvent *event,
+                                 const GenerationSettings &settings) noexcept
 {
+    Q_UNUSED(settings);
     for (const auto &quickClass : s_processedTextItems) {
         if (auto *foundWidget
             = utils::searchSpecificComponent(item, s_quickMetaMap.at(quickClass))) {
@@ -420,7 +437,9 @@ static QString qTextFocusFilters(const QQuickItem *item, const QMouseEvent *even
 } // namespace QtAda::core::filters
 
 namespace QtAda::core {
-QuickEventFilter::QuickEventFilter(QObject *parent) noexcept
+QuickEventFilter::QuickEventFilter(const GenerationSettings &settings, QObject *parent) noexcept
+    : GuiEventFilter{ settings, parent }
+    , postReleaseWatchDog_{ settings }
 {
     mouseFilters_ = {
         filters::qDelayButtonFilter,
@@ -474,7 +493,7 @@ std::pair<QString, bool> QuickEventFilter::callMouseFilters(const QObject *obj, 
     }
 
     for (auto &filter : mouseFilters_) {
-        const auto result = filter(item, mouseEvent);
+        const auto result = filter(item, mouseEvent, generationSettings_);
         if (!result.isEmpty()) {
             return { result, false };
         }

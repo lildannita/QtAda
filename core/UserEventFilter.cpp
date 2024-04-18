@@ -12,11 +12,11 @@
 #include <iostream>
 
 namespace QtAda::core {
-UserEventFilter::UserEventFilter(QObject *parent) noexcept
+UserEventFilter::UserEventFilter(const GenerationSettings &settings, QObject *parent) noexcept
     : QObject{ parent }
 {
-    widgetFilter_ = std::make_shared<WidgetEventFilter>(this);
-    quickFilter_ = std::make_shared<QuickEventFilter>(this);
+    widgetFilter_ = std::make_shared<WidgetEventFilter>(settings, this);
+    quickFilter_ = std::make_shared<QuickEventFilter>(settings, this);
 
     connect(widgetFilter_.get(), &WidgetEventFilter::newKeyScriptLine, this,
             &UserEventFilter::newScriptLine);
@@ -41,7 +41,6 @@ UserEventFilter::UserEventFilter(QObject *parent) noexcept
 MouseEventInfo UserEventFilter::mouseEventInfo(const QString &objPath) const noexcept
 {
     MouseEventInfo result;
-    result.duplicateMouseEvent = duplicateMouseEvent_;
     result.isContinuous = lastReleaseEvent_.isContinuous(lastPressEvent_);
     result.objPath = std::move(objPath);
     return result;
