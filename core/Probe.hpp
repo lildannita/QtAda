@@ -13,6 +13,7 @@ QT_END_NAMESPACE
 namespace QtAda::core {
 class MetaObjectHandler;
 class UserEventFilter;
+class ScriptWriter;
 
 class Probe : public QObject {
     Q_OBJECT
@@ -66,6 +67,7 @@ private:
     QTimer *queueTimer_ = nullptr;
     MetaObjectHandler *metaObjectHandler_ = nullptr;
 
+    ScriptWriter *scriptWriter_ = nullptr;
     UserEventFilter *userEventFilter_ = nullptr;
     void installEventFilter(QObject *filter) noexcept;
 

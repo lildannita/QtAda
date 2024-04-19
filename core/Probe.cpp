@@ -1,9 +1,5 @@
 #include "Probe.hpp"
 
-#include "ProbeGuard.hpp"
-#include "MetaObjectHandler.hpp"
-#include "UserEventFilter.hpp"
-
 #include <QCoreApplication>
 #include <QGuiApplication>
 #include <QTimer>
@@ -12,6 +8,11 @@
 #include <QWindow>
 #include <QMetaMethod>
 #include <private/qhooks_p.h>
+
+#include "ProbeGuard.hpp"
+#include "MetaObjectHandler.hpp"
+#include "UserEventFilter.hpp"
+#include "ScriptWriter.hpp"
 
 namespace QtAda::core {
 static constexpr char QTADA_NAMESPACE[] = "QtAda::";
@@ -38,6 +39,7 @@ Probe::Probe(const GenerationSettings &settings, QObject *parent) noexcept
     , queueTimer_{ new QTimer(this) }
     , metaObjectHandler_{ new MetaObjectHandler(this) }
     , userEventFilter_{ new UserEventFilter(settings, this) }
+    , scriptWriter_{ new ScriptWriter(settings, this) }
 {
     Q_ASSERT(thread() == qApp->thread());
 
@@ -49,6 +51,9 @@ Probe::Probe(const GenerationSettings &settings, QObject *parent) noexcept
             &MetaObjectHandler::objectCreatedOutside);
     connect(this, &Probe::objectDestroyed, metaObjectHandler_,
             &MetaObjectHandler::objectDestroyedOutside);
+
+    connect(userEventFilter_, &UserEventFilter::newScriptLine, scriptWriter_,
+            &ScriptWriter::writeNewLine);
 }
 
 Probe::~Probe() noexcept

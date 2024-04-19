@@ -2,6 +2,7 @@
 #include <QPainter>
 
 class CustomItemDelegate : public QStyledItemDelegate {
+    Q_OBJECT
 public:
     CustomItemDelegate(QObject *parent = nullptr)
         : QStyledItemDelegate(parent)

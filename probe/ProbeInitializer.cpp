@@ -35,12 +35,11 @@ void ProbeInitializer::initProbe() noexcept
 GenerationSettings ProbeInitializer::readSettings() const noexcept
 {
     //! TODO: remove, когда будет готов GUI QtAda
-    qputenv("QTADA_GENERATION_SETTINGS",
-            "textIndexBehavoir=2;duplicateMouseEvent=0;scriptPath=/files/trash/qtada.js");
+    qputenv("QTADA_GENERATION_SETTINGS", "indentWidth=4;textIndexBehavoir=2;duplicateMouseEvent=1;"
+                                         "scriptPath=/files/trash/qtada.js;writeMode=0");
 
     const auto envValue = qgetenv("QTADA_GENERATION_SETTINGS");
     const auto settings = QString(envValue).split(';');
-    assert(settings.size() == GENERATION_SETTINGS_COUNT);
 
     GenerationSettings generationSettings;
     for (const auto &setting : settings) {
@@ -52,7 +51,8 @@ GenerationSettings ProbeInitializer::readSettings() const noexcept
         if (key == QLatin1String("textIndexBehavoir")) {
             bool isOk = false;
             const auto tibValue = value.toInt(&isOk);
-            assert(isOk && tibValue >= 0 && tibValue < static_cast<int>(TextIndexBehavior::None));
+            assert(isOk == true && tibValue >= 0
+                   && tibValue < static_cast<int>(TextIndexBehavior::None));
             generationSettings.textIndexBehavior = static_cast<TextIndexBehavior>(tibValue);
         }
         else if (key == QLatin1String("duplicateMouseEvent")) {
@@ -62,10 +62,28 @@ GenerationSettings ProbeInitializer::readSettings() const noexcept
             generationSettings.duplicateMouseEvent = dmeValue != 0;
         }
         else if (key == QLatin1String("scriptPath")) {
-            generationSettings.scriptFileInfo = QFileInfo(value);
+            generationSettings.scriptPath = value;
+        }
+        else if (key == QLatin1String("indentWidth")) {
+            bool isOk = false;
+            generationSettings.indentWidth = value.toInt(&isOk);
+            assert(isOk == true);
+        }
+        else if (key == QLatin1String("writeMode")) {
+            bool isOk = false;
+            const auto wmValue = value.toInt(&isOk);
+            assert(isOk == true && wmValue >= 0
+                   && wmValue < static_cast<int>(ScriptWriteMode::None));
+            generationSettings.writeMode = static_cast<ScriptWriteMode>(wmValue);
+        }
+        else if (key == QLatin1String("appendLineIndex")) {
+            bool isOk = false;
+            generationSettings.appendLineIndex = value.toInt(&isOk);
+            assert(isOk == true);
         }
     }
 
+    qputenv("QTADA_GENERATION_SETTINGS", "");
     assert(generationSettings.isInit());
     return generationSettings;
 }

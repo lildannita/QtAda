@@ -8,7 +8,8 @@ set(core_MOC_HDRS
   UserEventFilter.hpp
   GuiEventFilter.hpp
   QuickEventFilter.hpp
-  WidgetEventFilter.hpp)
+  WidgetEventFilter.hpp
+  ScriptWriter.hpp)
 set(core_HDRS
   ${core_MOC_HDRS}
   GenerationSettings.hpp
@@ -27,7 +28,9 @@ set(core_SRCS
   QuickEventFilter.cpp
   WidgetEventFilter.cpp
   LastEvent.cpp
-  utils/FilterUtils.cpp)
+  ScriptWriter.cpp
+  utils/FilterUtils.cpp
+  utils/Tools.cpp)
 qt5_wrap_cpp(core_SRCS ${core_MOC_HDRS} TARGET core)
 
 add_library(core SHARED ${core_SRCS} ${core_HDRS})
