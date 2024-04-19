@@ -16,14 +16,53 @@ public:
     ~ScriptWriter() noexcept;
 
 public slots:
-    void writeNewLine(const QString &srciptLine) noexcept;
+    void handleNewLine(const QString &scriptLine) noexcept;
 
 private:
+    struct LinesHandler final {
+        const bool needToGenerateCycle;
+        const int cycleMinimumCount;
+        int count = 0;
+        QString repeatingLine = QString();
+
+        LinesHandler(bool need, int minimum) noexcept
+            : needToGenerateCycle{ need }
+            , cycleMinimumCount{ minimum }
+        {
+        }
+
+        bool cycleReady() const noexcept
+        {
+            return needToGenerateCycle && count >= cycleMinimumCount;
+        }
+
+        void registerLine(const QString &line) noexcept
+        {
+            if (line.isEmpty()) {
+                return;
+            }
+
+            if (line == repeatingLine) {
+                count++;
+            }
+            else {
+                count = 1;
+                repeatingLine = line;
+            }
+        }
+
+        QString forStatement() const noexcept
+        {
+            return QStringLiteral("for (let i = 0; i < %1; i++) {").arg(count);
+        }
+    } linesHandler_;
+
     const GenerationSettings generationSettings_;
     QFile script_;
     QTextStream scriptStream_;
     std::vector<QString> savedLines_;
 
-    void flushScriptLine(const QString &line, int indentWidth) noexcept;
+    void flushSavedLines() noexcept;
+    void flushScriptLine(const QString &line, int indentMultiplier = 0) noexcept;
 };
 } // namespace QtAda::core

@@ -59,7 +59,6 @@ public:
         : QObject{ parent }
         , generationSettings_{ settings }
     {
-        assert(generationSettings_.isInit());
     }
 
     virtual ~GuiEventFilterBase() = default;
@@ -77,7 +76,7 @@ public:
         if (scriptLine.isEmpty()) {
             scriptLine = filters::qMouseEventHandler(obj, event, info.objPath);
         }
-        else if (generationSettings_.duplicateMouseEvent) {
+        else if (generationSettings_.duplicateMouseEvent()) {
             static QRegularExpression s_regex("mouse(Dbl)?Click");
             if (!s_regex.match(scriptLine).hasMatch()) {
                 scriptLine += QStringLiteral("\n// %1").arg(

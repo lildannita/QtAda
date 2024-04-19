@@ -314,7 +314,7 @@ static QString qComboBoxFilter(const QQuickItem *item, const QMouseEvent *event,
                               Q_RETURN_ARG(QString, textValue), Q_ARG(int, *extra.changeIndex));
     return QStringLiteral("selectItem('%1', %2);")
         .arg(utils::objectPath(item))
-        .arg(utils::textIndexStatement(extra.generationSettings.textIndexBehavior,
+        .arg(utils::textIndexStatement(extra.generationSettings.textIndexBehavior(),
                                        *extra.changeIndex, textValue));
 }
 
@@ -336,13 +336,14 @@ static QString qTumblerFilter(const QQuickItem *item, const QMouseEvent *event,
     //! но оно предпочительнее, чем просто индекс. В будущем надо будет реализовать поиск
     //! текстового описания элементов.
     const auto currentIndex = utils::getFromVariant<int>(QQmlProperty::read(item, "currentIndex"));
+    const auto textIndexBehavior = settings.textIndexBehavior();
     return QStringLiteral("%1selectItem('%2', %3);")
-        .arg(settings.textIndexBehavior == TextIndexBehavior::OnlyText
-                     || settings.textIndexBehavior == TextIndexBehavior::TextIndex
+        .arg(textIndexBehavior == TextIndexBehavior::OnlyText
+                     || textIndexBehavior == TextIndexBehavior::TextIndex
                  ? "// This QtAda version can't take text from this GUI component\n"
                  : "")
         .arg(utils::objectPath(item))
-        .arg(utils::textIndexStatement(settings.textIndexBehavior, currentIndex));
+        .arg(utils::textIndexStatement(textIndexBehavior, currentIndex));
 }
 
 static QString qItemViewFilter(const QQuickItem *item, const QMouseEvent *event,

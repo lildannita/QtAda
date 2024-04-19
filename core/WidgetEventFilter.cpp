@@ -205,7 +205,7 @@ static QString qComboBoxFilter(const QWidget *widget, const QMouseEvent *event,
         const auto index = comboBoxView->currentIndex().row();
         return QStringLiteral("selectItem('%1', %2);")
             .arg(utils::objectPath(widget))
-            .arg(utils::textIndexStatement(settings.textIndexBehavior, index,
+            .arg(utils::textIndexStatement(settings.textIndexBehavior(), index,
                                            comboBox->itemText(index)));
     }
     /*
@@ -636,7 +636,7 @@ static QString qMenuBarFilter(const QWidget *widget, const QMouseEvent *event,
         return QStringLiteral("%1activateMenuAction('%2', %3%4);")
             .arg(action->isSeparator() ? " // Looks like QMenu::Separator clicked\n// " : "")
             .arg(utils::objectPath(widget))
-            .arg(utils::textIndexStatement(settings.textIndexBehavior,
+            .arg(utils::textIndexStatement(settings.textIndexBehavior(),
                                            menuBar->actions().indexOf(action), action->text()))
             .arg(action->isCheckable()
                      ? QStringLiteral(", %1").arg(action->isChecked() ? "false" : "true")
@@ -679,7 +679,7 @@ static QString qMenuFilter(const QWidget *widget, const QMouseEvent *event,
         return QStringLiteral("%1activateMenuAction('%2', %3%4);")
             .arg(action->isSeparator() ? " // Looks like QMenu::Separator clicked\n// " : "")
             .arg(utils::objectPath(widget))
-            .arg(utils::textIndexStatement(settings.textIndexBehavior,
+            .arg(utils::textIndexStatement(settings.textIndexBehavior(),
                                            menu->actions().indexOf(action), action->text()))
             .arg(action->isCheckable()
                      ? QStringLiteral(", %1").arg(action->isChecked() ? "false" : "true")
@@ -704,7 +704,8 @@ static QString qTabBarFilter(const QWidget *widget, const QMouseEvent *event,
     const auto index = tabBar->currentIndex();
     return QStringLiteral("selectTabItem('%1', '%2');")
         .arg(utils::objectPath(widget))
-        .arg(utils::textIndexStatement(settings.textIndexBehavior, index, tabBar->tabText(index)));
+        .arg(
+            utils::textIndexStatement(settings.textIndexBehavior(), index, tabBar->tabText(index)));
 }
 
 static QString qTextFocusFilters(const QWidget *widget, const QMouseEvent *event,

@@ -21,6 +21,7 @@ set(core_HDRS
   utils/CommonFilters.hpp
   utils/FilterUtils.hpp)
 set(core_SRCS
+  GenerationSettings.cpp
   Probe.cpp
   ProbeGuard.cpp
   MetaObjectHandler.cpp

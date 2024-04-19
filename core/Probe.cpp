@@ -53,7 +53,7 @@ Probe::Probe(const GenerationSettings &settings, QObject *parent) noexcept
             &MetaObjectHandler::objectDestroyedOutside);
 
     connect(userEventFilter_, &UserEventFilter::newScriptLine, scriptWriter_,
-            &ScriptWriter::writeNewLine);
+            &ScriptWriter::handleNewLine);
 }
 
 Probe::~Probe() noexcept
