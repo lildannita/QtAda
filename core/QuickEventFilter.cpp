@@ -296,7 +296,6 @@ static QString qComboBoxContainerFilter(const QQuickItem *item, const QMouseEven
 static QString qComboBoxFilter(const QQuickItem *item, const QMouseEvent *event,
                                const ExtraInfoForDelayed &extra) noexcept
 {
-    //! TODO: settings
     if (!utils::mouseEventCanBeFiltered(item, event, true)) {
         return QString();
     }
@@ -313,13 +312,15 @@ static QString qComboBoxFilter(const QQuickItem *item, const QMouseEvent *event,
     QString textValue;
     QMetaObject::invokeMethod(const_cast<QQuickItem *>(item), "textAt",
                               Q_RETURN_ARG(QString, textValue), Q_ARG(int, *extra.changeIndex));
-    return QStringLiteral("selectItem('%1', '%2');").arg(utils::objectPath(item)).arg(textValue);
+    return QStringLiteral("selectItem('%1', '%2');")
+        .arg(utils::objectPath(item))
+        .arg(utils::textIndexStatement(extra.generationSettings.textIndexBehavior,
+                                       *extra.changeIndex, textValue));
 }
 
 static QString qTumblerFilter(const QQuickItem *item, const QMouseEvent *event,
                               const GenerationSettings &settings) noexcept
 {
-    //! TODO: settings (надо предупреждение, что не получится текст получить)
     if (!utils::mouseEventCanBeFiltered(item, event)) {
         return QString();
     }
@@ -334,8 +335,14 @@ static QString qTumblerFilter(const QQuickItem *item, const QMouseEvent *event,
     //! 2) Для QML в принципе "тяжело" вытаскивать текстовое описание разных компонентов,
     //! но оно предпочительнее, чем просто индекс. В будущем надо будет реализовать поиск
     //! текстового описания элементов.
-    const auto delegateCount = utils::getFromVariant<int>(QQmlProperty::read(item, "currentIndex"));
-    return QStringLiteral("selectItem('%1', %2);").arg(utils::objectPath(item)).arg(delegateCount);
+    const auto currentIndex = utils::getFromVariant<int>(QQmlProperty::read(item, "currentIndex"));
+    return QStringLiteral("%1selectItem('%2', %3);")
+        .arg(settings.textIndexBehavior == TextIndexBehavior::OnlyText
+                     || settings.textIndexBehavior == TextIndexBehavior::TextIndex
+                 ? "// This QtAda version can't take text from this GUI component\n"
+                 : "")
+        .arg(utils::objectPath(item))
+        .arg(utils::textIndexStatement(settings.textIndexBehavior, currentIndex));
 }
 
 static QString qItemViewFilter(const QQuickItem *item, const QMouseEvent *event,
@@ -368,6 +375,7 @@ static QString qItemViewFilter(const QQuickItem *item, const QMouseEvent *event,
 static QString qPathViewFilter(const QQuickItem *item, const QMouseEvent *event,
                                const ExtraInfoForDelayed &extra) noexcept
 {
+    Q_UNUSED(extra);
     if (!utils::mouseEventCanBeFiltered(item, event, true)) {
         return QString();
     }

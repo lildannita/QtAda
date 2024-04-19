@@ -2,6 +2,8 @@
 
 #include <optional>
 #include <qnamespace.h>
+
+#include "GenerationSettings.hpp"
 #include "ProcessedObjects.hpp"
 
 //! TODO: убрать
@@ -225,6 +227,9 @@ bool isObjectAncestor(const GuiComponent *ancestorComponent,
     }
     return false;
 }
+
+QString textIndexStatement(TextIndexBehavior behavior, int index,
+                           const QString &text = QString()) noexcept;
 
 // Special filters for QWidgets:
 QString widgetIdInView(const QWidget *widget, const int index,

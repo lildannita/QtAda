@@ -177,7 +177,6 @@ static QString qButtonsFilter(const QWidget *widget, const QMouseEvent *event,
 static QString qComboBoxFilter(const QWidget *widget, const QMouseEvent *event,
                                const GenerationSettings &settings) noexcept
 {
-    //! TODO: settings
     if (!utils::mouseEventCanBeFiltered(widget, event)) {
         return QString();
     }
@@ -203,10 +202,11 @@ static QString qComboBoxFilter(const QWidget *widget, const QMouseEvent *event,
     const auto clickPos = comboBoxView->mapFromGlobal(event->globalPos());
 
     if (containerRect.contains(clickPos)) {
-        return QStringLiteral("selectItem('%1', '%2');")
+        const auto index = comboBoxView->currentIndex().row();
+        return QStringLiteral("selectItem('%1', %2);")
             .arg(utils::objectPath(widget))
-            .arg(utils::widgetIdInView(widget, comboBoxView->currentIndex().row(),
-                                       WidgetClass::ComboBox));
+            .arg(utils::textIndexStatement(settings.textIndexBehavior, index,
+                                           comboBox->itemText(index)));
     }
     /*
      * Отпускание мыши не приведет к закрытию QListView, и если мы зарегестрируем событие
@@ -613,7 +613,6 @@ static QString qItemViewSelectionFilter(const QWidget *widget, const QMouseEvent
 static QString qMenuBarFilter(const QWidget *widget, const QMouseEvent *event,
                               const GenerationSettings &settings) noexcept
 {
-    //! TODO: settings
     if (!utils::mouseEventCanBeFiltered(widget, event, true)) {
         return QString();
     }
@@ -632,26 +631,22 @@ static QString qMenuBarFilter(const QWidget *widget, const QMouseEvent *event,
         return QString();
     }
 
-    const auto *actionMenu = action->menu();
-    if (actionMenu == nullptr) {
-        const auto actionText = action->text();
-        return QStringLiteral("%1activateMenuAction('%2', '%3'%4);%5")
+    const auto *menu = action->menu();
+    if (menu == nullptr) {
+        return QStringLiteral("%1activateMenuAction('%2', %3%4);")
             .arg(action->isSeparator() ? " // Looks like QMenu::Separator clicked\n// " : "")
             .arg(utils::objectPath(widget))
-            .arg(utils::widgetIdInView(menuBar, menuBar->actions().indexOf(action),
-                                       WidgetClass::MenuBar))
+            .arg(utils::textIndexStatement(settings.textIndexBehavior,
+                                           menuBar->actions().indexOf(action), action->text()))
             .arg(action->isCheckable()
                      ? QStringLiteral(", %1").arg(action->isChecked() ? "false" : "true")
-                     : "")
-            .arg(actionText.isEmpty() ? ""
-                                      : QStringLiteral(" // Action text: '%1'").arg(actionText));
+                     : "");
     }
     else {
-        //! TODO: на текущий момент не обрабатывается DoubleClick по QMenu (непонятно почему), но
-        //! нужно ли оно?
-        const auto menuText = actionMenu->title();
+        const auto menuText = menu->title();
+        auto *menuWidget = qobject_cast<const QWidget *>(menu);
         return QStringLiteral("activateMenu('%1');%2")
-            .arg(utils::objectPath(widget))
+            .arg(utils::objectPath(menuWidget))
             .arg(menuText.isEmpty() ? "" : QStringLiteral(" // Menu title: '%1'").arg(menuText));
     }
 }
@@ -659,7 +654,6 @@ static QString qMenuBarFilter(const QWidget *widget, const QMouseEvent *event,
 static QString qMenuFilter(const QWidget *widget, const QMouseEvent *event,
                            const GenerationSettings &settings) noexcept
 {
-    //! TODO: settings
     if (!utils::mouseEventCanBeFiltered(widget, event)) {
         return QString();
     }
@@ -682,23 +676,20 @@ static QString qMenuFilter(const QWidget *widget, const QMouseEvent *event,
             .arg(menuText.isEmpty() ? "" : QStringLiteral(" // Menu title: '%1'").arg(menuText));
     }
     else {
-        const auto actionText = action->text();
-        return QStringLiteral("%1activateMenuAction('%2', '%3'%4);%5")
-            .arg(action->isSeparator() ? "// Looks like QMenu::Separator clicked\n// " : "")
+        return QStringLiteral("%1activateMenuAction('%2', %3%4);")
+            .arg(action->isSeparator() ? " // Looks like QMenu::Separator clicked\n// " : "")
             .arg(utils::objectPath(widget))
-            .arg(utils::widgetIdInView(menu, menu->actions().indexOf(action), WidgetClass::Menu))
+            .arg(utils::textIndexStatement(settings.textIndexBehavior,
+                                           menu->actions().indexOf(action), action->text()))
             .arg(action->isCheckable()
                      ? QStringLiteral(", %1").arg(action->isChecked() ? "false" : "true")
-                     : "")
-            .arg(actionText.isEmpty() ? ""
-                                      : QStringLiteral(" // Action text: '%1'").arg(actionText));
+                     : "");
     }
 }
 
 static QString qTabBarFilter(const QWidget *widget, const QMouseEvent *event,
                              const GenerationSettings &settings) noexcept
 {
-    //! TODO: settings
     if (!utils::mouseEventCanBeFiltered(widget, event)) {
         return QString();
     }
@@ -710,14 +701,10 @@ static QString qTabBarFilter(const QWidget *widget, const QMouseEvent *event,
 
     auto *tabBar = qobject_cast<const QTabBar *>(widget);
     assert(tabBar != nullptr);
-
-    const auto currentIndex = tabBar->currentIndex();
-    const auto currentText = tabBar->tabText(currentIndex);
-    return QStringLiteral("selectTabItem('%1', '%2');%3")
+    const auto index = tabBar->currentIndex();
+    return QStringLiteral("selectTabItem('%1', '%2');")
         .arg(utils::objectPath(widget))
-        .arg(utils::widgetIdInView(tabBar, currentIndex, WidgetClass::TabBar))
-        .arg(currentText.isEmpty() ? ""
-                                   : QStringLiteral(" // Tab item text: '%1'").arg(currentText));
+        .arg(utils::textIndexStatement(settings.textIndexBehavior, index, tabBar->tabText(index)));
 }
 
 static QString qTextFocusFilters(const QWidget *widget, const QMouseEvent *event,
@@ -1096,12 +1083,16 @@ QString WidgetEventFilter::handleCloseEvent(const QObject *obj, const QEvent *ev
              != nullptr) {
         return QStringLiteral("closeWindow(%1);").arg(utils::objectPath(widget));
     }
+    else if (utils::searchSpecificComponent(widget, filters::s_widgetMetaMap.at(WidgetClass::Menu))
+             != nullptr) {
+        //! TODO: Это событие для QMenu генерируется и при выборе какого-либо QAction, причем
+        //! событие мыши, которое привело к закрытию QMenu, не генерируется (в отличие от
+        //! QQuickMenu). Позже нужно будет решить, что делать с QMenu - нужно ли вообще нам
+        //! генерировать их открытие/закрытие, так как нам по идее важны только выполнение QAction,
+        //! а раскрытие/закрытие QMenu ни к чему не приводит.
+        return QStringLiteral("// closeMenu(%1);").arg(utils::objectPath(widget));
+    }
 
-    //! TODO: Сейчас проблема в том, что при закрытии QMenu эта строка генерируется, чем
-    //! произведено нажатие на какой-либо QAction в этом QMenu. Но нужна ли нам вообще
-    //! строка?
-    //! return QStringLiteral("// Looks like this QEvent::Close is not important\nclose(%1);")
-    //!    .arg(utils::objectPath(widget));
     Q_UNREACHABLE();
 }
 } // namespace QtAda::core

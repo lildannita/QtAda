@@ -6,6 +6,7 @@
 #include <QMenu>
 #include <QMenuBar>
 #include <QItemSelectionModel>
+#include <optional>
 
 namespace QtAda::core::utils {
 static const std::pair<Qt::MouseButton, QLatin1String> s_mouseButtons[] = {
@@ -99,6 +100,23 @@ QString mouseButtonToString(const Qt::MouseButton mouseButton) noexcept
         }
     }
     return QLatin1String("<unknown>");
+}
+
+QString textIndexStatement(TextIndexBehavior behavior, int index, const QString &text) noexcept
+{
+    if (text.isEmpty()) {
+        behavior = TextIndexBehavior::OnlyIndex;
+    }
+    switch (behavior) {
+    case TextIndexBehavior::OnlyIndex:
+        return QString::number(index);
+    case TextIndexBehavior::OnlyText:
+        return text;
+    case TextIndexBehavior::TextIndex:
+        return QStringLiteral("'%1', %2").arg(text).arg(index);
+    default:
+        Q_UNREACHABLE();
+    }
 }
 
 QString widgetIdInView(const QWidget *widget, const int index,

@@ -36,7 +36,7 @@ GenerationSettings ProbeInitializer::readSettings() const noexcept
 {
     //! TODO: remove, когда будет готов GUI QtAda
     qputenv("QTADA_GENERATION_SETTINGS",
-            "textIndexBehavoir=0;duplicateMouseEvent=0;scriptPath=/files/trash/qtada.js");
+            "textIndexBehavoir=2;duplicateMouseEvent=0;scriptPath=/files/trash/qtada.js");
 
     const auto envValue = qgetenv("QTADA_GENERATION_SETTINGS");
     const auto settings = QString(envValue).split(';');
@@ -52,10 +52,8 @@ GenerationSettings ProbeInitializer::readSettings() const noexcept
         if (key == QLatin1String("textIndexBehavoir")) {
             bool isOk = false;
             const auto tibValue = value.toInt(&isOk);
-            assert(isOk && tibValue >= 0
-                   && tibValue < static_cast<int>(GenerationSettings::TextIndexBehavior::None));
-            generationSettings.textIndexBehavior
-                = static_cast<GenerationSettings::TextIndexBehavior>(tibValue);
+            assert(isOk && tibValue >= 0 && tibValue < static_cast<int>(TextIndexBehavior::None));
+            generationSettings.textIndexBehavior = static_cast<TextIndexBehavior>(tibValue);
         }
         else if (key == QLatin1String("duplicateMouseEvent")) {
             bool isOk = false;
