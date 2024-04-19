@@ -312,7 +312,7 @@ static QString qComboBoxFilter(const QQuickItem *item, const QMouseEvent *event,
     QString textValue;
     QMetaObject::invokeMethod(const_cast<QQuickItem *>(item), "textAt",
                               Q_RETURN_ARG(QString, textValue), Q_ARG(int, *extra.changeIndex));
-    return QStringLiteral("selectItem('%1', '%2');")
+    return QStringLiteral("selectItem('%1', %2);")
         .arg(utils::objectPath(item))
         .arg(utils::textIndexStatement(extra.generationSettings.textIndexBehavior,
                                        *extra.changeIndex, textValue));
@@ -366,7 +366,7 @@ static QString qItemViewFilter(const QQuickItem *item, const QMouseEvent *event,
         return qMouseEventHandler(item, event);
     }
 
-    return QStringLiteral("delegate%1Click('%2', %3)")
+    return QStringLiteral("delegate%1Click('%2', %3);")
         .arg(event->type() == QEvent::MouseButtonDblClick ? "Dbl" : "")
         .arg(utils::objectPath(item))
         .arg(index);
@@ -388,7 +388,7 @@ static QString qPathViewFilter(const QQuickItem *item, const QMouseEvent *event,
     const auto index = utils::getFromVariant<int>(QQmlProperty::read(item, "currentIndex"));
     const auto count = utils::getFromVariant<int>(QQmlProperty::read(item, "count"));
     assert(index < count);
-    return QStringLiteral("selectViewItem('%1', %2)").arg(utils::objectPath(item)).arg(index);
+    return QStringLiteral("selectViewItem('%1', %2);").arg(utils::objectPath(item)).arg(index);
 }
 
 static QString qSwipeViewFilter(const QQuickItem *item, const QMouseEvent *event,

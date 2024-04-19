@@ -80,7 +80,7 @@ public:
         else if (generationSettings_.duplicateMouseEvent) {
             static QRegularExpression s_regex("mouse(Dbl)?Click");
             if (!s_regex.match(scriptLine).hasMatch()) {
-                scriptLine += QStringLiteral("// %1").arg(
+                scriptLine += QStringLiteral("\n// %1").arg(
                     filters::qMouseEventHandler(obj, event, info.objPath));
             }
         }
