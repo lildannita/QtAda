@@ -217,8 +217,7 @@ bool Probe::eventFilter(QObject *reciever, QEvent *event)
     }
 
     if (!isIternalObject(reciever)) {
-        const auto filters = eventFilters_;
-        for (QObject *filter : filters) {
+        for (QObject *filter : eventFilters_) {
             filter->eventFilter(reciever, event);
         }
     }

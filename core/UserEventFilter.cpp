@@ -70,7 +70,7 @@ bool UserEventFilter::eventFilter(QObject *obj, QEvent *event) noexcept
             }
 
             // Если оба каста не получились, то QObject - не компонент GUI
-            return QObject::eventFilter(obj, event);
+            return true;
         }
         assert(currentFilter_ != nullptr);
 
@@ -187,6 +187,6 @@ bool UserEventFilter::eventFilter(QObject *obj, QEvent *event) noexcept
         break;
     };
 
-    return QObject::eventFilter(obj, event);
+    return true;
 }
 } // namespace QtAda::core
