@@ -2,6 +2,8 @@
 
 #include <QCoreApplication>
 #include <QGuiApplication>
+#include <QApplication>
+#include <QScreen>
 #include <QTimer>
 #include <QThread>
 #include <QRecursiveMutex>
@@ -49,7 +51,7 @@ Probe::Probe(const GenerationSettings &settings, QObject *parent) noexcept
     , metaObjectHandler_{ new MetaObjectHandler(this) }
     , userEventFilter_{ new UserEventFilter(settings, this) }
     , scriptWriter_{ new ScriptWriter(settings, this) }
-    , controlDialog_{ std::make_unique<gui::ControlDialog>() }
+    , controlDialog_{ std::make_unique<gui::ControlDialog>(settings.closeWindowsOnExit()) }
 {
     Q_ASSERT(thread() == qApp->thread());
 
@@ -135,6 +137,8 @@ void Probe::installInternalParameters() noexcept
     installEventFilter(userEventFilter_);
 
     assert(controlDialog_ != nullptr);
+    const auto screenGeometry = QApplication::primaryScreen()->geometry();
+    controlDialog_->move(screenGeometry.width() - controlDialog_->width(), screenGeometry.y());
     controlDialog_->show();
 }
 

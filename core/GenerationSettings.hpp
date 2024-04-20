@@ -33,6 +33,8 @@ struct GenerationSettingsWriter final {
     bool needToGenerateCycle = false;
     int cycleMinimumCount = -1;
 
+    bool closeWindowsOnExit = false;
+
     /*
      * Для надежности используем этот вектор, который позволяет точно задать последовательность
      * параметров при записи в переменную окружения, а также при чтении из нее (что дает нам
@@ -48,19 +50,23 @@ struct GenerationSettingsWriter final {
             QLatin1String("appendLineIndex"),     QLatin1String("indentWidth"),
             QLatin1String("textIndexBehavior"),   QLatin1String("duplicateMouseEvent"),
             QLatin1String("needToGenerateCycle"), QLatin1String("cycleMinimumCount"),
+            QLatin1String("closeWindowsOnExit"),
         };
     }
 
     std::vector<std::variant<QString, int, bool>> valuesList() const noexcept
     {
-        return { scriptPath,
-                 static_cast<int>(scriptWriteMode),
-                 appendLineIndex,
-                 indentWidth,
-                 static_cast<int>(textIndexBehavior),
-                 duplicateMouseEvent,
-                 needToGenerateCycle,
-                 cycleMinimumCount };
+        return {
+            scriptPath,
+            static_cast<int>(scriptWriteMode),
+            appendLineIndex,
+            indentWidth,
+            static_cast<int>(textIndexBehavior),
+            duplicateMouseEvent,
+            needToGenerateCycle,
+            cycleMinimumCount,
+            closeWindowsOnExit,
+        };
     }
 
     QString generateStringSettings() const noexcept;
@@ -112,6 +118,10 @@ public:
     int cycleMinimumCount() const noexcept
     {
         return settings_.cycleMinimumCount;
+    }
+    bool closeWindowsOnExit() const noexcept
+    {
+        return settings_.closeWindowsOnExit;
     }
 
 private:

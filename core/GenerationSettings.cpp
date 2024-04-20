@@ -1,6 +1,28 @@
 #include "GenerationSettings.hpp"
 
+#include <optional>
+
 namespace QtAda::core {
+static bool stringToBool(const QString &s) noexcept
+{
+    bool isOk = false;
+    const auto intValue = s.toInt(&isOk);
+    assert(isOk == true);
+    assert(intValue == 0 || intValue == 1);
+    return intValue != 0;
+}
+
+static int stringToInt(const QString &s, std::optional<int> left = std::nullopt,
+                       std::optional<int> right = std::nullopt) noexcept
+{
+    bool isOk = false;
+    const auto intValue = s.toInt(&isOk);
+    assert(isOk == true);
+    assert(!left.has_value() || intValue > *left);
+    assert(!right.has_value() || intValue < *right);
+    return intValue;
+}
+
 QString GenerationSettingsWriter::generateStringSettings() const noexcept
 {
     const auto parameters = parametersList();
@@ -40,7 +62,8 @@ GenerationSettings::GenerationSettings() noexcept
                                          "textIndexBehavior=2;"
                                          "duplicateMouseEvent=1;"
                                          "needToGenerateCycle=1;"
-                                         "cycleMinimumCount=3;");
+                                         "cycleMinimumCount=3;"
+                                         "closeWindowsOnExit=1");
 
     const auto envValue = qgetenv("QTADA_GENERATION_SETTINGS");
     qputenv("QTADA_GENERATION_SETTINGS", "");
@@ -61,48 +84,30 @@ GenerationSettings::GenerationSettings() noexcept
             settings_.scriptPath = value;
         }
         else if (key == QLatin1String("scriptWriteMode")) {
-            bool isOk = false;
-            const auto intValue = value.toInt(&isOk);
-            assert(isOk == true && intValue >= 0
-                   && intValue < static_cast<int>(ScriptWriteMode::None));
-            settings_.scriptWriteMode = static_cast<ScriptWriteMode>(intValue);
+            settings_.scriptWriteMode = static_cast<ScriptWriteMode>(
+                stringToInt(value, -1, static_cast<int>(ScriptWriteMode::None)));
         }
         else if (key == QLatin1String("appendLineIndex")) {
-            bool isOk = false;
-            const auto intValue = value.toInt(&isOk);
-            assert(isOk == true && intValue >= 0);
-            settings_.appendLineIndex = intValue;
+            settings_.appendLineIndex = stringToInt(value, -1);
         }
         else if (key == QLatin1String("indentWidth")) {
-            bool isOk = false;
-            const auto intValue = value.toInt(&isOk);
-            assert(isOk == true && intValue >= 0);
-            settings_.indentWidth = intValue;
+            settings_.indentWidth = stringToInt(value, -1);
         }
         else if (key == QLatin1String("textIndexBehavior")) {
-            bool isOk = false;
-            const auto intValue = value.toInt(&isOk);
-            assert(isOk == true && intValue >= 0
-                   && intValue < static_cast<int>(TextIndexBehavior::None));
-            settings_.textIndexBehavior = static_cast<TextIndexBehavior>(intValue);
+            settings_.textIndexBehavior = static_cast<TextIndexBehavior>(
+                stringToInt(value, -1, static_cast<int>(TextIndexBehavior::None)));
         }
         else if (key == QLatin1String("duplicateMouseEvent")) {
-            bool isOk = false;
-            const auto intValue = value.toInt(&isOk);
-            assert(isOk && (intValue == 0 || intValue == 1));
-            settings_.duplicateMouseEvent = intValue != 0;
+            settings_.duplicateMouseEvent = stringToBool(value);
         }
         else if (key == QLatin1String("needToGenerateCycle")) {
-            bool isOk = false;
-            const auto intValue = value.toInt(&isOk);
-            assert(isOk && (intValue == 0 || intValue == 1));
-            settings_.needToGenerateCycle = intValue != 0;
+            settings_.needToGenerateCycle = stringToBool(value);
         }
         else if (key == QLatin1String("cycleMinimumCount")) {
-            bool isOk = false;
-            const auto intValue = value.toInt(&isOk);
-            assert(isOk == true && intValue >= CYCLE_MINIMUM_COUNT);
-            settings_.cycleMinimumCount = intValue;
+            settings_.cycleMinimumCount = stringToInt(value, CYCLE_MINIMUM_COUNT - 1);
+        }
+        else if (key == QLatin1String("closeWindowsOnExit")) {
+            settings_.closeWindowsOnExit = stringToBool(value);
         }
     }
 }
