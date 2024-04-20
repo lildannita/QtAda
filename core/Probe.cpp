@@ -14,6 +14,8 @@
 #include "UserEventFilter.hpp"
 #include "ScriptWriter.hpp"
 
+#include "gui/ControlDialog.hpp"
+
 namespace QtAda::core {
 static constexpr char QTADA_NAMESPACE[] = "QtAda::";
 static constexpr uint8_t QTADA_NAMESPACE_LEN = 7;
@@ -47,6 +49,7 @@ Probe::Probe(const GenerationSettings &settings, QObject *parent) noexcept
     , metaObjectHandler_{ new MetaObjectHandler(this) }
     , userEventFilter_{ new UserEventFilter(settings, this) }
     , scriptWriter_{ new ScriptWriter(settings, this) }
+    , controlDialog_{ std::make_unique<gui::ControlDialog>() }
 {
     Q_ASSERT(thread() == qApp->thread());
 
@@ -113,7 +116,7 @@ void Probe::initProbe(const GenerationSettings &settings) noexcept
         probe->findObjectsFromCoreApp();
     }
 
-    QMetaObject::invokeMethod(probe, "installInternalEventFilters", Qt::QueuedConnection);
+    QMetaObject::invokeMethod(probe, "installInternalParameters", Qt::QueuedConnection);
 }
 
 void Probe::startup() noexcept
@@ -121,10 +124,18 @@ void Probe::startup() noexcept
     s_lilProbe()->hooksInstalled = true;
 }
 
-void Probe::installInternalEventFilters() noexcept
+const QObject *Probe::controlDialog() const noexcept
+{
+    return qobject_cast<const QObject *>(controlDialog_.get());
+}
+
+void Probe::installInternalParameters() noexcept
 {
     QCoreApplication::instance()->installEventFilter(this);
     installEventFilter(userEventFilter_);
+
+    assert(controlDialog_ != nullptr);
+    controlDialog_->show();
 }
 
 void Probe::installEventFilter(QObject *filter) noexcept
@@ -326,8 +337,7 @@ bool Probe::isIternalObject(QObject *obj) const noexcept
         }
         ++iteration;
 
-        //! TODO: добавить проверку на собственный интерфейс, когда он будет готов
-        if (o == this
+        if (o == this || o == controlDialog()
             || (qstrncmp(o->metaObject()->className(), QTADA_NAMESPACE, QTADA_NAMESPACE_LEN)
                 == 0)) {
             return true;

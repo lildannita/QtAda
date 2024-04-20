@@ -13,3 +13,43 @@
         QCoreApplication::sendEvent(mouseArea, &pressEvent);
         QCoreApplication::sendEvent(mouseArea, &releaseEvent);
     }
+
+Как можно будет рисовать прямоугольник вокруг объектов:
+QWidget:
+#include <QFrame>
+    auto* widget = qobject_cast<QWidget*>(obj);
+    QFrame* frame = new QFrame(widget);
+    frame->setFrameShape(QFrame::Box);
+    frame->setFrameShadow(QFrame::Raised);
+    frame->setLineWidth(2);
+    frame->setMidLineWidth(0);
+    frame->setPalette(QPalette(Qt::red));
+    frame->setAutoFillBackground(false);
+    frame->setGeometry(widget->rect());
+    frame->show();
+
+
+QQuickItem:
+
+#include <QQuickItem>
+#include <QQuickPaintedItem>
+#include <QPainter>
+
+class BorderPainter : public QQuickPaintedItem {
+public:
+    BorderPainter(QQuickItem* parent = nullptr) : QQuickPaintedItem(parent) {
+        if (parent) {
+            setParentItem(parent);
+            setWidth(parent->width());
+            setHeight(parent->height());
+        }
+    }
+
+    void paint(QPainter* painter) override {
+        painter->setPen(QPen(Qt::red, 2)); // Установка цвета и толщины кисти
+        painter->drawRect(boundingRect().adjusted(1, 1, -1, -1)); // Рисуем прямоугольник
+    }
+};
+
+    QQuickItem* item = qobject_cast<QQuickItem*>(obj);
+    new BorderPainter(item);

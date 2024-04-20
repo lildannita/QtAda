@@ -13,12 +13,13 @@ set(QTADA_LIB_PREFIX "libQtAda_")
 set(QTADA_BIN_DIR ${CMAKE_BINARY_DIR}/bin)
 set(QTADA_LIB_DIR ${CMAKE_BINARY_DIR}/libs)
 set(QTADA_EXAMPLES_BIN_DIR ${QTADA_BIN_DIR}/examples)
+set(QTADA_RESOURCES_DIR ${CMAKE_CURRENT_SOURCE_DIR}/resources)
 
 find_package(
   Qt5 ${QT_MIN_VERSION}
   COMPONENTS Core
              Quick
-             Widgets #[[Qml]]
+             Widgets
   REQUIRED)
 
 # For ABI detection

@@ -3,12 +3,17 @@
 #include <QObject>
 #include <vector>
 #include <set>
+#include <memory>
 
 #include "GenerationSettings.hpp"
 
 QT_BEGIN_NAMESPACE
 class QTimer;
 QT_END_NAMESPACE
+
+namespace QtAda::core::gui {
+class ControlDialog;
+}
 
 namespace QtAda::core {
 class MetaObjectHandler;
@@ -40,7 +45,7 @@ signals:
     void objectReparented(QObject *obj);
 
 private slots:
-    void installInternalEventFilters() noexcept;
+    void installInternalParameters() noexcept;
     void handleObjectsQueue() noexcept;
     void kill() noexcept;
 
@@ -70,6 +75,9 @@ private:
     ScriptWriter *scriptWriter_ = nullptr;
     UserEventFilter *userEventFilter_ = nullptr;
     void installEventFilter(QObject *filter) noexcept;
+
+    std::unique_ptr<gui::ControlDialog> controlDialog_;
+    const QObject *controlDialog() const noexcept;
 
     void addObjectAndParentsToKnown(QObject *obj) noexcept;
     void findObjectsFromCoreApp() noexcept;
