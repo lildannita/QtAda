@@ -82,5 +82,6 @@ private:
     void notifyQueueTimer() noexcept;
 
     bool isIternalObject(QObject *obj) const noexcept;
+    bool isStrangeClass(QObject *obj) const noexcept;
 };
 } // namespace QtAda::core

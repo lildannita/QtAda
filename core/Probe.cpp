@@ -19,6 +19,13 @@ static constexpr char QTADA_NAMESPACE[] = "QtAda::";
 static constexpr uint8_t QTADA_NAMESPACE_LEN = 7;
 static constexpr uint8_t LOOP_DETECTION_COUNT = 100;
 
+//! TODO: Странный класс, который является QObject, и не совсем понятно
+//! что с ним делать: у него нет ни потомков, ни родителей. Все что может
+//! быть нам полезно - objectName() и metaObject()->className(). Объект
+//! этого класса является "первым" источником сигнала при работе с QtWidgets.
+//! Так как пока он бесполезен, то не обрабатываем его.
+static constexpr char STRANGE_CLASS[] = "QWidgetWindow";
+
 QAtomicPointer<Probe> Probe::s_probeInstance = QAtomicPointer<Probe>(nullptr);
 //! TODO: точно ли нам нужен рекурсивный мьютекс?
 Q_GLOBAL_STATIC(QRecursiveMutex, s_mutex)
@@ -216,7 +223,7 @@ bool Probe::eventFilter(QObject *reciever, QEvent *event)
         }
     }
 
-    if (!isIternalObject(reciever)) {
+    if (!isIternalObject(reciever) && !isStrangeClass(reciever)) {
         for (QObject *filter : eventFilters_) {
             filter->eventFilter(reciever, event);
         }
@@ -296,6 +303,11 @@ void Probe::addObject(QObject *obj) noexcept
 
     probeInstance()->knownObjects_.insert(obj);
     probeInstance()->addObjectCreationToQueue(obj);
+}
+
+bool Probe::isStrangeClass(QObject *obj) const noexcept
+{
+    return qstrcmp(obj->metaObject()->className(), STRANGE_CLASS) == 0;
 }
 
 bool Probe::isIternalObject(QObject *obj) const noexcept
