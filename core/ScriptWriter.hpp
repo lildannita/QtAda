@@ -63,6 +63,6 @@ private:
     std::vector<QString> savedLines_;
 
     void flushSavedLines() noexcept;
-    void flushScriptLine(const QString &line, int indentMultiplier = 0) noexcept;
+    void flushScriptLine(const QString &line, int indentMultiplier = 1) noexcept;
 };
 } // namespace QtAda::core
