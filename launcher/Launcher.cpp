@@ -52,6 +52,7 @@ Launcher::~Launcher() noexcept
         // всякий случай отправляем дополнительное сообщение об окончании.
         probeSocket_->write(core::socket::LAUNCHER_DESTROYED);
     }
+    server_->close();
 }
 
 void Launcher::handleNewConnection() noexcept

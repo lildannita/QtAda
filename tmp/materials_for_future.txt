@@ -53,3 +53,10 @@ public:
 
     QQuickItem* item = qobject_cast<QQuickItem*>(obj);
     new BorderPainter(item);
+
+
+Как решить проблему с тем, что диалог тестируемого приложения перекрывает ControlDialog:
+    ->  Можно попробовать перехватывать создание диалогов в Probe::addObject и делать их не модальными: setWindowModality(Qt::NonModal);
+
+Как решить проблему с тем, что мы не можем показать ControlDialog для QML:
+    ->  Нужно перехватывать создание QQmlApplicationEngine и подгружать туда свой QML-код, который будет являться копией диалога на QtWidgets
