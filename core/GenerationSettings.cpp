@@ -63,7 +63,8 @@ GenerationSettings::GenerationSettings() noexcept
                                          "duplicateMouseEvent=1;"
                                          "needToGenerateCycle=1;"
                                          "cycleMinimumCount=3;"
-                                         "closeWindowsOnExit=1");
+                                         "closeWindowsOnExit=1;"
+                                         "blockCommentMinimumCount=3;");
 
     const auto envValue = qgetenv("QTADA_GENERATION_SETTINGS");
     qputenv("QTADA_GENERATION_SETTINGS", "");
@@ -108,6 +109,10 @@ GenerationSettings::GenerationSettings() noexcept
         }
         else if (key == QLatin1String("closeWindowsOnExit")) {
             settings_.closeWindowsOnExit = stringToBool(value);
+        }
+        else if (key == QLatin1String("blockCommentMinimumCount")) {
+            settings_.blockCommentMinimumCount
+                = stringToInt(value, BLOCK_COMMENT_MINIMUM_COUNT - 1);
         }
     }
 }

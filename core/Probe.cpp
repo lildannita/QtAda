@@ -66,6 +66,10 @@ Probe::Probe(const GenerationSettings &settings, QObject *parent) noexcept
 
     connect(userEventFilter_, &UserEventFilter::newScriptLine, scriptWriter_,
             &ScriptWriter::handleNewLine);
+    connect(controlDialog_.get(), &gui::ControlDialog::newCommentLine, scriptWriter_,
+            &ScriptWriter::handleNewComment);
+    connect(controlDialog_.get(), &gui::ControlDialog::scriptCancelled, scriptWriter_,
+            &ScriptWriter::handleCancelledScript);
 }
 
 Probe::~Probe() noexcept

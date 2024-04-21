@@ -17,6 +17,11 @@ public:
 
 public slots:
     void handleNewLine(const QString &scriptLine) noexcept;
+    void handleNewComment(const QString &comment) noexcept;
+    void handleCancelledScript() noexcept
+    {
+        scriptCancelled_ = true;
+    }
 
 private:
     struct LinesHandler final {
@@ -61,8 +66,10 @@ private:
     QFile script_;
     QTextStream scriptStream_;
     std::vector<QString> savedLines_;
+    bool scriptCancelled_ = false;
 
     void flushSavedLines() noexcept;
-    void flushScriptLine(const QString &line, int indentMultiplier = 1) noexcept;
+    void writeScriptLine(const QString &line, int indentMultiplier = 1) noexcept;
+    void flushScriptLine(const QString &line) noexcept;
 };
 } // namespace QtAda::core

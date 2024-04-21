@@ -6,6 +6,7 @@
 
 namespace QtAda::core {
 static const int CYCLE_MINIMUM_COUNT = 3;
+static const int BLOCK_COMMENT_MINIMUM_COUNT = 1;
 
 enum class TextIndexBehavior {
     OnlyIndex = 0,
@@ -34,6 +35,7 @@ struct GenerationSettingsWriter final {
     int cycleMinimumCount = -1;
 
     bool closeWindowsOnExit = false;
+    int blockCommentMinimumCount = -1;
 
     /*
      * Для надежности используем этот вектор, который позволяет точно задать последовательность
@@ -50,7 +52,7 @@ struct GenerationSettingsWriter final {
             QLatin1String("appendLineIndex"),     QLatin1String("indentWidth"),
             QLatin1String("textIndexBehavior"),   QLatin1String("duplicateMouseEvent"),
             QLatin1String("needToGenerateCycle"), QLatin1String("cycleMinimumCount"),
-            QLatin1String("closeWindowsOnExit"),
+            QLatin1String("closeWindowsOnExit"),  QLatin1String("blockCommentMinimumCount"),
         };
     }
 
@@ -122,6 +124,10 @@ public:
     bool closeWindowsOnExit() const noexcept
     {
         return settings_.closeWindowsOnExit;
+    }
+    int blockCommentMinimumCount() const noexcept
+    {
+        return settings_.blockCommentMinimumCount;
     }
 
 private:
