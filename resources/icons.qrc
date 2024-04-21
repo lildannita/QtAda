@@ -6,5 +6,6 @@
         <file>play.svg</file>
         <file>scenario_cancel.svg</file>
         <file>scenario_ready.svg</file>
+        <file>app.png</file>
     </qresource>
 </RCC>

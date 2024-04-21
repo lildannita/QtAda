@@ -32,6 +32,7 @@ ControlDialog::ControlDialog(bool closeWindowsOnExit, QWidget *parent) noexcept
 {
     this->setWindowTitle("QtAda | Control Bar");
     this->setWindowFlags(Qt::CustomizeWindowHint | Qt::WindowTitleHint);
+    this->setWindowIcon(QIcon(":/icons/app.png"));
 
     // Инициализация основных кнопок
     initToolButton(completeScriptButton_, "Complete Script", ":/icons/scenario_ready.svg");
