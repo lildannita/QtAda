@@ -75,6 +75,7 @@ private:
     ScriptWriter *scriptWriter_ = nullptr;
     UserEventFilter *userEventFilter_ = nullptr;
     void installEventFilter(QObject *filter) noexcept;
+    bool filtersPaused_ = false;
 
     std::unique_ptr<gui::ControlDialog> controlDialog_;
     const QObject *controlDialog() const noexcept;

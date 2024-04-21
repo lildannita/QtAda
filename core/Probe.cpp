@@ -66,10 +66,14 @@ Probe::Probe(const GenerationSettings &settings, QObject *parent) noexcept
 
     connect(userEventFilter_, &UserEventFilter::newScriptLine, scriptWriter_,
             &ScriptWriter::handleNewLine);
+    connect(userEventFilter_, &UserEventFilter::newScriptLine, controlDialog_.get(),
+            &gui::ControlDialog::handleNewScriptLine);
     connect(controlDialog_.get(), &gui::ControlDialog::newCommentLine, scriptWriter_,
             &ScriptWriter::handleNewComment);
     connect(controlDialog_.get(), &gui::ControlDialog::scriptCancelled, scriptWriter_,
             &ScriptWriter::handleCancelledScript);
+    connect(controlDialog_.get(), &gui::ControlDialog::applicationPaused, scriptWriter_,
+            [this](bool isPaused) { filtersPaused_ = isPaused; });
 }
 
 Probe::~Probe() noexcept
@@ -242,7 +246,7 @@ bool Probe::eventFilter(QObject *reciever, QEvent *event)
         }
     }
 
-    if (!isIternalObject(reciever) && !isStrangeClass(reciever)) {
+    if (!filtersPaused_ && !isIternalObject(reciever) && !isStrangeClass(reciever)) {
         for (QObject *filter : eventFilters_) {
             filter->eventFilter(reciever, event);
         }

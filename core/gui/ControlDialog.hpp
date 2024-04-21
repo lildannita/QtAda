@@ -22,6 +22,9 @@ signals:
     void applicationPaused(bool isPaused);
     void scriptCancelled();
 
+public slots:
+    void handleNewScriptLine(const QString &scriptLine);
+
 private slots:
     void completeScript() noexcept;
     void addVerification() noexcept;
@@ -52,10 +55,14 @@ private:
     QPushButton *clearCommentButton_ = nullptr;
 
     const bool closeWindowsOnExit_;
+    bool needToRestoreLabelColor_ = false;
 
     void initToolButton(QToolButton *button, const QString &text, const QString &iconPath) noexcept;
     void handleVisibility() noexcept;
 
     QFrame *generateSeparator(bool isHorizontal = true);
+    void setTextToScriptLabel(const QString &text) noexcept;
+    void setPlayPauseMessageToScriptLabel(bool isPaused) noexcept;
+    void setLabelTextColor(const QString &color = QString()) noexcept;
 };
 } // namespace QtAda::core::gui

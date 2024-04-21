@@ -10,6 +10,8 @@
 #include <QPushButton>
 #include <QTextEdit>
 
+#include "utils/Tools.hpp"
+
 namespace QtAda::core::gui {
 ControlDialog::ControlDialog(bool closeWindowsOnExit, QWidget *parent) noexcept
     : QDialog{ parent }
@@ -40,6 +42,7 @@ ControlDialog::ControlDialog(bool closeWindowsOnExit, QWidget *parent) noexcept
     initToolButton(cancelScriptButton_, "Cancel script", ":/icons/scenario_cancel.svg");
     addVerificationButton_->setCheckable(true);
     addCommentButton_->setCheckable(true);
+    playButton_->setFixedSize(pauseButton_->sizeHint());
     playButton_->setVisible(false);
     // Подключение слотов к основным кнопкам
     connect(completeScriptButton_, &QToolButton::clicked, this, &ControlDialog::completeScript);
@@ -62,7 +65,7 @@ ControlDialog::ControlDialog(bool closeWindowsOnExit, QWidget *parent) noexcept
     // Инициализация строки, отображающей последнюю сгенерированную команду
     scriptLineLabel_->setTextFormat(Qt::PlainText);
     scriptLineLabel_->setWordWrap(true);
-    scriptLineLabel_->setText("Start interacting in the application under test!");
+    setTextToScriptLabel("Start interacting in the application under test!");
     // Инициализация макета для строки
     QVBoxLayout *scriptLayout = new QVBoxLayout(scriptWidget_);
     scriptLayout->addWidget(generateSeparator());
@@ -134,6 +137,7 @@ void ControlDialog::pause() noexcept
     emit applicationPaused(true);
     pauseButton_->setVisible(false);
     playButton_->setVisible(true);
+    setPlayPauseMessageToScriptLabel(true);
 }
 
 void ControlDialog::play() noexcept
@@ -141,6 +145,7 @@ void ControlDialog::play() noexcept
     emit applicationPaused(false);
     pauseButton_->setVisible(true);
     playButton_->setVisible(false);
+    setPlayPauseMessageToScriptLabel(false);
 }
 
 void ControlDialog::cancelScript() noexcept
@@ -172,5 +177,57 @@ QFrame *ControlDialog::generateSeparator(bool isHorizontal)
     separator->setFrameShape(isHorizontal ? QFrame::HLine : QFrame::VLine);
     separator->setFrameShadow(QFrame::Sunken);
     return separator;
+}
+
+void ControlDialog::handleNewScriptLine(const QString &scriptLine)
+{
+    //! TODO: не лучший вариант вычленения команды + сейчас довольно "тяжелая"
+    //! функция tools::cutLine вызывается еще и в ScriptWriter
+    const auto lines = tools::cutLine(scriptLine);
+    for (const auto &line : lines) {
+        if (line.startsWith('/')) {
+            continue;
+        }
+        const auto bracketIndex = line.indexOf('(');
+        assert(bracketIndex != -1);
+        setTextToScriptLabel(line.left(bracketIndex));
+        break;
+    }
+}
+
+void ControlDialog::setTextToScriptLabel(const QString &text) noexcept
+{
+    assert(scriptLineLabel_ != nullptr);
+    if (needToRestoreLabelColor_) {
+        needToRestoreLabelColor_ = false;
+        setLabelTextColor();
+    }
+    scriptLineLabel_->setText(text);
+}
+
+void ControlDialog::setPlayPauseMessageToScriptLabel(bool isPaused) noexcept
+{
+    assert(scriptLineLabel_ != nullptr);
+    if (isPaused) {
+        setLabelTextColor("#F8961E");
+        scriptLineLabel_->setText("Recording paused. Please be cautious as your further actions in "
+                                  "the application may lead to a non-functional test script.");
+    }
+    else {
+        setLabelTextColor("#90BE6D");
+        scriptLineLabel_->setText("Recording resumed.");
+        needToRestoreLabelColor_ = true;
+    }
+}
+
+void ControlDialog::setLabelTextColor(const QString &color) noexcept
+{
+    assert(scriptLineLabel_ != nullptr);
+    if (color.isEmpty()) {
+        scriptLineLabel_->setStyleSheet("");
+    }
+    else {
+        scriptLineLabel_->setStyleSheet("QLabel { color : " + color + "; }");
+    }
 }
 } // namespace QtAda::core::gui
