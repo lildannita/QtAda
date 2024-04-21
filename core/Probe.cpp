@@ -3,6 +3,7 @@
 #include <QCoreApplication>
 #include <QGuiApplication>
 #include <QApplication>
+#include <QLocalSocket>
 #include <QScreen>
 #include <QTimer>
 #include <QThread>
@@ -16,6 +17,7 @@
 #include "UserEventFilter.hpp"
 #include "ScriptWriter.hpp"
 
+#include "utils/SocketMessages.hpp"
 #include "gui/ControlDialog.hpp"
 
 namespace QtAda::core {
@@ -28,6 +30,8 @@ static constexpr uint8_t LOOP_DETECTION_COUNT = 100;
 //! быть нам полезно - objectName() и metaObject()->className(). Объект
 //! этого класса является "первым" источником сигнала при работе с QtWidgets.
 //! Так как пока он бесполезен, то не обрабатываем его.
+//!
+//! UPD: кажись, это класс графической оболочки Linux
 static constexpr char STRANGE_CLASS[] = "QWidgetWindow";
 
 QAtomicPointer<Probe> Probe::s_probeInstance = QAtomicPointer<Probe>(nullptr);
@@ -143,6 +147,11 @@ void Probe::installInternalParameters() noexcept
 {
     QCoreApplication::instance()->installEventFilter(this);
     installEventFilter(userEventFilter_);
+
+    socket_ = new QLocalSocket(this);
+    socket_->connectToServer(socket::SERVER_PATH);
+    connect(socket_, &QLocalSocket::disconnected, socket_, &QLocalSocket::deleteLater);
+    connect(socket_, &QLocalSocket::readyRead, this, &Probe::readLauncherMessage);
 
     assert(controlDialog_ != nullptr);
     const auto screenGeometry = QApplication::primaryScreen()->geometry();
@@ -516,5 +525,13 @@ void Probe::explicitObjectCreation(QObject *obj) noexcept
     assert(!obj->parent() || isKnownObject(obj->parent()));
 
     emit objectCreated(obj);
+}
+
+void Probe::readLauncherMessage() noexcept
+{
+    const auto message = socket_->readAll();
+    if (message == socket::LAUNCHER_DESTROYED) {
+        QCoreApplication::quit();
+    }
 }
 } // namespace QtAda::core

@@ -23,7 +23,8 @@ set(core_HDRS
   LastEvent.hpp
   utils/Tools.hpp
   utils/CommonFilters.hpp
-  utils/FilterUtils.hpp)
+  utils/FilterUtils.hpp
+  utils/SocketMessages.hpp)
 set(core_SRCS
   GenerationSettings.cpp
   Probe.cpp
@@ -49,4 +50,5 @@ set_target_properties(core PROPERTIES PREFIX ${QTADA_LIB_PREFIX}
 target_link_libraries(core PRIVATE Qt5::Core
                                    Qt5::CorePrivate
                                    Qt5::Quick
-                                   Qt5::Widgets)
+                                   Qt5::Widgets
+                                   Qt5::Network)

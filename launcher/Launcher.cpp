@@ -1,9 +1,13 @@
 #include "Launcher.hpp"
 
-#include "injector/PreloadInjector.hpp"
-
+#include <QLocalServer>
+#include <QLocalSocket>
+#include <QFile>
 #include <QDebug>
 #include <iostream>
+
+#include "injector/PreloadInjector.hpp"
+#include "utils/SocketMessages.hpp"
 
 static constexpr int DEFAULT_WAITING_TIMER_VALUE = 60;
 static constexpr char ENV_TIMER_VAR_NAME[] = "QTADA_LAUNCHER_TIMEOUT";
@@ -17,13 +21,17 @@ Launcher::Launcher(const UserLaunchOptions &userOptions, QObject *parent) noexce
     waitingTimer_.setInterval(waitingTimeoutValue_ * 1000);
     waitingTimer_.setSingleShot(true);
 
-    //! TODO: необходимо понять, как точно определить то, что приложение запущено,
-    //! чтобы останавливать таймер
-    // connect(&waitingTimer_, &QTimer::timeout, this, &Launcher::timeout);
+    server_ = new QLocalServer(this);
+    connect(server_, &QLocalServer::newConnection, this, &Launcher::handleNewConnection);
+    if (!server_->listen(core::socket::SERVER_PATH)) {
+        QFile::remove(core::socket::SERVER_PATH);
+        assert(server_->listen(core::socket::SERVER_PATH));
+    }
+
+    connect(&waitingTimer_, &QTimer::timeout, this, &Launcher::timeout);
 
     injector_ = std::make_unique<injector::PreloadInjector>();
-    // connect(injector_.get(), &injector::AbstractInjector::started, this,
-    // &Launcher::restartTimer);
+    connect(injector_.get(), &injector::AbstractInjector::started, this, &Launcher::restartTimer);
     connect(injector_.get(), &injector::AbstractInjector::finished, this,
             &Launcher::injectorFinished, Qt::QueuedConnection);
     connect(injector_.get(), &injector::AbstractInjector::stdErrMessage, this,
@@ -37,6 +45,20 @@ Launcher::~Launcher() noexcept
     if (injector_) {
         injector_->stop();
     }
+
+    if (probeSocket_ != nullptr) {
+        // По идее Probe должен быть уже удален к этому моменту (так как
+        // деструктор ProcessInjector должен остановить процесс), но на
+        // всякий случай отправляем дополнительное сообщение об окончании.
+        probeSocket_->write(core::socket::LAUNCHER_DESTROYED);
+    }
+}
+
+void Launcher::handleNewConnection() noexcept
+{
+    assert(probeSocket_ == nullptr);
+    probeSocket_ = server_->nextPendingConnection();
+    waitingTimer_.stop();
 }
 
 void Launcher::timeout() noexcept
@@ -75,6 +97,7 @@ void Launcher::injectorFinished() noexcept
 
 bool Launcher::launch() noexcept
 {
+    //! TODO: проверить что мы уже запустили Launcher
     if (options_.absoluteExecutablePath.isEmpty()) {
         handleLauncherFailure(-1, QStringLiteral("Error: '%1' - no such executable file.")
                                       .arg(options_.userOptions.launchAppArguments.constFirst()));

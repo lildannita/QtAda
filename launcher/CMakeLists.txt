@@ -40,5 +40,8 @@ set_target_properties(launcher PROPERTIES PREFIX ${QTADA_LIB_PREFIX}
                                           OUTPUT_NAME ${QTADA_LAUNCHER_BASENAME}
                                           LIBRARY_OUTPUT_DIRECTORY ${QTADA_LIB_DIR}
                                           RUNTIME_OUTPUT_DIRECTORY ${QTADA_LIB_DIR})
-target_link_libraries(launcher PUBLIC Qt5::Core)
-target_include_directories(launcher PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(launcher PRIVATE core
+                                       Qt5::Core
+                                       Qt5::Network)
+target_include_directories(launcher PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}
+                                            ${QTADA_CORE_INCLUDE_DIR})

@@ -7,16 +7,18 @@
 #include <QTimer>
 #include <memory>
 
-namespace QtAda::launcher {
-namespace injector {
-    class AbstractInjector;
-} // namespace injector
+QT_BEGIN_NAMESPACE
+class QLocalServer;
+class QLocalSocket;
+QT_END_NAMESPACE
 
+namespace QtAda::launcher::injector {
+class AbstractInjector;
+}
+
+namespace QtAda::launcher {
 class Launcher final : public QObject {
     Q_OBJECT
-signals:
-    void launcherFinished();
-
 public:
     explicit Launcher(const UserLaunchOptions &options, QObject *parent = nullptr) noexcept;
     ~Launcher() noexcept override;
@@ -27,6 +29,9 @@ public:
         return options_.exitCode;
     }
 
+signals:
+    void launcherFinished();
+
 private slots:
     void restartTimer() noexcept;
     void timeout() noexcept;
@@ -35,10 +40,14 @@ private slots:
     void printStdOutMessage(const QString &msg) const noexcept;
     void printStdErrMessage(const QString &msg) const noexcept;
 
+    void handleNewConnection() noexcept;
+
 private:
     LaunchOptions options_;
     std::unique_ptr<injector::AbstractInjector> injector_;
 
+    QLocalServer *server_ = nullptr;
+    QLocalSocket *probeSocket_ = nullptr;
     QTimer waitingTimer_;
     int waitingTimeoutValue_ = 0;
 

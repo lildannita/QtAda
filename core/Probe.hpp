@@ -9,6 +9,7 @@
 
 QT_BEGIN_NAMESPACE
 class QTimer;
+class QLocalSocket;
 QT_END_NAMESPACE
 
 namespace QtAda::core::gui {
@@ -48,9 +49,11 @@ private slots:
     void installInternalParameters() noexcept;
     void handleObjectsQueue() noexcept;
     void kill() noexcept;
+    void readLauncherMessage() noexcept;
 
 private:
     static QAtomicPointer<Probe> s_probeInstance;
+    QLocalSocket *socket_ = nullptr;
     std::vector<QObject *> eventFilters_;
 
     // Очень важно, что построение дерева объектов должно происходить

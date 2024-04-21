@@ -20,6 +20,7 @@ find_package(
   COMPONENTS Core
              Quick
              Widgets
+             Network
   REQUIRED)
 
 # For ABI detection
