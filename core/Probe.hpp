@@ -95,5 +95,7 @@ private:
 
     bool isIternalObject(QObject *obj) const noexcept;
     bool isStrangeClass(QObject *obj) const noexcept;
+
+    static bool canShowWidgets() noexcept;
 };
 } // namespace QtAda::core

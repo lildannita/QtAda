@@ -55,7 +55,6 @@ Probe::Probe(const GenerationSettings &settings, QObject *parent) noexcept
     , metaObjectHandler_{ new MetaObjectHandler(this) }
     , userEventFilter_{ new UserEventFilter(settings, this) }
     , scriptWriter_{ new ScriptWriter(settings, this) }
-    , controlDialog_{ std::make_unique<gui::ControlDialog>(settings.closeWindowsOnExit()) }
 {
     Q_ASSERT(thread() == qApp->thread());
 
@@ -70,14 +69,18 @@ Probe::Probe(const GenerationSettings &settings, QObject *parent) noexcept
 
     connect(userEventFilter_, &UserEventFilter::newScriptLine, scriptWriter_,
             &ScriptWriter::handleNewLine);
-    connect(userEventFilter_, &UserEventFilter::newScriptLine, controlDialog_.get(),
-            &gui::ControlDialog::handleNewScriptLine);
-    connect(controlDialog_.get(), &gui::ControlDialog::newCommentLine, scriptWriter_,
-            &ScriptWriter::handleNewComment);
-    connect(controlDialog_.get(), &gui::ControlDialog::scriptCancelled, scriptWriter_,
-            &ScriptWriter::handleCancelledScript);
-    connect(controlDialog_.get(), &gui::ControlDialog::applicationPaused, scriptWriter_,
-            [this](bool isPaused) { filtersPaused_ = isPaused; });
+
+    if (canShowWidgets()) {
+        controlDialog_ = std::make_unique<gui::ControlDialog>(settings.closeWindowsOnExit());
+        connect(userEventFilter_, &UserEventFilter::newScriptLine, controlDialog_.get(),
+                &gui::ControlDialog::handleNewScriptLine);
+        connect(controlDialog_.get(), &gui::ControlDialog::newCommentLine, scriptWriter_,
+                &ScriptWriter::handleNewComment);
+        connect(controlDialog_.get(), &gui::ControlDialog::scriptCancelled, scriptWriter_,
+                &ScriptWriter::handleCancelledScript);
+        connect(controlDialog_.get(), &gui::ControlDialog::applicationPaused, scriptWriter_,
+                [this](bool isPaused) { filtersPaused_ = isPaused; });
+    }
 }
 
 Probe::~Probe() noexcept
@@ -143,6 +146,11 @@ const QObject *Probe::controlDialog() const noexcept
     return qobject_cast<const QObject *>(controlDialog_.get());
 }
 
+bool Probe::canShowWidgets() noexcept
+{
+    return QCoreApplication::instance()->inherits("QApplication");
+}
+
 void Probe::installInternalParameters() noexcept
 {
     QCoreApplication::instance()->installEventFilter(this);
@@ -153,10 +161,12 @@ void Probe::installInternalParameters() noexcept
     connect(socket_, &QLocalSocket::disconnected, socket_, &QLocalSocket::deleteLater);
     connect(socket_, &QLocalSocket::readyRead, this, &Probe::readLauncherMessage);
 
-    assert(controlDialog_ != nullptr);
-    const auto screenGeometry = QApplication::primaryScreen()->geometry();
-    controlDialog_->move(screenGeometry.width() - controlDialog_->width(), screenGeometry.y());
-    controlDialog_->show();
+    if (canShowWidgets()) {
+        assert(controlDialog_ != nullptr);
+        const auto screenGeometry = QApplication::primaryScreen()->geometry();
+        controlDialog_->move(screenGeometry.width() - controlDialog_->width(), screenGeometry.y());
+        controlDialog_->show();
+    }
 }
 
 void Probe::installEventFilter(QObject *filter) noexcept
