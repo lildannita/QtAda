@@ -5,6 +5,7 @@
 QT_BEGIN_NAMESPACE
 class QPushButton;
 class QTreeView;
+class QTableView;
 class QStandardItemModel;
 class QStandardItem;
 class QItemSelection;
@@ -44,8 +45,11 @@ private:
     QTreeView *treeView_ = nullptr;
     QStandardItemModel *framedObjectModel_ = nullptr;
     const QObject *frame_ = nullptr;
+    QTableView *tableView_ = nullptr;
+    QStandardItemModel *metaPropertyModel_ = nullptr;
 
     void addFramedObjectToModel(const QObject *object, QStandardItem *parentViewItem) noexcept;
+    void updateMetaPropertyModel(const QObject *object) noexcept;
     void handleTreeModelUpdated() noexcept;
 
     void initButton(QPushButton *button, const QString &text) noexcept;

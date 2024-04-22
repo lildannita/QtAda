@@ -8,6 +8,8 @@
 #include <QHBoxLayout>
 #include <QPushButton>
 #include <QTreeView>
+#include <QTableView>
+#include <QHeaderView>
 
 #include "utils/Tools.hpp"
 #include "GuiTools.hpp"
@@ -18,12 +20,18 @@ PropertiesWatcher::PropertiesWatcher(QWidget *parent) noexcept
     , selectAll{ new QPushButton }
     , clearSelection{ new QPushButton }
     , acceptSelection{ new QPushButton }
-    , framedObjectModel_{ new QStandardItemModel }
     , treeView_{ new QTreeView }
+    , framedObjectModel_{ new QStandardItemModel }
+    , tableView_{ new QTableView }
+    , metaPropertyModel_{ new QStandardItemModel }
 {
     // Инициализация QTreeView, отображающего дерево элементов
     treeView_->setHeaderHidden(true);
     treeView_->setModel(framedObjectModel_);
+
+    // Инициализация QTableView, отображающего свойства выбранного элемента
+    tableView_->setModel(metaPropertyModel_);
+    tableView_->verticalHeader()->setVisible(false);
 
     // Инициализация кнопок, управляющих выбором свойств инспектируемого объекта
     initButton(selectAll, "Select All");
@@ -40,6 +48,7 @@ PropertiesWatcher::PropertiesWatcher(QWidget *parent) noexcept
     // Инициализация основного макета
     QVBoxLayout *mainLayout = new QVBoxLayout(this);
     mainLayout->addWidget(treeView_);
+    mainLayout->addWidget(tableView_);
     mainLayout->addWidget(buttonsWidget);
 
     this->setVisible(false);
@@ -49,6 +58,8 @@ void PropertiesWatcher::clear() noexcept
 {
     assert(framedObjectModel_ != nullptr);
     framedObjectModel_->clear();
+    assert(metaPropertyModel_ != nullptr);
+    metaPropertyModel_->clear();
 
     const auto *selectionModel = treeView_->selectionModel();
     assert(selectionModel != nullptr);
@@ -59,6 +70,7 @@ void PropertiesWatcher::setFramedObject(const QObject *object) noexcept
 {
     clear();
     addFramedObjectToModel(object, nullptr);
+    updateMetaPropertyModel(object);
     handleTreeModelUpdated();
 }
 
@@ -122,6 +134,34 @@ void PropertiesWatcher::handleTreeModelUpdated() noexcept
             &PropertiesWatcher::framedSelectionChanged);
 }
 
+void PropertiesWatcher::updateMetaPropertyModel(const QObject *object) noexcept
+{
+    assert(metaPropertyModel_ != nullptr);
+    metaPropertyModel_->clear();
+
+    // При очищении модели эти настройки пропадают, поэтому при каждом обновлении
+    // выставляем их заново.
+    metaPropertyModel_->setHorizontalHeaderLabels({ "Property", "Value" });
+    tableView_->setColumnWidth(0, tableView_->viewport()->width() / 3);
+    tableView_->horizontalHeader()->setSectionResizeMode(0, QHeaderView::Interactive);
+    tableView_->horizontalHeader()->setSectionResizeMode(1, QHeaderView::Stretch);
+
+    assert(object != nullptr);
+    const auto *metaObject = object->metaObject();
+    assert(metaObject != nullptr);
+
+    const auto propertyCount = metaObject->propertyCount();
+    for (int i = 0; i < propertyCount; i++) {
+        const auto propertyName = metaObject->property(i).name();
+        const auto propertyValue = object->property(propertyName);
+
+        auto *nameItem = new QStandardItem(propertyName);
+        auto *valueItem = new QStandardItem(propertyValue.toString());
+
+        metaPropertyModel_->appendRow({ nameItem, valueItem });
+    }
+}
+
 void PropertiesWatcher::framedSelectionChanged(const QItemSelection &selected,
                                                const QItemSelection &deselected) noexcept
 {
@@ -136,6 +176,7 @@ void PropertiesWatcher::framedSelectionChanged(const QItemSelection &selected,
 
     auto *selectedObject = index.data(Qt::UserRole).value<QObject *>();
     assert(selectedObject != nullptr);
+    updateMetaPropertyModel(selectedObject);
 
     if (qobject_cast<QWidget *>(selectedObject) == nullptr
         && qobject_cast<QQuickItem *>(selectedObject) == nullptr) {
