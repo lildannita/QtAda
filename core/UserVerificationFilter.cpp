@@ -24,6 +24,10 @@ void UserVerificationFilter::cleanupFrames() noexcept
 
 void UserVerificationFilter::handleWidgetVerification(QWidget *widget) noexcept
 {
+    if (lastFrame_ != nullptr && lastFrame_->parentWidget() == widget) {
+        return;
+    }
+
     if (lastFrame_ == nullptr) {
         lastFrame_ = new QFrame(widget);
         // Не можем настраивать в конструкторе, так как если тестируемое приложение
@@ -48,6 +52,10 @@ void UserVerificationFilter::handleWidgetVerification(QWidget *widget) noexcept
 
 void UserVerificationFilter::handleItemVerification(QQuickItem *item) noexcept
 {
+    if (lastPaintedItem_ != nullptr && lastPaintedItem_->parentItem() == item) {
+        return;
+    }
+
     if (lastPaintedItem_ == item) {
         return;
     }

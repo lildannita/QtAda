@@ -50,6 +50,10 @@ private slots:
     void installInternalParameters() noexcept;
     void handleObjectsQueue() noexcept;
     void kill() noexcept;
+
+    void handleApplicationPaused(bool isPaused) noexcept;
+    void handleVerificationMode(bool isMode) noexcept;
+
     void readLauncherMessage() noexcept;
 
 private:

@@ -80,15 +80,10 @@ Probe::Probe(const GenerationSettings &settings, QObject *parent) noexcept
                 &ScriptWriter::handleNewComment);
         connect(controlDialog_.get(), &gui::ControlDialog::scriptCancelled, scriptWriter_,
                 &ScriptWriter::handleCancelledScript);
-        connect(controlDialog_.get(), &gui::ControlDialog::applicationPaused, scriptWriter_,
-                [this](bool isPaused) { filtersPaused_ = isPaused; });
-        connect(controlDialog_.get(), &gui::ControlDialog::verificationModeChanged, scriptWriter_,
-                [this](bool isVerificationMode) {
-                    verificationMode_ = isVerificationMode;
-                    if (!verificationMode_) {
-                        userVerificationFilter_->cleanupFrames();
-                    }
-                });
+        connect(controlDialog_.get(), &gui::ControlDialog::applicationPaused, this,
+                &Probe::handleApplicationPaused);
+        connect(controlDialog_.get(), &gui::ControlDialog::verificationModeChanged, this,
+                &Probe::handleVerificationMode);
     }
 }
 
@@ -174,6 +169,22 @@ void Probe::installInternalParameters() noexcept
         const auto screenGeometry = QApplication::primaryScreen()->geometry();
         controlDialog_->move(screenGeometry.width() - controlDialog_->width(), screenGeometry.y());
         controlDialog_->show();
+    }
+}
+
+void Probe::handleApplicationPaused(bool isPaused) noexcept
+{
+    filtersPaused_ = isPaused;
+    if (filtersPaused_) {
+        userVerificationFilter_->cleanupFrames();
+    }
+}
+
+void Probe::handleVerificationMode(bool isMode) noexcept
+{
+    verificationMode_ = isMode;
+    if (!verificationMode_) {
+        userVerificationFilter_->cleanupFrames();
     }
 }
 
