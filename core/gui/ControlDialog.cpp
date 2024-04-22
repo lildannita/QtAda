@@ -32,12 +32,18 @@ ControlDialog::ControlDialog(bool closeWindowsOnExit, QWidget *parent) noexcept
     , clearCommentButton_{ new QPushButton }
     , propertiesWatcher_{ new PropertiesWatcher(this) }
 {
+    // Настройка параметров окна диалога
     this->setWindowTitle("QtAda | Control Bar");
     this->setWindowFlags(Qt::CustomizeWindowHint | Qt::WindowTitleHint);
     this->setWindowIcon(QIcon(":/icons/app.png"));
 
-    connect(this, &ControlDialog::objectSelectedFromGui, propertiesWatcher_,
+    // Подключение сигналов к PropertiesWatcher виджету
+    connect(this, &ControlDialog::objectSelectedInGui, propertiesWatcher_,
             &PropertiesWatcher::setSelectedObject);
+    connect(this, &ControlDialog::frameCreatedInGui, propertiesWatcher_,
+            &PropertiesWatcher::setFrame);
+    connect(this, &ControlDialog::frameDestroyedInGui, propertiesWatcher_,
+            &PropertiesWatcher::removeFrame);
 
     // Инициализация основных кнопок
     initToolButton(completeScriptButton_, "Complete Script", ":/icons/scenario_ready.svg");

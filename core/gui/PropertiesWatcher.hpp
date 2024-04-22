@@ -15,7 +15,16 @@ class PropertiesWatcher : public QWidget {
 public:
     PropertiesWatcher(QWidget *parent) noexcept;
 
+public slots:
     void setSelectedObject(const QObject *object) noexcept;
+    void setFrame(const QObject *frame) noexcept
+    {
+        frame_ = frame;
+    }
+    void removeFrame() noexcept
+    {
+        frame_ = nullptr;
+    }
 
 private:
     QPushButton *selectAll = nullptr;
@@ -24,6 +33,8 @@ private:
 
     QTreeView *treeView_ = nullptr;
     QStandardItemModel *selectedObjectModel_ = nullptr;
+    const QObject *frame_ = nullptr;
+
     void addObjectToModel(const QObject *object, QStandardItem *parentViewItem) noexcept;
 
     void initButton(QPushButton *button, const QString &text) noexcept;

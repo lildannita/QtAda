@@ -58,6 +58,8 @@ void UserVerificationFilter::cleanupFrames() noexcept
         lastPaintedItem_->deleteLater();
         lastPaintedItem_ = nullptr;
     }
+
+    emit frameDestroyed();
 }
 
 void UserVerificationFilter::handleWidgetVerification(QWidget *widget) noexcept
@@ -81,6 +83,7 @@ void UserVerificationFilter::handleWidgetVerification(QWidget *widget) noexcept
                                   "  border: 3px solid rgb(217, 4, 41); "
                                   "  background-color: rgba(239, 35, 60, 127); "
                                   "}");
+        emit frameCreated(qobject_cast<const QObject *>(lastFrame_));
     }
     else {
         lastFrame_->hide();
@@ -102,6 +105,7 @@ void UserVerificationFilter::handleItemVerification(QQuickItem *item) noexcept
 
     if (lastPaintedItem_ == nullptr) {
         lastPaintedItem_ = new QuickFrame(item);
+        emit frameCreated(qobject_cast<const QObject *>(lastPaintedItem_));
     }
     else {
         lastPaintedItem_->setParentItem(item);

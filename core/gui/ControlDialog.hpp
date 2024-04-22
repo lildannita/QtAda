@@ -25,7 +25,9 @@ signals:
     void scriptCancelled();
     void verificationModeChanged(bool isVerificationMode);
 
-    void objectSelectedFromGui(const QObject *object);
+    void objectSelectedInGui(const QObject *object);
+    void frameCreatedInGui(const QObject *frame);
+    void frameDestroyedInGui();
 
 public slots:
     void handleNewScriptLine(const QString &scriptLine) noexcept;

@@ -44,6 +44,8 @@ public:
 
 signals:
     void objectSelected(const QObject *obj);
+    void frameCreated(const QObject *frame);
+    void frameDestroyed();
 
 private:
     LastMouseEvent lastPressEvent_;

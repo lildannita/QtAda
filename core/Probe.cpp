@@ -77,7 +77,11 @@ Probe::Probe(const GenerationSettings &settings, QObject *parent) noexcept
         connect(userEventFilter_, &UserEventFilter::newScriptLine, controlDialog_.get(),
                 &gui::ControlDialog::handleNewScriptLine);
         connect(userVerificationFilter_, &UserVerificationFilter::objectSelected,
-                controlDialog_.get(), &gui::ControlDialog::objectSelectedFromGui);
+                controlDialog_.get(), &gui::ControlDialog::objectSelectedInGui);
+        connect(userVerificationFilter_, &UserVerificationFilter::frameCreated,
+                controlDialog_.get(), &gui::ControlDialog::frameCreatedInGui);
+        connect(userVerificationFilter_, &UserVerificationFilter::frameDestroyed,
+                controlDialog_.get(), &gui::ControlDialog::frameDestroyedInGui);
         connect(controlDialog_.get(), &gui::ControlDialog::newCommentLine, scriptWriter_,
                 &ScriptWriter::handleNewComment);
         connect(controlDialog_.get(), &gui::ControlDialog::scriptCancelled, scriptWriter_,

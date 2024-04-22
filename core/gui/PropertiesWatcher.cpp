@@ -52,8 +52,9 @@ void PropertiesWatcher::addObjectToModel(const QObject *object,
                                          QStandardItem *parentViewItem) noexcept
 {
     assert(object != nullptr);
-    if (qobject_cast<const QWidget *>(object) == nullptr
-        && qobject_cast<const QQuickItem *>(object) == nullptr) {
+    if (object == frame_
+        || (qobject_cast<const QWidget *>(object) == nullptr
+            && qobject_cast<const QQuickItem *>(object) == nullptr)) {
         return;
     }
 
