@@ -42,6 +42,9 @@ public:
     bool eventFilter(QObject *obj, QEvent *event) noexcept override;
     void cleanupFrames() noexcept;
 
+signals:
+    void objectSelected(const QObject *obj);
+
 private:
     LastMouseEvent lastPressEvent_;
     QFrame *lastFrame_ = nullptr;

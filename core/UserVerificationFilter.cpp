@@ -88,6 +88,8 @@ void UserVerificationFilter::handleWidgetVerification(QWidget *widget) noexcept
     lastFrame_->setParent(widget);
     lastFrame_->setGeometry(widget->rect());
     lastFrame_->show();
+
+    emit objectSelected(qobject_cast<const QObject *>(widget));
 }
 
 void UserVerificationFilter::handleItemVerification(QQuickItem *item) noexcept
@@ -107,6 +109,8 @@ void UserVerificationFilter::handleItemVerification(QQuickItem *item) noexcept
     lastPaintedItem_->setWidth(item->width());
     lastPaintedItem_->setHeight(item->height());
     lastPaintedItem_->update();
+
+    emit objectSelected(qobject_cast<const QObject *>(item));
 }
 
 bool UserVerificationFilter::eventFilter(QObject *obj, QEvent *event) noexcept

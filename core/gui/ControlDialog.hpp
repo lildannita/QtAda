@@ -12,6 +12,8 @@ class QFrame;
 QT_END_NAMESPACE
 
 namespace QtAda::core::gui {
+class PropertiesWatcher;
+
 class ControlDialog : public QDialog {
     Q_OBJECT
 public:
@@ -23,8 +25,10 @@ signals:
     void scriptCancelled();
     void verificationModeChanged(bool isVerificationMode);
 
+    void objectSelectedFromGui(const QObject *object);
+
 public slots:
-    void handleNewScriptLine(const QString &scriptLine);
+    void handleNewScriptLine(const QString &scriptLine) noexcept;
 
 private slots:
     void completeScript() noexcept;
@@ -47,8 +51,9 @@ private:
 
     QWidget *scriptWidget_ = nullptr;
     QLabel *scriptLineLabel_ = nullptr;
+    QString lastLabelText_ = QString();
 
-    QWidget *verificationWidget_ = nullptr;
+    PropertiesWatcher *propertiesWatcher_ = nullptr;
 
     QWidget *commentWidget_ = nullptr;
     QTextEdit *commentTextEdit_ = nullptr;
@@ -61,9 +66,9 @@ private:
     void initToolButton(QToolButton *button, const QString &text, const QString &iconPath) noexcept;
     void handleVisibility() noexcept;
 
-    QFrame *generateSeparator(bool isHorizontal = true);
     void setTextToScriptLabel(const QString &text) noexcept;
     void setPlayPauseMessageToScriptLabel(bool isPaused) noexcept;
+    void setVerificationMessageToScriptLabel(bool isInMode) noexcept;
     void setLabelTextColor(const QString &color = QString()) noexcept;
 };
 } // namespace QtAda::core::gui

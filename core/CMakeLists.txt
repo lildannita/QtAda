@@ -25,7 +25,8 @@ set(core_HDRS
   utils/Tools.hpp
   utils/CommonFilters.hpp
   utils/FilterUtils.hpp
-  utils/SocketMessages.hpp)
+  utils/SocketMessages.hpp
+  gui/GuiTools.hpp)
 set(core_SRCS
   GenerationSettings.cpp
   Probe.cpp

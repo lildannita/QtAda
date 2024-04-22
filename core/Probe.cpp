@@ -76,6 +76,8 @@ Probe::Probe(const GenerationSettings &settings, QObject *parent) noexcept
         controlDialog_ = std::make_unique<gui::ControlDialog>(settings.closeWindowsOnExit());
         connect(userEventFilter_, &UserEventFilter::newScriptLine, controlDialog_.get(),
                 &gui::ControlDialog::handleNewScriptLine);
+        connect(userVerificationFilter_, &UserVerificationFilter::objectSelected,
+                controlDialog_.get(), &gui::ControlDialog::objectSelectedFromGui);
         connect(controlDialog_.get(), &gui::ControlDialog::newCommentLine, scriptWriter_,
                 &ScriptWriter::handleNewComment);
         connect(controlDialog_.get(), &gui::ControlDialog::scriptCancelled, scriptWriter_,

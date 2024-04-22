@@ -11,6 +11,8 @@
 #include <QTextEdit>
 
 #include "utils/Tools.hpp"
+#include "GuiTools.hpp"
+#include "PropertiesWatcher.hpp"
 
 namespace QtAda::core::gui {
 ControlDialog::ControlDialog(bool closeWindowsOnExit, QWidget *parent) noexcept
@@ -28,11 +30,14 @@ ControlDialog::ControlDialog(bool closeWindowsOnExit, QWidget *parent) noexcept
     , commentTextEdit_{ new QTextEdit }
     , acceptCommentButton_{ new QPushButton }
     , clearCommentButton_{ new QPushButton }
-// , verificationWidget_{ new QWidget }
+    , propertiesWatcher_{ new PropertiesWatcher(this) }
 {
     this->setWindowTitle("QtAda | Control Bar");
     this->setWindowFlags(Qt::CustomizeWindowHint | Qt::WindowTitleHint);
     this->setWindowIcon(QIcon(":/icons/app.png"));
+
+    connect(this, &ControlDialog::objectSelectedFromGui, propertiesWatcher_,
+            &PropertiesWatcher::setSelectedObject);
 
     // Инициализация основных кнопок
     initToolButton(completeScriptButton_, "Complete Script", ":/icons/scenario_ready.svg");
@@ -58,7 +63,7 @@ ControlDialog::ControlDialog(bool closeWindowsOnExit, QWidget *parent) noexcept
     buttonLayout->addWidget(completeScriptButton_);
     buttonLayout->addWidget(addVerificationButton_);
     buttonLayout->addWidget(addCommentButton_);
-    buttonLayout->addWidget(generateSeparator(false));
+    buttonLayout->addWidget(generateSeparator(this));
     buttonLayout->addWidget(pauseButton_);
     buttonLayout->addWidget(playButton_);
     buttonLayout->addWidget(cancelScriptButton_);
@@ -69,7 +74,7 @@ ControlDialog::ControlDialog(bool closeWindowsOnExit, QWidget *parent) noexcept
     setTextToScriptLabel("Start interacting in the application under test!");
     // Инициализация макета для строки
     QVBoxLayout *scriptLayout = new QVBoxLayout(scriptWidget_);
-    scriptLayout->addWidget(generateSeparator());
+    scriptLayout->addWidget(generateSeparator(this, true));
     scriptLayout->addWidget(scriptLineLabel_);
 
     // Инициализация текстового редактора для ввода комментария
@@ -95,6 +100,7 @@ ControlDialog::ControlDialog(bool closeWindowsOnExit, QWidget *parent) noexcept
     // Инициализация основного макета
     QVBoxLayout *mainLayout = new QVBoxLayout(this);
     mainLayout->addWidget(buttons);
+    mainLayout->addWidget(propertiesWatcher_);
     mainLayout->addWidget(commentWidget_);
     mainLayout->addWidget(scriptWidget_);
 
@@ -123,9 +129,11 @@ void ControlDialog::completeScript() noexcept
 
 void ControlDialog::addVerification() noexcept
 {
-    emit verificationModeChanged(addVerificationButton_->isChecked());
+    const auto isInMode = addVerificationButton_->isChecked();
+    emit verificationModeChanged(isInMode);
     addCommentButton_->setChecked(false);
     handleVisibility();
+    setVerificationMessageToScriptLabel(isInMode);
 }
 
 void ControlDialog::addComment() noexcept
@@ -158,7 +166,7 @@ void ControlDialog::cancelScript() noexcept
 
 void ControlDialog::handleVisibility() noexcept
 {
-    // verificationWidget_->setVisible(addVerificationButton_->isChecked());
+    propertiesWatcher_->setVisible(addVerificationButton_->isChecked());
     commentWidget_->setVisible(addCommentButton_->isChecked());
 }
 
@@ -173,15 +181,7 @@ void ControlDialog::clearComment() noexcept
     commentTextEdit_->clear();
 }
 
-QFrame *ControlDialog::generateSeparator(bool isHorizontal)
-{
-    QFrame *separator = new QFrame(this);
-    separator->setFrameShape(isHorizontal ? QFrame::HLine : QFrame::VLine);
-    separator->setFrameShadow(QFrame::Sunken);
-    return separator;
-}
-
-void ControlDialog::handleNewScriptLine(const QString &scriptLine)
+void ControlDialog::handleNewScriptLine(const QString &scriptLine) noexcept
 {
     //! TODO: не лучший вариант вычленения команды + сейчас довольно "тяжелая"
     //! функция tools::cutLine вызывается еще и в ScriptWriter
@@ -219,6 +219,22 @@ void ControlDialog::setPlayPauseMessageToScriptLabel(bool isPaused) noexcept
         setLabelTextColor("#90BE6D");
         scriptLineLabel_->setText("Recording resumed.");
         needToRestoreLabelColor_ = true;
+    }
+}
+
+void ControlDialog::setVerificationMessageToScriptLabel(bool isInMode) noexcept
+{
+    assert(scriptLineLabel_ != nullptr);
+    if (isInMode) {
+        lastLabelText_ = scriptLineLabel_->text();
+        setLabelTextColor("#43AA8B");
+        scriptLineLabel_->setText(
+            "You are in Verification Mode. Click on the desired component in your GUI.");
+    }
+    else {
+        assert(!lastLabelText_.isEmpty());
+        setLabelTextColor();
+        scriptLineLabel_->setText(lastLabelText_);
     }
 }
 
