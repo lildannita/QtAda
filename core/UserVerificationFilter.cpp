@@ -4,10 +4,48 @@
 #include <QWidget>
 #include <QQuickItem>
 #include <QFrame>
+#include <regex>
 
 #include "utils/FilterUtils.hpp"
 
 namespace QtAda::core {
+static bool checkIfLayout(const QMetaObject *metaObject)
+{
+    assert(metaObject != nullptr);
+    static std::regex layoutRegex("^Q.*Layout$");
+    return std::regex_match(metaObject->className(), layoutRegex);
+}
+
+template <typename GuiComponent>
+static GuiComponent *findMostSuitableParent(GuiComponent *component) noexcept
+{
+    CHECK_GUI_CLASS(GuiComponent);
+
+    if (component == nullptr) {
+        return nullptr;
+    }
+
+    auto *foundParentComponent = component;
+    auto *parent = component->parent();
+    while (parent) {
+        auto *parentComponent = qobject_cast<GuiComponent *>(parent);
+        parent = parent->parent();
+        if (parentComponent == nullptr) {
+            //! TODO: Может все-таки лучше продолжать поиск, так как, например, для
+            //! QtQuick не все графические элементы являются QQuickItem.
+            break;
+        }
+
+        if (!checkIfLayout(parentComponent->metaObject()) && component->x() == parentComponent->x()
+            && component->y() == parentComponent->y()
+            && component->height() == parentComponent->height()
+            && component->width() == parentComponent->width()) {
+            foundParentComponent = parentComponent;
+        }
+    }
+    return foundParentComponent;
+}
+
 void UserVerificationFilter::cleanupFrames() noexcept
 {
     if (lastFrame_ != nullptr) {
@@ -24,6 +62,8 @@ void UserVerificationFilter::cleanupFrames() noexcept
 
 void UserVerificationFilter::handleWidgetVerification(QWidget *widget) noexcept
 {
+    widget = findMostSuitableParent(widget);
+    assert(widget != nullptr);
     if (lastFrame_ != nullptr && lastFrame_->parentWidget() == widget) {
         return;
     }
@@ -52,11 +92,9 @@ void UserVerificationFilter::handleWidgetVerification(QWidget *widget) noexcept
 
 void UserVerificationFilter::handleItemVerification(QQuickItem *item) noexcept
 {
+    item = findMostSuitableParent(item);
+    assert(item != nullptr);
     if (lastPaintedItem_ != nullptr && lastPaintedItem_->parentItem() == item) {
-        return;
-    }
-
-    if (lastPaintedItem_ == item) {
         return;
     }
 
