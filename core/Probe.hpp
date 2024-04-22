@@ -19,6 +19,7 @@ class ControlDialog;
 namespace QtAda::core {
 class MetaObjectHandler;
 class UserEventFilter;
+class UserVerificationFilter;
 class ScriptWriter;
 
 class Probe : public QObject {
@@ -54,7 +55,6 @@ private slots:
 private:
     static QAtomicPointer<Probe> s_probeInstance;
     QLocalSocket *socket_ = nullptr;
-    std::vector<QObject *> eventFilters_;
 
     // Очень важно, что построение дерева объектов должно происходить
     // в одном потоке из экземпляров, которые мы сохраняем в knownObjects_
@@ -77,8 +77,9 @@ private:
 
     ScriptWriter *scriptWriter_ = nullptr;
     UserEventFilter *userEventFilter_ = nullptr;
-    void installEventFilter(QObject *filter) noexcept;
+    UserVerificationFilter *userVerificationFilter_ = nullptr;
     bool filtersPaused_ = false;
+    bool verificationMode_ = false;
 
     std::unique_ptr<gui::ControlDialog> controlDialog_;
     const QObject *controlDialog() const noexcept;

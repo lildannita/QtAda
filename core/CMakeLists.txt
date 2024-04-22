@@ -13,6 +13,7 @@ set(core_MOC_HDRS
   GuiEventFilter.hpp
   QuickEventFilter.hpp
   WidgetEventFilter.hpp
+  UserVerificationFilter.hpp
   ScriptWriter.hpp)
 set(core_HDRS
   ${core_MOC_HDRS}
@@ -34,6 +35,7 @@ set(core_SRCS
   QuickEventFilter.cpp
   WidgetEventFilter.cpp
   LastEvent.cpp
+  UserVerificationFilter.cpp
   ScriptWriter.cpp
   utils/FilterUtils.cpp
   utils/Tools.cpp

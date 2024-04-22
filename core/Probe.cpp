@@ -15,6 +15,7 @@
 #include "ProbeGuard.hpp"
 #include "MetaObjectHandler.hpp"
 #include "UserEventFilter.hpp"
+#include "UserVerificationFilter.hpp"
 #include "ScriptWriter.hpp"
 
 #include "utils/SocketMessages.hpp"
@@ -54,6 +55,7 @@ Probe::Probe(const GenerationSettings &settings, QObject *parent) noexcept
     , queueTimer_{ new QTimer(this) }
     , metaObjectHandler_{ new MetaObjectHandler(this) }
     , userEventFilter_{ new UserEventFilter(settings, this) }
+    , userVerificationFilter_{ new UserVerificationFilter(this) }
     , scriptWriter_{ new ScriptWriter(settings, this) }
 {
     Q_ASSERT(thread() == qApp->thread());
@@ -80,6 +82,13 @@ Probe::Probe(const GenerationSettings &settings, QObject *parent) noexcept
                 &ScriptWriter::handleCancelledScript);
         connect(controlDialog_.get(), &gui::ControlDialog::applicationPaused, scriptWriter_,
                 [this](bool isPaused) { filtersPaused_ = isPaused; });
+        connect(controlDialog_.get(), &gui::ControlDialog::verificationModeChanged, scriptWriter_,
+                [this](bool isVerificationMode) {
+                    verificationMode_ = isVerificationMode;
+                    if (!verificationMode_) {
+                        userVerificationFilter_->cleanupFrames();
+                    }
+                });
     }
 }
 
@@ -154,7 +163,6 @@ bool Probe::canShowWidgets() noexcept
 void Probe::installInternalParameters() noexcept
 {
     QCoreApplication::instance()->installEventFilter(this);
-    installEventFilter(userEventFilter_);
 
     socket_ = new QLocalSocket(this);
     socket_->connectToServer(socket::SERVER_PATH);
@@ -167,12 +175,6 @@ void Probe::installInternalParameters() noexcept
         controlDialog_->move(screenGeometry.width() - controlDialog_->width(), screenGeometry.y());
         controlDialog_->show();
     }
-}
-
-void Probe::installEventFilter(QObject *filter) noexcept
-{
-    assert(std::find(eventFilters_.begin(), eventFilters_.end(), filter) == eventFilters_.end());
-    eventFilters_.push_back(filter);
 }
 
 bool Probe::eventFilter(QObject *reciever, QEvent *event)
@@ -266,8 +268,11 @@ bool Probe::eventFilter(QObject *reciever, QEvent *event)
     }
 
     if (!filtersPaused_ && !isIternalObject(reciever) && !isStrangeClass(reciever)) {
-        for (QObject *filter : eventFilters_) {
-            filter->eventFilter(reciever, event);
+        if (verificationMode_) {
+            return userVerificationFilter_->eventFilter(reciever, event);
+        }
+        else {
+            userEventFilter_->eventFilter(reciever, event);
         }
     }
 

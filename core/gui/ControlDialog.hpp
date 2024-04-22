@@ -21,6 +21,7 @@ signals:
     void newCommentLine(const QString &comment);
     void applicationPaused(bool isPaused);
     void scriptCancelled();
+    void verificationModeChanged(bool isVerificationMode);
 
 public slots:
     void handleNewScriptLine(const QString &scriptLine);

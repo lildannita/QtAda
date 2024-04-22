@@ -123,6 +123,7 @@ void ControlDialog::completeScript() noexcept
 
 void ControlDialog::addVerification() noexcept
 {
+    emit verificationModeChanged(addVerificationButton_->isChecked());
     addCommentButton_->setChecked(false);
     handleVisibility();
 }
