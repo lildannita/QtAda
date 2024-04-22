@@ -15,6 +15,8 @@ class PropertiesWatcher : public QWidget {
 public:
     PropertiesWatcher(QWidget *parent) noexcept;
 
+    void clear() noexcept;
+
 public slots:
     void setSelectedObject(const QObject *object) noexcept;
     void setFrame(const QObject *frame) noexcept
@@ -38,6 +40,6 @@ private:
     void addObjectToModel(const QObject *object, QStandardItem *parentViewItem) noexcept;
 
     void initButton(QPushButton *button, const QString &text) noexcept;
-    void initFirstViewItem(QStandardItem *viewItem) noexcept;
+    void handleTreeModelUpdated() noexcept;
 };
 } // namespace QtAda::core::gui

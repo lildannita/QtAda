@@ -172,8 +172,13 @@ void ControlDialog::cancelScript() noexcept
 
 void ControlDialog::handleVisibility() noexcept
 {
-    propertiesWatcher_->setVisible(addVerificationButton_->isChecked());
     commentWidget_->setVisible(addCommentButton_->isChecked());
+
+    const auto isVerificationMode = addVerificationButton_->isChecked();
+    propertiesWatcher_->setVisible(isVerificationMode);
+    if (isVerificationMode) {
+        propertiesWatcher_->clear();
+    }
 }
 
 void ControlDialog::acceptComment() noexcept
