@@ -1084,16 +1084,14 @@ QString WidgetEventFilter::handleCloseEvent(const QObject *obj, const QEvent *ev
              != nullptr) {
         return QStringLiteral("closeWindow(%1);").arg(utils::objectPath(widget));
     }
-    else if (utils::searchSpecificComponent(widget, filters::s_widgetMetaMap.at(WidgetClass::Menu))
-             != nullptr) {
-        //! TODO: Это событие для QMenu генерируется и при выборе какого-либо QAction, причем
-        //! событие мыши, которое привело к закрытию QMenu, не генерируется (в отличие от
-        //! QQuickMenu). Позже нужно будет решить, что делать с QMenu - нужно ли вообще нам
-        //! генерировать их открытие/закрытие, так как нам по идее важны только выполнение QAction,
-        //! а раскрытие/закрытие QMenu ни к чему не приводит.
-        return QStringLiteral("// closeMenu(%1);").arg(utils::objectPath(widget));
-    }
-
-    Q_UNREACHABLE();
+    //! TODO: Это событие для QMenu генерируется и при выборе какого-либо QAction, причем
+    //! событие мыши, которое привело к закрытию QMenu, не генерируется (в отличие от
+    //! QQuickMenu). Позже нужно будет решить, что делать с QMenu - нужно ли вообще нам
+    //! генерировать их открытие/закрытие, так как нам по идее важны только выполнение QAction,
+    //! а раскрытие/закрытие QMenu ни к чему не приводит.
+    //!
+    //! UPD: Как оказалось, такое генерируется и не только для QMenu, но и для QToolBar.
+    //! Поэтому пока что делаем заглушку для всех остальных случаев:
+    return QStringLiteral("// close(%1);").arg(utils::objectPath(widget));
 }
 } // namespace QtAda::core

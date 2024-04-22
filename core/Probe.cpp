@@ -272,6 +272,11 @@ bool Probe::eventFilter(QObject *reciever, QEvent *event)
             return userVerificationFilter_->eventFilter(reciever, event);
         }
         else {
+            //! TODO: Временное решение борьбы с "блокировкой" диалогом. Позволяет
+            //! общаться с нашим ControlDialog даже когда запущен любой диалог.
+            if (auto *dialog = qobject_cast<QDialog *>(reciever)) {
+                dialog->setWindowModality(Qt::NonModal);
+            }
             userEventFilter_->eventFilter(reciever, event);
         }
     }
