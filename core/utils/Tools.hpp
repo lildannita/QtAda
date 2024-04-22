@@ -4,6 +4,11 @@
 #include <vector>
 #include <QString>
 
+QT_BEGIN_NAMESPACE
+class QObject;
+class QMetaProperty;
+QT_END_NAMESPACE
+
 namespace QtAda::core::tools {
 inline bool isReadOnlyData(const void *data)
 {
@@ -18,4 +23,5 @@ template <typename T> QString pointerToString(T *ptr) noexcept
 }
 
 std::vector<QString> cutLine(const QString &line) noexcept;
+QString metaPropertyValueToString(const QObject *obj, const QMetaProperty &property) noexcept;
 } // namespace QtAda::core::tools

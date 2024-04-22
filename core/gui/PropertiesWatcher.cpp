@@ -152,11 +152,12 @@ void PropertiesWatcher::updateMetaPropertyModel(const QObject *object) noexcept
 
     const auto propertyCount = metaObject->propertyCount();
     for (int i = 0; i < propertyCount; i++) {
-        const auto propertyName = metaObject->property(i).name();
-        const auto propertyValue = object->property(propertyName);
+        const auto metaProperty = metaObject->property(i);
+        assert(metaProperty.isValid());
+        const auto propertyValue = tools::metaPropertyValueToString(object, metaProperty);
 
-        auto *nameItem = new QStandardItem(propertyName);
-        auto *valueItem = new QStandardItem(propertyValue.toString());
+        auto *nameItem = new QStandardItem(metaProperty.name());
+        auto *valueItem = new QStandardItem(propertyValue);
 
         metaPropertyModel_->appendRow({ nameItem, valueItem });
     }
