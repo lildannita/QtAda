@@ -47,12 +47,19 @@ signals:
     void frameCreated(const QObject *frame);
     void frameDestroyed();
 
+public slots:
+    void handleFramedObjectChange(QObject *obj)
+    {
+        callHandlers(obj, true);
+    }
+
 private:
     LastMouseEvent lastPressEvent_;
     QFrame *lastFrame_ = nullptr;
     QQuickPaintedItem *lastPaintedItem_ = nullptr;
 
-    void handleWidgetVerification(QWidget *widget) noexcept;
-    void handleItemVerification(QQuickItem *item) noexcept;
+    void callHandlers(QObject *obj, bool isExtTrigger) noexcept;
+    void handleWidgetVerification(QWidget *widget, bool isExtTrigger) noexcept;
+    void handleItemVerification(QQuickItem *item, bool isExtTrigger) noexcept;
 };
 } // namespace QtAda::core

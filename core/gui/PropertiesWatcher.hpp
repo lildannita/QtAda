@@ -7,6 +7,7 @@ class QPushButton;
 class QTreeView;
 class QStandardItemModel;
 class QStandardItem;
+class QItemSelection;
 QT_END_NAMESPACE
 
 namespace QtAda::core::gui {
@@ -16,6 +17,9 @@ public:
     PropertiesWatcher(QWidget *parent) noexcept;
 
     void clear() noexcept;
+
+signals:
+    void framedObjectChangedFromWatcher(QObject *framedObject);
 
 public slots:
     void setFramedObject(const QObject *object) noexcept;
@@ -27,6 +31,10 @@ public slots:
     {
         frame_ = nullptr;
     }
+
+private slots:
+    void framedSelectionChanged(const QItemSelection &selected,
+                                const QItemSelection &deselected) noexcept;
 
 private:
     QPushButton *selectAll = nullptr;

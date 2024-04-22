@@ -37,13 +37,15 @@ ControlDialog::ControlDialog(bool closeWindowsOnExit, QWidget *parent) noexcept
     this->setWindowFlags(Qt::CustomizeWindowHint | Qt::WindowTitleHint);
     this->setWindowIcon(QIcon(":/icons/app.png"));
 
-    // Подключение сигналов к PropertiesWatcher виджету
+    // Настройка сигнал-слотов с PropertiesWatcher
     connect(this, &ControlDialog::objectSelectedInGui, propertiesWatcher_,
             &PropertiesWatcher::setFramedObject);
     connect(this, &ControlDialog::frameCreatedInGui, propertiesWatcher_,
             &PropertiesWatcher::setFrame);
     connect(this, &ControlDialog::frameDestroyedInGui, propertiesWatcher_,
             &PropertiesWatcher::removeFrame);
+    connect(propertiesWatcher_, &PropertiesWatcher::framedObjectChangedFromWatcher, this,
+            &ControlDialog::framedObjectChangedFromWatcher);
 
     // Инициализация основных кнопок
     initToolButton(completeScriptButton_, "Complete Script", ":/icons/scenario_ready.svg");

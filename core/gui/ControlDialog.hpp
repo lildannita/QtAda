@@ -28,6 +28,7 @@ signals:
     void objectSelectedInGui(const QObject *object);
     void frameCreatedInGui(const QObject *frame);
     void frameDestroyedInGui();
+    void framedObjectChangedFromWatcher(QObject *framedObject);
 
 public slots:
     void handleNewScriptLine(const QString &scriptLine) noexcept;

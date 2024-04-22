@@ -73,19 +73,29 @@ Probe::Probe(const GenerationSettings &settings, QObject *parent) noexcept
             &ScriptWriter::handleNewLine);
 
     if (canShowWidgets()) {
+        // Инициализация ControlDialog (QDialog) для приложения на базе QApplication
         controlDialog_ = std::make_unique<gui::ControlDialog>(settings.closeWindowsOnExit());
+
+        // Настройка сигнал-слотов для связи ControlDialog <-> UserEventFilter
         connect(userEventFilter_, &UserEventFilter::newScriptLine, controlDialog_.get(),
                 &gui::ControlDialog::handleNewScriptLine);
+
+        // Настройка сигнал-слотов для связи ControlDialog <-> UserVerificationFilter
         connect(userVerificationFilter_, &UserVerificationFilter::objectSelected,
                 controlDialog_.get(), &gui::ControlDialog::objectSelectedInGui);
         connect(userVerificationFilter_, &UserVerificationFilter::frameCreated,
                 controlDialog_.get(), &gui::ControlDialog::frameCreatedInGui);
         connect(userVerificationFilter_, &UserVerificationFilter::frameDestroyed,
                 controlDialog_.get(), &gui::ControlDialog::frameDestroyedInGui);
+        connect(controlDialog_.get(), &gui::ControlDialog::framedObjectChangedFromWatcher,
+                userVerificationFilter_, &UserVerificationFilter::handleFramedObjectChange);
+
+        // Настройка сигнал-слотов для связи ControlDialog <-> ScriptWriter
         connect(controlDialog_.get(), &gui::ControlDialog::newCommentLine, scriptWriter_,
                 &ScriptWriter::handleNewComment);
         connect(controlDialog_.get(), &gui::ControlDialog::scriptCancelled, scriptWriter_,
                 &ScriptWriter::handleCancelledScript);
+
         connect(controlDialog_.get(), &gui::ControlDialog::applicationPaused, this,
                 &Probe::handleApplicationPaused);
         connect(controlDialog_.get(), &gui::ControlDialog::verificationModeChanged, this,

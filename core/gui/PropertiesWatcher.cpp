@@ -3,6 +3,7 @@
 #include <QQuickItem>
 #include <QStandardItem>
 #include <QStandardItemModel>
+#include <QItemSelectionModel>
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QPushButton>
@@ -48,6 +49,10 @@ void PropertiesWatcher::clear() noexcept
 {
     assert(framedObjectModel_ != nullptr);
     framedObjectModel_->clear();
+
+    const auto *selectionModel = treeView_->selectionModel();
+    assert(selectionModel != nullptr);
+    disconnect(selectionModel, &QItemSelectionModel::selectionChanged, this, 0);
 }
 
 void PropertiesWatcher::setFramedObject(const QObject *object) noexcept
@@ -64,6 +69,8 @@ void PropertiesWatcher::addFramedObjectToModel(const QObject *object,
     if (object == frame_
         || (qobject_cast<const QWidget *>(object) == nullptr
             && qobject_cast<const QQuickItem *>(object) == nullptr)) {
+        //! TODO: возможно, лучше убрать проверку на каст, так как
+        //! некоторые элементы в GUI могут быть не QWidget и не QQuickItem.
         return;
     }
 
@@ -108,5 +115,35 @@ void PropertiesWatcher::handleTreeModelUpdated() noexcept
     if (rootItem->rowCount() != 0) {
         treeView_->expand(index);
     }
+
+    const auto *selectionModel = treeView_->selectionModel();
+    assert(selectionModel != nullptr);
+    connect(selectionModel, &QItemSelectionModel::selectionChanged, this,
+            &PropertiesWatcher::framedSelectionChanged);
+}
+
+void PropertiesWatcher::framedSelectionChanged(const QItemSelection &selected,
+                                               const QItemSelection &deselected) noexcept
+{
+    Q_UNUSED(deselected);
+
+    if (selected.isEmpty()) {
+        return;
+    }
+
+    const auto index = selected.indexes().first();
+    assert(index.isValid());
+
+    auto *selectedObject = index.data(Qt::UserRole).value<QObject *>();
+    assert(selectedObject != nullptr);
+
+    if (qobject_cast<QWidget *>(selectedObject) == nullptr
+        && qobject_cast<QQuickItem *>(selectedObject) == nullptr) {
+        //! TODO: В будущем, когда будет решено, что делать с "не-GUI" компонентами,
+        //! нужно будет пересмотреть эту проверку.
+        return;
+    }
+
+    emit framedObjectChangedFromWatcher(selectedObject);
 }
 } // namespace QtAda::core::gui

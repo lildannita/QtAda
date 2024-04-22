@@ -62,10 +62,13 @@ void UserVerificationFilter::cleanupFrames() noexcept
     emit frameDestroyed();
 }
 
-void UserVerificationFilter::handleWidgetVerification(QWidget *widget) noexcept
+void UserVerificationFilter::handleWidgetVerification(QWidget *widget, bool isExtTrigger) noexcept
 {
-    widget = findMostSuitableParent(widget);
+    if (!isExtTrigger) {
+        widget = findMostSuitableParent(widget);
+    }
     assert(widget != nullptr);
+
     if (lastFrame_ != nullptr && lastFrame_->parentWidget() == widget) {
         return;
     }
@@ -92,13 +95,18 @@ void UserVerificationFilter::handleWidgetVerification(QWidget *widget) noexcept
     lastFrame_->setGeometry(widget->rect());
     lastFrame_->show();
 
-    emit objectSelected(qobject_cast<const QObject *>(widget));
+    if (!isExtTrigger) {
+        emit objectSelected(qobject_cast<const QObject *>(widget));
+    }
 }
 
-void UserVerificationFilter::handleItemVerification(QQuickItem *item) noexcept
+void UserVerificationFilter::handleItemVerification(QQuickItem *item, bool isExtTrigger) noexcept
 {
-    item = findMostSuitableParent(item);
+    if (!isExtTrigger) {
+        item = findMostSuitableParent(item);
+    }
     assert(item != nullptr);
+
     if (lastPaintedItem_ != nullptr && lastPaintedItem_->parentItem() == item) {
         return;
     }
@@ -114,7 +122,19 @@ void UserVerificationFilter::handleItemVerification(QQuickItem *item) noexcept
     lastPaintedItem_->setHeight(item->height());
     lastPaintedItem_->update();
 
-    emit objectSelected(qobject_cast<const QObject *>(item));
+    if (!isExtTrigger) {
+        emit objectSelected(qobject_cast<const QObject *>(item));
+    }
+}
+
+void UserVerificationFilter::callHandlers(QObject *obj, bool isExtTrigger) noexcept
+{
+    if (auto *widget = qobject_cast<QWidget *>(obj)) {
+        handleWidgetVerification(widget, isExtTrigger);
+    }
+    else if (auto *item = qobject_cast<QQuickItem *>(obj)) {
+        handleItemVerification(item, isExtTrigger);
+    }
 }
 
 bool UserVerificationFilter::eventFilter(QObject *obj, QEvent *event) noexcept
@@ -127,15 +147,8 @@ bool UserVerificationFilter::eventFilter(QObject *obj, QEvent *event) noexcept
 
     switch (event->type()) {
     case QEvent::MouseButtonPress: {
-        if (!lastPressEvent_.registerEvent(utils::objectPath(obj), event)) {
-            return true;
-        }
-
-        if (auto *widget = qobject_cast<QWidget *>(obj)) {
-            handleWidgetVerification(widget);
-        }
-        else if (auto *item = qobject_cast<QQuickItem *>(obj)) {
-            handleItemVerification(item);
+        if (lastPressEvent_.registerEvent(utils::objectPath(obj), event)) {
+            callHandlers(obj, false);
         }
         return true;
     }
