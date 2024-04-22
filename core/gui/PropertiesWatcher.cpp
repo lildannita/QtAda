@@ -10,6 +10,7 @@
 #include <QTreeView>
 #include <QTableView>
 #include <QHeaderView>
+#include <vector>
 
 #include "utils/Tools.hpp"
 #include "GuiTools.hpp"
@@ -150,16 +151,43 @@ void PropertiesWatcher::updateMetaPropertyModel(const QObject *object) noexcept
     const auto *metaObject = object->metaObject();
     assert(metaObject != nullptr);
 
+    //! TODO: Изначально идея была в том, что если propertyValue - пустой,
+    //! то значит нам не удалось преобразовать QVariant в нужное значение,
+    //! и, соответственно, мы не можем допустить проверку таких свойств.
+    //! Но по факту QVariant может быть просто пустой строкой, в связи с
+    //! чем пока не делаем эти строки "неактивными", и не переносим их
+    //! вниз.
+    //! std::vector<TableRow> rowsWithKnownValues;
+    //! std::vector<TableRow> rowsWithUnknownValues;
+    using TableRow = std::pair<QStandardItem *, QStandardItem *>;
+    std::vector<TableRow> rows;
+
     const auto propertyCount = metaObject->propertyCount();
     for (int i = 0; i < propertyCount; i++) {
         const auto metaProperty = metaObject->property(i);
         assert(metaProperty.isValid());
         const auto propertyValue = tools::metaPropertyValueToString(object, metaProperty);
+        const auto valueisKnown = !propertyValue.isEmpty();
 
         auto *nameItem = new QStandardItem(metaProperty.name());
-        auto *valueItem = new QStandardItem(propertyValue);
+        auto *valueItem
+            = new QStandardItem(valueisKnown ? propertyValue : QStringLiteral("<empty>"));
+        rows.push_back({ nameItem, valueItem });
+        //! if (valueisKnown) {
+        //!     rowsWithKnownValues.push_back({ nameItem, valueItem });
+        //! }
+        //! else {
+        //!     nameItem->setFlags(nameItem->flags() & ~Qt::ItemIsSelectable);
+        //!     valueItem->setFlags(valueItem->flags() & ~Qt::ItemIsSelectable);
+        //!     rowsWithUnknownValues.push_back({ nameItem, valueItem });
+        //! }
+    }
 
-        metaPropertyModel_->appendRow({ nameItem, valueItem });
+    auto sortFunc
+        = [](const TableRow &a, const TableRow &b) { return a.first->text() < b.first->text(); };
+    std::sort(rows.begin(), rows.end(), sortFunc);
+    for (auto &row : rows) {
+        metaPropertyModel_->appendRow({ row.first, row.second });
     }
 }
 
