@@ -18,7 +18,7 @@ public:
     void clear() noexcept;
 
 public slots:
-    void setSelectedObject(const QObject *object) noexcept;
+    void setFramedObject(const QObject *object) noexcept;
     void setFrame(const QObject *frame) noexcept
     {
         frame_ = frame;
@@ -34,12 +34,12 @@ private:
     QPushButton *acceptSelection = nullptr;
 
     QTreeView *treeView_ = nullptr;
-    QStandardItemModel *selectedObjectModel_ = nullptr;
+    QStandardItemModel *framedObjectModel_ = nullptr;
     const QObject *frame_ = nullptr;
 
-    void addObjectToModel(const QObject *object, QStandardItem *parentViewItem) noexcept;
+    void addFramedObjectToModel(const QObject *object, QStandardItem *parentViewItem) noexcept;
+    void handleTreeModelUpdated() noexcept;
 
     void initButton(QPushButton *button, const QString &text) noexcept;
-    void handleTreeModelUpdated() noexcept;
 };
 } // namespace QtAda::core::gui

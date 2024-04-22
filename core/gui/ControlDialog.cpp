@@ -39,7 +39,7 @@ ControlDialog::ControlDialog(bool closeWindowsOnExit, QWidget *parent) noexcept
 
     // Подключение сигналов к PropertiesWatcher виджету
     connect(this, &ControlDialog::objectSelectedInGui, propertiesWatcher_,
-            &PropertiesWatcher::setSelectedObject);
+            &PropertiesWatcher::setFramedObject);
     connect(this, &ControlDialog::frameCreatedInGui, propertiesWatcher_,
             &PropertiesWatcher::setFrame);
     connect(this, &ControlDialog::frameDestroyedInGui, propertiesWatcher_,

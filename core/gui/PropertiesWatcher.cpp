@@ -17,12 +17,12 @@ PropertiesWatcher::PropertiesWatcher(QWidget *parent) noexcept
     , selectAll{ new QPushButton }
     , clearSelection{ new QPushButton }
     , acceptSelection{ new QPushButton }
-    , selectedObjectModel_{ new QStandardItemModel }
+    , framedObjectModel_{ new QStandardItemModel }
     , treeView_{ new QTreeView }
 {
     // Инициализация QTreeView, отображающего дерево элементов
     treeView_->setHeaderHidden(true);
-    treeView_->setModel(selectedObjectModel_);
+    treeView_->setModel(framedObjectModel_);
 
     // Инициализация кнопок, управляющих выбором свойств инспектируемого объекта
     initButton(selectAll, "Select All");
@@ -46,19 +46,19 @@ PropertiesWatcher::PropertiesWatcher(QWidget *parent) noexcept
 
 void PropertiesWatcher::clear() noexcept
 {
-    assert(selectedObjectModel_ != nullptr);
-    selectedObjectModel_->clear();
+    assert(framedObjectModel_ != nullptr);
+    framedObjectModel_->clear();
 }
 
-void PropertiesWatcher::setSelectedObject(const QObject *object) noexcept
+void PropertiesWatcher::setFramedObject(const QObject *object) noexcept
 {
     clear();
-    addObjectToModel(object, nullptr);
+    addFramedObjectToModel(object, nullptr);
     handleTreeModelUpdated();
 }
 
-void PropertiesWatcher::addObjectToModel(const QObject *object,
-                                         QStandardItem *parentViewItem) noexcept
+void PropertiesWatcher::addFramedObjectToModel(const QObject *object,
+                                               QStandardItem *parentViewItem) noexcept
 {
     assert(object != nullptr);
     if (object == frame_
@@ -75,15 +75,15 @@ void PropertiesWatcher::addObjectToModel(const QObject *object,
     auto *viewItem = new QStandardItem(viewItemName);
     viewItem->setData(QVariant::fromValue(const_cast<QObject *>(object)), Qt::UserRole);
     if (parentViewItem == nullptr) {
-        assert(selectedObjectModel_ != nullptr);
-        selectedObjectModel_->appendRow(viewItem);
+        assert(framedObjectModel_ != nullptr);
+        framedObjectModel_->appendRow(viewItem);
     }
     else {
         parentViewItem->appendRow(viewItem);
     }
 
     for (const auto *child : object->children()) {
-        addObjectToModel(child, viewItem);
+        addFramedObjectToModel(child, viewItem);
     }
 }
 
@@ -96,14 +96,14 @@ void PropertiesWatcher::initButton(QPushButton *button, const QString &text) noe
 
 void PropertiesWatcher::handleTreeModelUpdated() noexcept
 {
-    assert(selectedObjectModel_ != nullptr);
-    assert(selectedObjectModel_->rowCount() == 1);
+    assert(framedObjectModel_ != nullptr);
+    assert(framedObjectModel_->rowCount() == 1);
     assert(treeView_ != nullptr);
 
-    const auto *rootItem = selectedObjectModel_->item(0);
+    const auto *rootItem = framedObjectModel_->item(0);
     assert(rootItem != nullptr);
 
-    const auto index = selectedObjectModel_->indexFromItem(rootItem);
+    const auto index = framedObjectModel_->indexFromItem(rootItem);
     treeView_->setCurrentIndex(index);
     if (rootItem->rowCount() != 0) {
         treeView_->expand(index);
