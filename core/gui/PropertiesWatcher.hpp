@@ -22,6 +22,8 @@ public:
 
 signals:
     void framedObjectChangedFromWatcher(QObject *framedObject);
+    void newMetaPropertyVerification(const QObject *object,
+                                     const std::vector<std::pair<QString, QString>> &verifications);
 
 public slots:
     void setFramedObject(const QObject *object) noexcept;
@@ -32,25 +34,26 @@ public slots:
     void removeFrame() noexcept
     {
         frame_ = nullptr;
+        clear();
     }
 
 private slots:
     void framedSelectionChanged(const QItemSelection &selected,
                                 const QItemSelection &deselected) noexcept;
+    void metaSelectionChanged() noexcept;
+    void acceptSelection() noexcept;
 
 private:
     QWidget *contentWidget_ = nullptr;
     QLabel *placeholderLabel_ = nullptr;
-
-    QPushButton *selectAll = nullptr;
-    QPushButton *clearSelection = nullptr;
-    QPushButton *acceptSelection = nullptr;
 
     QTreeView *treeView_ = nullptr;
     QStandardItemModel *framedObjectModel_ = nullptr;
     const QObject *frame_ = nullptr;
     QTableView *tableView_ = nullptr;
     QStandardItemModel *metaPropertyModel_ = nullptr;
+
+    QPushButton *acceptSelectionButton_ = nullptr;
 
     void addFramedObjectToModel(const QObject *object, QStandardItem *parentViewItem) noexcept;
     void updateMetaPropertyModel(const QObject *object) noexcept;

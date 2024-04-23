@@ -20,9 +20,7 @@
 namespace QtAda::core::gui {
 PropertiesWatcher::PropertiesWatcher(QWidget *parent) noexcept
     : QWidget{ parent }
-    , selectAll{ new QPushButton }
-    , clearSelection{ new QPushButton }
-    , acceptSelection{ new QPushButton }
+    , acceptSelectionButton_{ new QPushButton }
     , treeView_{ new QTreeView }
     , framedObjectModel_{ new QStandardItemModel }
     , tableView_{ new QTableView }
@@ -37,6 +35,13 @@ PropertiesWatcher::PropertiesWatcher(QWidget *parent) noexcept
     // Инициализация QTableView, отображающего свойства выбранного элемента
     tableView_->setModel(metaPropertyModel_);
     tableView_->verticalHeader()->setVisible(false);
+    tableView_->horizontalHeader()->setSectionsClickable(false);
+    tableView_->horizontalHeader()->setHighlightSections(false);
+    tableView_->setSelectionMode(QAbstractItemView::MultiSelection);
+    tableView_->setSelectionBehavior(QAbstractItemView::SelectRows);
+    tableView_->setEditTriggers(QAbstractItemView::NoEditTriggers);
+    connect(tableView_->selectionModel(), &QItemSelectionModel::selectionChanged, this,
+            &PropertiesWatcher::metaSelectionChanged);
 
     // Инициализация растягивающегося макета под View-компоненты
     QSplitter *viewsSplitter = new QSplitter(Qt::Vertical);
@@ -45,16 +50,25 @@ PropertiesWatcher::PropertiesWatcher(QWidget *parent) noexcept
     viewsSplitter->addWidget(tableView_);
 
     // Инициализация кнопок, управляющих выбором свойств инспектируемого объекта
-    initButton(selectAll, "Select All");
-    initButton(clearSelection, "Clear Selection");
-    initButton(acceptSelection, "Accept Selection");
+    QPushButton *selectAllButton = new QPushButton;
+    QPushButton *clearSelectionButton = new QPushButton;
+    initButton(selectAllButton, "Select All");
+    initButton(clearSelectionButton, "Clear Selection");
+    initButton(acceptSelectionButton_, "Accept Selection");
+    connect(selectAllButton, &QPushButton::clicked, tableView_, &QAbstractItemView::selectAll);
+    connect(clearSelectionButton, &QPushButton::clicked, tableView_,
+            &QAbstractItemView::clearSelection);
+    connect(acceptSelectionButton_, &QPushButton::clicked, this,
+            &PropertiesWatcher::acceptSelection);
+    acceptSelectionButton_->setEnabled(false);
+
     // Инициализация макета с кнопками
     QWidget *buttonsWidget = new QWidget;
     QHBoxLayout *buttonsLayout = new QHBoxLayout(buttonsWidget);
-    buttonsLayout->addWidget(selectAll);
-    buttonsLayout->addWidget(clearSelection);
+    buttonsLayout->addWidget(selectAllButton);
+    buttonsLayout->addWidget(clearSelectionButton);
     buttonsLayout->addWidget(generateSeparator(this));
-    buttonsLayout->addWidget(acceptSelection);
+    buttonsLayout->addWidget(acceptSelectionButton_);
 
     // Инициализация макета под основные компоненты
     QVBoxLayout *contentLayout = new QVBoxLayout(contentWidget_);
@@ -244,5 +258,39 @@ void PropertiesWatcher::framedSelectionChanged(const QItemSelection &selected,
     }
 
     emit framedObjectChangedFromWatcher(selectedObject);
+}
+
+void PropertiesWatcher::metaSelectionChanged() noexcept
+{
+    assert(tableView_ != nullptr);
+    assert(acceptSelectionButton_ != nullptr);
+
+    acceptSelectionButton_->setEnabled(tableView_->selectionModel()->hasSelection());
+}
+
+void PropertiesWatcher::acceptSelection() noexcept
+{
+    const auto selectedObjectes = treeView_->selectionModel()->selectedIndexes();
+    assert(selectedObjectes.size() == 1);
+    const auto selectedObject = selectedObjectes.first().data(Qt::UserRole).value<QObject *>();
+    assert(selectedObject != nullptr);
+
+    const auto selectedPropertyRows = tableView_->selectionModel()->selectedRows();
+    assert(selectedPropertyRows.size() > 0);
+
+    std::vector<std::pair<QString, QString>> result;
+    for (const auto &index : selectedPropertyRows) {
+        const auto rowIndex = index.row();
+        const auto property = metaPropertyModel_->index(rowIndex, 0).data().toString();
+        assert(!property.isEmpty());
+        const auto value = metaPropertyModel_->index(rowIndex, 1).data().toString();
+        assert(!value.isEmpty());
+
+        result.emplace_back(property, value);
+    }
+
+    tableView_->clearSelection();
+
+    emit newMetaPropertyVerification(selectedObject, std::move(result));
 }
 } // namespace QtAda::core::gui
