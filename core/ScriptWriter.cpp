@@ -1,6 +1,7 @@
 #include "ScriptWriter.hpp"
 
 #include "utils/Tools.hpp"
+#include "utils/FilterUtils.hpp"
 
 namespace QtAda::core {
 ScriptWriter::ScriptWriter(const GenerationSettings &settings, QObject *parent) noexcept
@@ -19,7 +20,7 @@ ScriptWriter::ScriptWriter(const GenerationSettings &settings, QObject *parent) 
         bool isOpen = script_.open(QIODevice::WriteOnly | QIODevice::Truncate);
         assert(isOpen == true);
         scriptStream_.setDevice(&script_);
-        writeScriptLine("function test() {", 0);
+        flushScriptLine("function test() {", 0);
         break;
     }
     case ScriptWriteMode::UpdateScript: {
@@ -65,7 +66,7 @@ ScriptWriter::~ScriptWriter() noexcept
     flushSavedLines();
     switch (generationSettings_.scriptWriteMode()) {
     case ScriptWriteMode::NewScript: {
-        writeScriptLine("}", 0);
+        flushScriptLine("}", 0);
         script_.close();
         break;
     }
@@ -103,48 +104,64 @@ void ScriptWriter::handleNewComment(const QString &comment) noexcept
     const auto blockComment = commentLines.size() >= generationSettings_.blockCommentMinimumCount();
 
     if (blockComment) {
-        writeScriptLine("/*");
+        flushScriptLine("/*");
     }
     for (const auto &line : commentLines) {
         const auto commentLine = QStringLiteral("%1%2").arg(blockComment ? "" : "// ").arg(line);
-        writeScriptLine(commentLine);
+        flushScriptLine(commentLine);
     }
     if (blockComment) {
-        writeScriptLine("*/");
+        flushScriptLine("*/");
     }
 }
 
 void ScriptWriter::flushSavedLines() noexcept
 {
     if (linesHandler_.cycleReady()) {
-        writeScriptLine(linesHandler_.forStatement());
-        writeScriptLine(linesHandler_.repeatingLine, 2);
-        writeScriptLine("}");
+        flushScriptLine(linesHandler_.forStatement());
+        const auto lines = tools::cutLine(linesHandler_.repeatingLine);
+        for (const auto &line : lines) {
+            flushScriptLine(line, 2);
+        }
+        flushScriptLine("}");
     }
     else {
         for (int i = 0; i < linesHandler_.count; i++) {
-            writeScriptLine(linesHandler_.repeatingLine);
+            const auto lines = tools::cutLine(linesHandler_.repeatingLine);
+            for (const auto &line : lines) {
+                flushScriptLine(line);
+            }
         }
     }
 }
 
-void ScriptWriter::writeScriptLine(const QString &scriptLine, int indentMultiplier) noexcept
-{
-    if (scriptLine.isEmpty()) {
-        flushScriptLine(QString());
-        return;
-    }
-
-    const auto lines = tools::cutLine(scriptLine);
-    for (const auto &line : lines) {
-        flushScriptLine(QString(generationSettings_.indentWidth() * indentMultiplier, ' ') + line);
-    }
-}
-
-void ScriptWriter::flushScriptLine(const QString &scriptLine) noexcept
+void ScriptWriter::flushScriptLine(const QString &scriptLine, int indentMultiplier) noexcept
 {
     assert(scriptStream_.device() != nullptr && scriptStream_.status() == QTextStream::Ok);
-    scriptStream_ << scriptLine.trimmed() << Qt::endl;
+    if (scriptLine.isEmpty()) {
+        scriptStream_ << Qt::endl;
+    }
+    else {
+        scriptStream_ << QString(generationSettings_.indentWidth() * indentMultiplier, ' ')
+                      << scriptLine.trimmed() << Qt::endl;
+    }
     scriptStream_.flush();
+}
+
+void ScriptWriter::handleNewMetaPropertyVerification(
+    const QObject *object, const std::vector<std::pair<QString, QString>> &verifications) noexcept
+{
+    flushSavedLines();
+
+    assert(object != nullptr);
+    const auto path = utils::objectPath(object);
+
+    for (const auto &verification : verifications) {
+        const auto line = QStringLiteral("verify('%1', '%2', '%3');")
+                              .arg(path)
+                              .arg(verification.first)
+                              .arg(verification.second);
+        flushScriptLine(std::move(line));
+    }
 }
 } // namespace QtAda::core

@@ -46,6 +46,8 @@ ControlDialog::ControlDialog(bool closeWindowsOnExit, QWidget *parent) noexcept
             &PropertiesWatcher::removeFrame);
     connect(propertiesWatcher_, &PropertiesWatcher::framedObjectChangedFromWatcher, this,
             &ControlDialog::framedObjectChangedFromWatcher);
+    connect(propertiesWatcher_, &PropertiesWatcher::newMetaPropertyVerification, this,
+            &ControlDialog::newMetaPropertyVerification);
 
     // Инициализация основных кнопок
     initToolButton(completeScriptButton_, "Complete Script", ":/icons/scenario_ready.svg");

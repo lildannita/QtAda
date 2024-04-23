@@ -95,6 +95,8 @@ Probe::Probe(const GenerationSettings &settings, QObject *parent) noexcept
                 &ScriptWriter::handleNewComment);
         connect(controlDialog_.get(), &gui::ControlDialog::scriptCancelled, scriptWriter_,
                 &ScriptWriter::handleCancelledScript);
+        connect(controlDialog_.get(), &gui::ControlDialog::newMetaPropertyVerification,
+                scriptWriter_, &ScriptWriter::handleNewMetaPropertyVerification);
 
         // Настройка сигнал-слотов для управления текущими eventFilter для всего приложения
         connect(controlDialog_.get(), &gui::ControlDialog::applicationPaused, this,

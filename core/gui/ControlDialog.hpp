@@ -29,6 +29,8 @@ signals:
     void frameCreatedInGui(const QObject *frame);
     void frameDestroyedInGui();
     void framedObjectChangedFromWatcher(QObject *framedObject);
+    void newMetaPropertyVerification(const QObject *object,
+                                     const std::vector<std::pair<QString, QString>> &verifications);
 
 public slots:
     void handleNewScriptLine(const QString &scriptLine) noexcept;

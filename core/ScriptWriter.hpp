@@ -18,6 +18,9 @@ public:
 public slots:
     void handleNewLine(const QString &scriptLine) noexcept;
     void handleNewComment(const QString &comment) noexcept;
+    void handleNewMetaPropertyVerification(
+        const QObject *object,
+        const std::vector<std::pair<QString, QString>> &verifications) noexcept;
     void handleCancelledScript() noexcept
     {
         scriptCancelled_ = true;
@@ -69,7 +72,7 @@ private:
     bool scriptCancelled_ = false;
 
     void flushSavedLines() noexcept;
-    void writeScriptLine(const QString &line, int indentMultiplier = 1) noexcept;
-    void flushScriptLine(const QString &line) noexcept;
+    //    void writeScriptLine(const QString &line, int indentMultiplier = 1) noexcept;
+    void flushScriptLine(const QString &line, int indentMultiplier = 1) noexcept;
 };
 } // namespace QtAda::core
