@@ -11,6 +11,8 @@
 #include <QTableView>
 #include <QHeaderView>
 #include <vector>
+#include <QSplitter>
+#include <QLabel>
 
 #include "utils/Tools.hpp"
 #include "GuiTools.hpp"
@@ -25,6 +27,8 @@ PropertiesWatcher::PropertiesWatcher(QWidget *parent) noexcept
     , framedObjectModel_{ new QStandardItemModel }
     , tableView_{ new QTableView }
     , metaPropertyModel_{ new QStandardItemModel }
+    , contentWidget_{ new QWidget }
+    , placeholderLabel_{ new QLabel }
 {
     // Инициализация QTreeView, отображающего дерево элементов
     treeView_->setHeaderHidden(true);
@@ -33,6 +37,12 @@ PropertiesWatcher::PropertiesWatcher(QWidget *parent) noexcept
     // Инициализация QTableView, отображающего свойства выбранного элемента
     tableView_->setModel(metaPropertyModel_);
     tableView_->verticalHeader()->setVisible(false);
+
+    // Инициализация растягивающегося макета под View-компоненты
+    QSplitter *viewsSplitter = new QSplitter(Qt::Vertical);
+    viewsSplitter->setChildrenCollapsible(false);
+    viewsSplitter->addWidget(treeView_);
+    viewsSplitter->addWidget(tableView_);
 
     // Инициализация кнопок, управляющих выбором свойств инспектируемого объекта
     initButton(selectAll, "Select All");
@@ -46,17 +56,33 @@ PropertiesWatcher::PropertiesWatcher(QWidget *parent) noexcept
     buttonsLayout->addWidget(generateSeparator(this));
     buttonsLayout->addWidget(acceptSelection);
 
+    // Инициализация макета под основные компоненты
+    QVBoxLayout *contentLayout = new QVBoxLayout(contentWidget_);
+    contentLayout->addWidget(viewsSplitter);
+    contentLayout->addWidget(buttonsWidget);
+    contentWidget_->setVisible(false);
+
+    // Инициализация плейсхолдера
+    placeholderLabel_ = new QLabel(
+        "Currently, there is nothing to display as no GUI component is selected."
+        "To view the properties list, please click on the desired component in the GUI.");
+    placeholderLabel_->setWordWrap(true);
+    placeholderLabel_->setAlignment(Qt::AlignCenter);
+    placeholderLabel_->setFixedHeight(contentWidget_->sizeHint().height());
+
     // Инициализация основного макета
     QVBoxLayout *mainLayout = new QVBoxLayout(this);
-    mainLayout->addWidget(treeView_);
-    mainLayout->addWidget(tableView_);
-    mainLayout->addWidget(buttonsWidget);
+    mainLayout->addWidget(placeholderLabel_);
+    mainLayout->addWidget(contentWidget_);
 
     this->setVisible(false);
 }
 
 void PropertiesWatcher::clear() noexcept
 {
+    contentWidget_->setVisible(false);
+    placeholderLabel_->setVisible(true);
+
     assert(framedObjectModel_ != nullptr);
     framedObjectModel_->clear();
     assert(metaPropertyModel_ != nullptr);
@@ -133,6 +159,9 @@ void PropertiesWatcher::handleTreeModelUpdated() noexcept
     assert(selectionModel != nullptr);
     connect(selectionModel, &QItemSelectionModel::selectionChanged, this,
             &PropertiesWatcher::framedSelectionChanged);
+
+    contentWidget_->setVisible(true);
+    placeholderLabel_->setVisible(false);
 }
 
 void PropertiesWatcher::updateMetaPropertyModel(const QObject *object) noexcept

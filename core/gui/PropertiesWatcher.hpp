@@ -9,6 +9,7 @@ class QTableView;
 class QStandardItemModel;
 class QStandardItem;
 class QItemSelection;
+class QLabel;
 QT_END_NAMESPACE
 
 namespace QtAda::core::gui {
@@ -38,6 +39,9 @@ private slots:
                                 const QItemSelection &deselected) noexcept;
 
 private:
+    QWidget *contentWidget_ = nullptr;
+    QLabel *placeholderLabel_ = nullptr;
+
     QPushButton *selectAll = nullptr;
     QPushButton *clearSelection = nullptr;
     QPushButton *acceptSelection = nullptr;
