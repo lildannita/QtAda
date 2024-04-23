@@ -18,6 +18,35 @@
 #include "GuiTools.hpp"
 
 namespace QtAda::core::gui {
+static QModelIndex findModelIndexForObject(const QAbstractItemModel *model,
+                                           const QObject *targetObject,
+                                           const QModelIndex &parent = QModelIndex())
+{
+    int rowCount = model->rowCount(parent);
+    int columnCount = model->columnCount(parent);
+
+    for (int row = 0; row < rowCount; ++row) {
+        for (int column = 0; column < columnCount; ++column) {
+            QModelIndex index = model->index(row, column, parent);
+            QVariant data = model->data(index, Qt::UserRole);
+
+            QObject *storedObject = qvariant_cast<QObject *>(data);
+            if (storedObject == targetObject) {
+                return index;
+            }
+
+            if (model->hasChildren(index)) {
+                QModelIndex foundIndex = findModelIndexForObject(model, targetObject, index);
+                if (foundIndex.isValid()) {
+                    return foundIndex;
+                }
+            }
+        }
+    }
+
+    return QModelIndex();
+}
+
 PropertiesWatcher::PropertiesWatcher(QWidget *parent) noexcept
     : QWidget{ parent }
     , selectAll{ new QPushButton }
@@ -78,10 +107,12 @@ PropertiesWatcher::PropertiesWatcher(QWidget *parent) noexcept
     this->setVisible(false);
 }
 
-void PropertiesWatcher::clear() noexcept
+void PropertiesWatcher::clear(bool clearOnlyModel) noexcept
 {
-    contentWidget_->setVisible(false);
-    placeholderLabel_->setVisible(true);
+    if (clearOnlyModel) {
+        contentWidget_->setVisible(false);
+        placeholderLabel_->setVisible(true);
+    }
 
     assert(framedObjectModel_ != nullptr);
     framedObjectModel_->clear();
@@ -140,7 +171,8 @@ void PropertiesWatcher::initButton(QPushButton *button, const QString &text) noe
     button->setFocusPolicy(Qt::NoFocus);
 }
 
-void PropertiesWatcher::handleTreeModelUpdated() noexcept
+void PropertiesWatcher::handleTreeModelUpdated(
+    std::optional<const QModelIndex> prefferedCurrentIndex) noexcept
 {
     assert(framedObjectModel_ != nullptr);
     assert(framedObjectModel_->rowCount() == 1);
@@ -149,10 +181,16 @@ void PropertiesWatcher::handleTreeModelUpdated() noexcept
     const auto *rootItem = framedObjectModel_->item(0);
     assert(rootItem != nullptr);
 
-    const auto index = framedObjectModel_->indexFromItem(rootItem);
-    treeView_->setCurrentIndex(index);
+    const auto rootIndex = framedObjectModel_->indexFromItem(rootItem);
+    assert(rootIndex.isValid());
+    if (prefferedCurrentIndex.has_value() && prefferedCurrentIndex->isValid()) {
+        treeView_->setCurrentIndex(*prefferedCurrentIndex);
+    }
+    else {
+        treeView_->setCurrentIndex(rootIndex);
+    }
     if (rootItem->rowCount() != 0) {
-        treeView_->expand(index);
+        treeView_->expand(rootIndex);
     }
 
     const auto *selectionModel = treeView_->selectionModel();
@@ -244,5 +282,76 @@ void PropertiesWatcher::framedSelectionChanged(const QItemSelection &selected,
     }
 
     emit framedObjectChangedFromWatcher(selectedObject);
+}
+
+void PropertiesWatcher::handleObjectCreation(const QObject *obj) noexcept
+{
+    if (obj == contentWidget_) {
+        assert(true);
+    }
+
+    if (framedObjectModel_->rowCount() == 0) {
+        return;
+    }
+
+    const auto *rootItem = framedObjectModel_->item(0);
+    assert(rootItem != nullptr);
+    const auto *rootObject = rootItem->data(Qt::UserRole).value<QObject *>();
+
+    const auto selectedIndexes = treeView_->selectionModel()->selectedIndexes();
+    if (selectedIndexes.size() != 1) {
+        clear(true);
+        addFramedObjectToModel(rootObject, nullptr);
+        updateMetaPropertyModel(rootObject);
+        handleTreeModelUpdated();
+    }
+    else {
+        const auto *selectedObject = selectedIndexes.first().data(Qt::UserRole).value<QObject *>();
+        clear(true);
+        addFramedObjectToModel(rootObject, nullptr);
+        updateMetaPropertyModel(selectedObject);
+        handleTreeModelUpdated(findModelIndexForObject(framedObjectModel_, selectedObject));
+    }
+}
+
+void PropertiesWatcher::handleObjectDestruction(const QObject *obj) noexcept
+{
+    if (obj == contentWidget_) {
+        assert(false);
+    }
+
+    if (framedObjectModel_->rowCount() == 0) {
+        return;
+    }
+
+    const auto *rootItem = framedObjectModel_->item(0);
+    assert(rootItem != nullptr);
+    const auto *rootObject = rootItem->data(Qt::UserRole).value<QObject *>();
+
+    if (obj == rootObject) {
+        clear();
+        return;
+    }
+
+    const auto selectedIndexes = treeView_->selectionModel()->selectedIndexes();
+    if (selectedIndexes.size() != 1) {
+        clear(true);
+        addFramedObjectToModel(rootObject, nullptr);
+        updateMetaPropertyModel(rootObject);
+        handleTreeModelUpdated();
+    }
+    else {
+        const auto *selectedObject = selectedIndexes.first().data(Qt::UserRole).value<QObject *>();
+        clear(true);
+        addFramedObjectToModel(rootObject, nullptr);
+        if (obj == selectedObject) {
+            updateMetaPropertyModel(rootObject);
+            handleTreeModelUpdated();
+        }
+        else {
+            updateMetaPropertyModel(selectedObject);
+            handleTreeModelUpdated(findModelIndexForObject(framedObjectModel_, selectedObject));
+        }
+    }
 }
 } // namespace QtAda::core::gui

@@ -30,6 +30,9 @@ signals:
     void frameDestroyedInGui();
     void framedObjectChangedFromWatcher(QObject *framedObject);
 
+    void objectCreated(const QObject *object);
+    void objectDestroyed(const QObject *object);
+
 public slots:
     void handleNewScriptLine(const QString &scriptLine) noexcept;
 

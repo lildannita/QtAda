@@ -101,6 +101,13 @@ Probe::Probe(const GenerationSettings &settings, QObject *parent) noexcept
                 &Probe::handleApplicationPaused);
         connect(controlDialog_.get(), &gui::ControlDialog::verificationModeChanged, this,
                 &Probe::handleVerificationMode);
+
+        // Настройка сигнал-слотов для обновления моделей, отвечающих за отображение дерева
+        // элементов и их свойств
+        connect(this, &Probe::objectCreated, controlDialog_.get(),
+                &gui::ControlDialog::objectCreated);
+        connect(this, &Probe::objectDestroyed, controlDialog_.get(),
+                &gui::ControlDialog::objectDestroyed);
     }
 }
 

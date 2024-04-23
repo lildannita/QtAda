@@ -1,6 +1,8 @@
 #pragma once
 
 #include <QWidget>
+#include <optional>
+#include <QModelIndex>
 
 QT_BEGIN_NAMESPACE
 class QPushButton;
@@ -18,12 +20,14 @@ class PropertiesWatcher : public QWidget {
 public:
     PropertiesWatcher(QWidget *parent) noexcept;
 
-    void clear() noexcept;
+    void clear(bool clearOnlyModel = false) noexcept;
 
 signals:
     void framedObjectChangedFromWatcher(QObject *framedObject);
 
 public slots:
+    void handleObjectCreation(const QObject *obj) noexcept;
+    void handleObjectDestruction(const QObject *obj) noexcept;
     void setFramedObject(const QObject *object) noexcept;
     void setFrame(const QObject *frame) noexcept
     {
@@ -54,7 +58,8 @@ private:
 
     void addFramedObjectToModel(const QObject *object, QStandardItem *parentViewItem) noexcept;
     void updateMetaPropertyModel(const QObject *object) noexcept;
-    void handleTreeModelUpdated() noexcept;
+    void handleTreeModelUpdated(std::optional<const QModelIndex> prefferedCurrentObject
+                                = std::nullopt) noexcept;
 
     void initButton(QPushButton *button, const QString &text) noexcept;
 };

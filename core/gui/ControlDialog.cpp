@@ -38,6 +38,10 @@ ControlDialog::ControlDialog(bool closeWindowsOnExit, QWidget *parent) noexcept
     this->setWindowIcon(QIcon(":/icons/app.png"));
 
     // Настройка сигнал-слотов с PropertiesWatcher
+    connect(this, &ControlDialog::objectCreated, propertiesWatcher_,
+            &PropertiesWatcher::handleObjectCreation);
+    connect(this, &ControlDialog::objectDestroyed, propertiesWatcher_,
+            &PropertiesWatcher::handleObjectDestruction);
     connect(this, &ControlDialog::objectSelectedInGui, propertiesWatcher_,
             &PropertiesWatcher::setFramedObject);
     connect(this, &ControlDialog::frameCreatedInGui, propertiesWatcher_,
