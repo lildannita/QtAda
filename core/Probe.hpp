@@ -17,7 +17,7 @@ class ControlDialog;
 }
 
 namespace QtAda::core {
-class MetaObjectHandler;
+//! class MetaObjectHandler;
 class UserEventFilter;
 class UserVerificationFilter;
 class ScriptWriter;
@@ -77,7 +77,12 @@ private:
     std::vector<QObject *> reparentedObjects_;
 
     QTimer *queueTimer_ = nullptr;
-    MetaObjectHandler *metaObjectHandler_ = nullptr;
+    //! Этот класс был создан на ранних этапах разработки QtAda,
+    //! и подразумевалось, что он будет отвечать за отображение
+    //! дерева элементов и их свойств. Но на текущий момент было
+    //! решено "облегчить" задачу отображения дерева элементов и
+    //! их свойств (как это сейчас делается в gui/PropertiesWatcher)
+    //! MetaObjectHandler *metaObjectHandler_ = nullptr;
 
     ScriptWriter *scriptWriter_ = nullptr;
     UserEventFilter *userEventFilter_ = nullptr;

@@ -13,7 +13,7 @@
 #include <private/qhooks_p.h>
 
 #include "ProbeGuard.hpp"
-#include "MetaObjectHandler.hpp"
+//! #include "MetaObjectHandler.hpp"
 #include "UserEventFilter.hpp"
 #include "UserVerificationFilter.hpp"
 #include "ScriptWriter.hpp"
@@ -53,10 +53,10 @@ Q_GLOBAL_STATIC(LilProbe, s_lilProbe)
 Probe::Probe(const GenerationSettings &settings, QObject *parent) noexcept
     : QObject{ parent }
     , queueTimer_{ new QTimer(this) }
-    , metaObjectHandler_{ new MetaObjectHandler(this) }
     , userEventFilter_{ new UserEventFilter(settings, this) }
     , userVerificationFilter_{ new UserVerificationFilter(this) }
     , scriptWriter_{ new ScriptWriter(settings, this) }
+//! , metaObjectHandler_{ new MetaObjectHandler(this) }
 {
     Q_ASSERT(thread() == qApp->thread());
 
@@ -64,10 +64,10 @@ Probe::Probe(const GenerationSettings &settings, QObject *parent) noexcept
     queueTimer_->setInterval(0);
     connect(queueTimer_, &QTimer::timeout, this, &Probe::handleObjectsQueue);
 
-    connect(this, &Probe::objectCreated, metaObjectHandler_,
-            &MetaObjectHandler::objectCreatedOutside);
-    connect(this, &Probe::objectDestroyed, metaObjectHandler_,
-            &MetaObjectHandler::objectDestroyedOutside);
+    //! connect(this, &Probe::objectCreated, metaObjectHandler_,
+    //!        &MetaObjectHandler::objectCreatedOutside);
+    //! connect(this, &Probe::objectDestroyed, metaObjectHandler_,
+    //!        &MetaObjectHandler::objectDestroyedOutside);
 
     connect(userEventFilter_, &UserEventFilter::newScriptLine, scriptWriter_,
             &ScriptWriter::handleNewLine);
@@ -96,6 +96,7 @@ Probe::Probe(const GenerationSettings &settings, QObject *parent) noexcept
         connect(controlDialog_.get(), &gui::ControlDialog::scriptCancelled, scriptWriter_,
                 &ScriptWriter::handleCancelledScript);
 
+        // Настройка сигнал-слотов для управления текущими eventFilter для всего приложения
         connect(controlDialog_.get(), &gui::ControlDialog::applicationPaused, this,
                 &Probe::handleApplicationPaused);
         connect(controlDialog_.get(), &gui::ControlDialog::verificationModeChanged, this,

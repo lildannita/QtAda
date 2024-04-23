@@ -8,7 +8,7 @@ set(core_UI_HDRS
 set(core_MOC_HDRS
   ${core_UI_HDRS}
   Probe.hpp
-  MetaObjectHandler.hpp
+# MetaObjectHandler.hpp
   UserEventFilter.hpp
   GuiEventFilter.hpp
   QuickEventFilter.hpp
@@ -31,7 +31,7 @@ set(core_SRCS
   GenerationSettings.cpp
   Probe.cpp
   ProbeGuard.cpp
-  MetaObjectHandler.cpp
+# MetaObjectHandler.cpp
   UserEventFilter.cpp
   QuickEventFilter.cpp
   WidgetEventFilter.cpp
