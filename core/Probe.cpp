@@ -21,6 +21,8 @@
 #include "utils/SocketMessages.hpp"
 #include "gui/ControlDialog.hpp"
 
+#include "inprocess/rep_InprocessController_replica.h"
+
 namespace QtAda::core {
 static constexpr char QTADA_NAMESPACE[] = "QtAda::";
 static constexpr uint8_t QTADA_NAMESPACE_LEN = 7;

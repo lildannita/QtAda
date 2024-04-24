@@ -21,6 +21,7 @@ find_package(
              Quick
              Widgets
              Network
+             RemoteObjects
   REQUIRED)
 
 # For ABI detection
@@ -32,6 +33,8 @@ endif()
 
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
 
+add_subdirectory(common)
+add_subdirectory(inprocess)
 add_subdirectory(core)
 add_subdirectory(probe)
 add_subdirectory(launcher)

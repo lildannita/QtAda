@@ -1,0 +1,26 @@
+//#include <QStandardItemModel>
+//#include <deque>
+
+#include <QVariantMap>
+#include <QList>
+#include <QPair>
+#include <QString>
+
+class InprocessController
+{
+    // UserVerificationFilter -> PropertiesWatcher signals:
+    SIGNAL(newFramedRootObjectData(const QVariantMap &model, const QList<QVariantMap> &rootMetaData))
+    SIGNAL(newMetaPropertyData(const QList<QVariantMap> &metaData))
+
+    // PropertiesWatcher -> UserVerificationFilter signals:
+    SIGNAL(requestFramedObjectChange(const QList<int> &rowPath))
+
+    // InprocessDialog -> UserEventFilter signals:
+    SIGNAL(newScriptLine(const QString &line))
+
+    // UserEventFilter -> InprocessDialog signals:
+    SIGNAL(scriptCompleted())
+    SIGNAL(verificationModeChanged(bool isVerificationMode))
+    SIGNAL(applicationPaused(bool isPaused))
+    SIGNAL(scriptCancelled())
+};
