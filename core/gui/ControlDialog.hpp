@@ -17,13 +17,14 @@ class PropertiesWatcher;
 class ControlDialog : public QDialog {
     Q_OBJECT
 public:
-    explicit ControlDialog(bool closeWindowsOnExit, QWidget *parent = nullptr) noexcept;
+    explicit ControlDialog(QWidget *parent = nullptr) noexcept;
 
 signals:
+    void scriptCompleted();
+    void verificationModeChanged(bool isVerificationMode);
     void newCommentLine(const QString &comment);
     void applicationPaused(bool isPaused);
     void scriptCancelled();
-    void verificationModeChanged(bool isVerificationMode);
 
     void objectSelectedInGui(const QObject *object);
     void frameCreatedInGui(const QObject *frame);
@@ -36,12 +37,10 @@ public slots:
     void handleNewScriptLine(const QString &scriptLine) noexcept;
 
 private slots:
-    void completeScript() noexcept;
     void addVerification() noexcept;
     void addComment() noexcept;
     void play() noexcept;
     void pause() noexcept;
-    void cancelScript() noexcept;
 
     void acceptComment() noexcept;
     void clearComment() noexcept;
@@ -65,7 +64,6 @@ private:
     QPushButton *acceptCommentButton_ = nullptr;
     QPushButton *clearCommentButton_ = nullptr;
 
-    const bool closeWindowsOnExit_;
     bool needToRestoreLabelColor_ = false;
 
     void initToolButton(QToolButton *button, const QString &text, const QString &iconPath) noexcept;

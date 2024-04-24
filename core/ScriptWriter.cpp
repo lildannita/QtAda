@@ -133,6 +133,7 @@ void ScriptWriter::flushSavedLines() noexcept
             }
         }
     }
+    linesHandler_.clear();
 }
 
 void ScriptWriter::flushScriptLine(const QString &scriptLine, int indentMultiplier) noexcept

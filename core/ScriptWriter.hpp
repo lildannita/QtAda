@@ -39,6 +39,12 @@ private:
         {
         }
 
+        void clear() noexcept
+        {
+            count = 0;
+            repeatingLine.clear();
+        }
+
         bool cycleReady() const noexcept
         {
             return needToGenerateCycle && count >= cycleMinimumCount;

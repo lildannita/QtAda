@@ -53,6 +53,8 @@ private slots:
 
     void handleApplicationPaused(bool isPaused) noexcept;
     void handleVerificationMode(bool isMode) noexcept;
+    void handleScriptCompleted() noexcept;
+    void handleScriptCancelled() noexcept;
 
     void readLauncherMessage() noexcept;
 
@@ -89,6 +91,7 @@ private:
     UserVerificationFilter *userVerificationFilter_ = nullptr;
     bool filtersPaused_ = false;
     bool verificationMode_ = false;
+    const GenerationSettings generationSettings_;
 
     std::unique_ptr<gui::ControlDialog> controlDialog_;
     const QObject *controlDialog() const noexcept;

@@ -15,9 +15,8 @@
 #include "PropertiesWatcher.hpp"
 
 namespace QtAda::core::gui {
-ControlDialog::ControlDialog(bool closeWindowsOnExit, QWidget *parent) noexcept
+ControlDialog::ControlDialog(QWidget *parent) noexcept
     : QDialog{ parent }
-    , closeWindowsOnExit_{ closeWindowsOnExit }
     , completeScriptButton_{ new QToolButton }
     , addVerificationButton_{ new QToolButton }
     , addCommentButton_{ new QToolButton }
@@ -61,12 +60,12 @@ ControlDialog::ControlDialog(bool closeWindowsOnExit, QWidget *parent) noexcept
     playButton_->setFixedSize(pauseButton_->sizeHint());
     playButton_->setVisible(false);
     // Подключение слотов к основным кнопкам
-    connect(completeScriptButton_, &QToolButton::clicked, this, &ControlDialog::completeScript);
+    connect(completeScriptButton_, &QToolButton::clicked, this, &ControlDialog::scriptCompleted);
     connect(addVerificationButton_, &QToolButton::clicked, this, &ControlDialog::addVerification);
     connect(addCommentButton_, &QToolButton::clicked, this, &ControlDialog::addComment);
     connect(pauseButton_, &QToolButton::clicked, this, &ControlDialog::pause);
     connect(playButton_, &QToolButton::clicked, this, &ControlDialog::play);
-    connect(cancelScriptButton_, &QToolButton::clicked, this, &ControlDialog::cancelScript);
+    connect(cancelScriptButton_, &QToolButton::clicked, this, &ControlDialog::scriptCancelled);
     // Инициализация макета с кнопками
     QWidget *buttons = new QWidget;
     QHBoxLayout *buttonLayout = new QHBoxLayout(buttons);
@@ -129,26 +128,16 @@ void ControlDialog::initToolButton(QToolButton *button, const QString &text,
     button->setFocusPolicy(Qt::NoFocus);
 }
 
-void ControlDialog::completeScript() noexcept
-{
-    if (closeWindowsOnExit_) {
-        QApplication::closeAllWindows();
-    }
-    QCoreApplication::quit();
-}
-
 void ControlDialog::addVerification() noexcept
 {
     const auto isInMode = addVerificationButton_->isChecked();
     emit verificationModeChanged(isInMode);
-    addCommentButton_->setChecked(false);
-    handleVisibility();
     setVerificationMessageToScriptLabel(isInMode);
+    handleVisibility();
 }
 
 void ControlDialog::addComment() noexcept
 {
-    addVerificationButton_->setChecked(false);
     handleVisibility();
 }
 
@@ -168,21 +157,10 @@ void ControlDialog::play() noexcept
     setPlayPauseMessageToScriptLabel(false);
 }
 
-void ControlDialog::cancelScript() noexcept
-{
-    emit scriptCancelled();
-    QCoreApplication::quit();
-}
-
 void ControlDialog::handleVisibility() noexcept
 {
     commentWidget_->setVisible(addCommentButton_->isChecked());
-
-    const auto isVerificationMode = addVerificationButton_->isChecked();
-    propertiesWatcher_->setVisible(isVerificationMode);
-    if (isVerificationMode) {
-        propertiesWatcher_->clear();
-    }
+    propertiesWatcher_->setVisible(addVerificationButton_->isChecked());
 }
 
 void ControlDialog::acceptComment() noexcept

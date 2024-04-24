@@ -56,6 +56,7 @@ Probe::Probe(const GenerationSettings &settings, QObject *parent) noexcept
     , userEventFilter_{ new UserEventFilter(settings, this) }
     , userVerificationFilter_{ new UserVerificationFilter(this) }
     , scriptWriter_{ new ScriptWriter(settings, this) }
+    , generationSettings_{ settings }
 //! , metaObjectHandler_{ new MetaObjectHandler(this) }
 {
     Q_ASSERT(thread() == qApp->thread());
@@ -74,7 +75,7 @@ Probe::Probe(const GenerationSettings &settings, QObject *parent) noexcept
 
     if (canShowWidgets()) {
         // Инициализация ControlDialog (QDialog) для приложения на базе QApplication
-        controlDialog_ = std::make_unique<gui::ControlDialog>(settings.closeWindowsOnExit());
+        controlDialog_ = std::make_unique<gui::ControlDialog>();
 
         // Настройка сигнал-слотов для связи ControlDialog <-> UserEventFilter
         connect(userEventFilter_, &UserEventFilter::newScriptLine, controlDialog_.get(),
@@ -93,8 +94,6 @@ Probe::Probe(const GenerationSettings &settings, QObject *parent) noexcept
         // Настройка сигнал-слотов для связи ControlDialog <-> ScriptWriter
         connect(controlDialog_.get(), &gui::ControlDialog::newCommentLine, scriptWriter_,
                 &ScriptWriter::handleNewComment);
-        connect(controlDialog_.get(), &gui::ControlDialog::scriptCancelled, scriptWriter_,
-                &ScriptWriter::handleCancelledScript);
         connect(controlDialog_.get(), &gui::ControlDialog::newMetaPropertyVerification,
                 scriptWriter_, &ScriptWriter::handleNewMetaPropertyVerification);
 
@@ -103,6 +102,12 @@ Probe::Probe(const GenerationSettings &settings, QObject *parent) noexcept
                 &Probe::handleApplicationPaused);
         connect(controlDialog_.get(), &gui::ControlDialog::verificationModeChanged, this,
                 &Probe::handleVerificationMode);
+
+        // Настройка сигнал-слотов для закрытия приложения
+        connect(controlDialog_.get(), &gui::ControlDialog::scriptCompleted, this,
+                &Probe::handleScriptCompleted);
+        connect(controlDialog_.get(), &gui::ControlDialog::scriptCancelled, this,
+                &Probe::handleScriptCancelled);
     }
 }
 
@@ -201,10 +206,33 @@ void Probe::handleApplicationPaused(bool isPaused) noexcept
 
 void Probe::handleVerificationMode(bool isMode) noexcept
 {
-    verificationMode_ = isMode;
-    if (!verificationMode_) {
+    if (!isMode) {
         userVerificationFilter_->cleanupFrames();
     }
+    verificationMode_ = isMode;
+}
+
+void Probe::handleScriptCompleted() noexcept
+{
+    handleVerificationMode(false);
+    if (generationSettings_.closeWindowsOnExit()) {
+        if (canShowWidgets()) {
+            QApplication::closeAllWindows();
+        }
+        else {
+            const auto windows = QGuiApplication::allWindows();
+            for (auto *window : windows) {
+                window->close();
+            }
+        }
+    }
+    QCoreApplication::quit();
+}
+
+void Probe::handleScriptCancelled() noexcept
+{
+    scriptWriter_->handleCancelledScript();
+    QCoreApplication::quit();
 }
 
 bool Probe::eventFilter(QObject *reciever, QEvent *event)
