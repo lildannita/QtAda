@@ -22,7 +22,8 @@ set_target_properties(
              OUTPUT_NAME ${QTADA_GUI_BASENAME}
              LIBRARY_OUTPUT_DIRECTORY ${QTADA_LIB_DIR}
              RUNTIME_OUTPUT_DIRECTORY ${QTADA_LIB_DIR})
-target_link_libraries(qtadaGUI PRIVATE core
+target_link_libraries(qtadaGUI PRIVATE inprocess
+                                       core
                                        launcher
                                 PUBLIC Qt5::Widgets)
 target_include_directories(qtadaGUI PRIVATE ${QTADA_LAUNCHER_INCLUDE_DIR})

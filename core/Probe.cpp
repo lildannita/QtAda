@@ -19,7 +19,7 @@
 #include "ScriptWriter.hpp"
 
 #include "utils/SocketMessages.hpp"
-#include "gui/ControlDialog.hpp"
+//#include "gui/ControlDialog.hpp"
 
 namespace QtAda::core {
 static constexpr char QTADA_NAMESPACE[] = "QtAda::";

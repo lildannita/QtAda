@@ -1,0 +1,13 @@
+#include <QStandardItemModel>
+#include <deque>
+
+class InprocessController
+{
+    // UserVerificationFilter -> PropertiesWatcher signals:
+    SIGNAL(newFramedRootObjectData(const QStandardItemModel model, const std::vector<std::pair<QString, QString>> rootMetaData))
+    SIGNAL(newMetaPropertyData(const QStandardItemModel model, const std::vector<std::pair<QString, QString>> metaData))
+
+    // PropertiesWatcher -> UserVerificationFilter signals:
+    SIGNAL(requestFramedObjectChange(const std::deque<int> rowPath))
+
+};
