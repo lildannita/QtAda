@@ -8,8 +8,7 @@ set(inprocess_MOC_HDRS
   InprocessController.hpp
   InprocessDialog.hpp
   PropertiesWatcher.hpp
-  ScriptWriter.hpp
-)
+  ScriptWriter.hpp)
 set(inprocess_HDRS
   ${inprocess_MOC_HDRS}
   InprocessTools.hpp)
@@ -23,7 +22,10 @@ qt5_add_resources(gen_SRCS ${QTADA_RESOURCES_DIR}/icons.qrc)
 qt5_generate_repc(gen_SRCS ${inprocess_REPS} SOURCE)
 qt5_generate_repc(gen_SRCS ${inprocess_REPS} REPLICA)
 
-add_library(inprocess SHARED ${inprocess_SRCS} ${inprocess_HDRS} ${inprocess_REPS} ${gen_SRCS})
+add_library(inprocess SHARED ${inprocess_SRCS}
+                             ${inprocess_HDRS}
+                             ${inprocess_REPS}
+                             ${gen_SRCS})
 set_target_properties(inprocess PROPERTIES PREFIX ${QTADA_LIB_PREFIX}
                                       OUTPUT_NAME ${QTADA_INPROCESS_BASENAME}
                                       LIBRARY_OUTPUT_DIRECTORY ${QTADA_LIB_DIR}

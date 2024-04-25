@@ -33,15 +33,20 @@ set(launcher_SRCS
   LauncherLog.cpp
   LaunchOptions.cpp
 )
-qt5_wrap_cpp(launcher_SRCS ${launcher_MOC_HDRS} TARGET launcher)
+qt5_wrap_cpp(gen_SRCS ${launcher_MOC_HDRS})
 
-add_library(launcher SHARED ${launcher_SRCS} ${launcher_HDRS})
+add_library(launcher SHARED ${launcher_SRCS}
+                            ${launcher_HDRS}
+                            ${gen_SRCS})
 set_target_properties(launcher PROPERTIES PREFIX ${QTADA_LIB_PREFIX}
                                           OUTPUT_NAME ${QTADA_LAUNCHER_BASENAME}
                                           LIBRARY_OUTPUT_DIRECTORY ${QTADA_LIB_DIR}
                                           RUNTIME_OUTPUT_DIRECTORY ${QTADA_LIB_DIR})
-target_link_libraries(launcher PRIVATE core
+target_link_libraries(launcher PRIVATE common
+                                       inprocess
                                        Qt5::Core
+                                       Qt5::Widgets
                                        Qt5::Network)
 target_include_directories(launcher PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}
-                                            ${QTADA_CORE_INCLUDE_DIR})
+                                            ${QTADA_COMMON_INCLUDE_DIR}
+                                            ${QTADA_INPROCESS_INCLUDE_DIR})

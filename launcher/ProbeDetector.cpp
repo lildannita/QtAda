@@ -17,7 +17,7 @@
 #include <sys/elf.h>
 #endif
 
-namespace QtAda {
+namespace QtAda::launcher::probe {
 static bool libIsQtCore(const QByteArray &line)
 {
     //! TODO: в будущем необходимо учесть, что в разных ОС обозначение библиотек
@@ -158,38 +158,36 @@ static QString getArchitectureFromElf(const QString &elfPath)
     return QString();
 }
 
-namespace launcher::probe {
-    ProbeABI detectProbeAbiForExecutable(const QString &elfPath) noexcept
-    {
-        ProbeABI probe;
-        if (elfPath.isEmpty()) {
-            return probe;
-        }
-
-        const auto corePath = getQtCoreLibFromLdd(elfPath);
-        if (corePath.isEmpty()) {
-            return probe;
-        }
-
-        const QFileInfo coreFileInfo(corePath);
-        if (!coreFileInfo.exists()) {
-            return probe;
-        }
-
-        const auto canonicalCorePath = coreFileInfo.canonicalFilePath();
-        auto qtVersion = qtVersionFromLibName(canonicalCorePath);
-        if (!qtVersion.has_value()) {
-            qtVersion = qtVersionFromLibExec(canonicalCorePath);
-        }
-
-        if (!qtVersion.has_value()) {
-            qWarning(LauncherLog) << "сan't determine the Qt version of" << elfPath;
-            return probe;
-        }
-
-        probe.setQtVersion(qtVersion.value());
-        probe.setArchitecture(getArchitectureFromElf(elfPath));
+ProbeABI detectProbeAbiForExecutable(const QString &elfPath) noexcept
+{
+    ProbeABI probe;
+    if (elfPath.isEmpty()) {
         return probe;
     }
-} // namespace launcher::probe
-} // namespace QtAda
+
+    const auto corePath = getQtCoreLibFromLdd(elfPath);
+    if (corePath.isEmpty()) {
+        return probe;
+    }
+
+    const QFileInfo coreFileInfo(corePath);
+    if (!coreFileInfo.exists()) {
+        return probe;
+    }
+
+    const auto canonicalCorePath = coreFileInfo.canonicalFilePath();
+    auto qtVersion = qtVersionFromLibName(canonicalCorePath);
+    if (!qtVersion.has_value()) {
+        qtVersion = qtVersionFromLibExec(canonicalCorePath);
+    }
+
+    if (!qtVersion.has_value()) {
+        qWarning(LauncherLog) << "сan't determine the Qt version of" << elfPath;
+        return probe;
+    }
+
+    probe.setQtVersion(qtVersion.value());
+    probe.setArchitecture(getArchitectureFromElf(elfPath));
+    return probe;
+}
+} // namespace QtAda::launcher::probe

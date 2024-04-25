@@ -4,19 +4,19 @@
 #include <QDir>
 
 namespace QtAda::inprocess {
-ScriptWriter::ScriptWriter(const common::GenerationSettings &settings, QObject *parent) noexcept
+ScriptWriter::ScriptWriter(const common::RecordSettings &settings, QObject *parent) noexcept
     : QObject{ parent }
-    , generationSettings_{ settings }
+    , recordSettings_{ settings }
     , linesHandler_{ settings.needToGenerateCycle, settings.cycleMinimumCount }
 {
-    QFileInfo scriptInfo(generationSettings_.scriptPath);
+    QFileInfo scriptInfo(recordSettings_.scriptPath);
     const auto scriptDir = scriptInfo.absoluteDir();
     assert(scriptDir.exists() && scriptDir.isReadable());
     assert(scriptInfo.suffix() == "js");
 
     switch (settings.scriptWriteMode) {
     case common::ScriptWriteMode::NewScript: {
-        script_.setFileName(generationSettings_.scriptPath);
+        script_.setFileName(recordSettings_.scriptPath);
         bool isOpen = script_.open(QIODevice::WriteOnly | QIODevice::Truncate);
         assert(isOpen == true);
         scriptStream_.setDevice(&script_);
@@ -26,23 +26,26 @@ ScriptWriter::ScriptWriter(const common::GenerationSettings &settings, QObject *
     case common::ScriptWriteMode::UpdateScript: {
         assert(scriptInfo.exists());
 
-        QFile originalScript(generationSettings_.scriptPath);
-        bool isOpen = originalScript.open(QIODevice::ReadOnly);
+        QFile originalScript(recordSettings_.scriptPath);
+        bool isOpen = originalScript.open(QIODevice::ReadOnly | QIODevice::Text);
         assert(isOpen == true);
-        QTextStream readScript(&script_);
+        QTextStream readScript(&originalScript);
         while (!readScript.atEnd()) {
             savedLines_.push_back(readScript.readLine());
         }
         originalScript.close();
 
-        script_.setFileName(generationSettings_.scriptPath + ".qtada");
+        script_.setFileName(recordSettings_.scriptPath + ".qtada");
         isOpen = script_.open(QIODevice::WriteOnly | QIODevice::Truncate);
         assert(isOpen == true);
         scriptStream_.setDevice(&script_);
 
-        assert(generationSettings_.appendLineIndex < savedLines_.size());
+        // Так как нумерация при задании параметров начинается с единицы
+        auto fromZeroIndex = recordSettings_.appendLineIndex - 1;
+        assert(fromZeroIndex >= 0);
+        assert(fromZeroIndex < savedLines_.size());
         const auto start = savedLines_.begin();
-        const auto end = start + generationSettings_.appendLineIndex;
+        const auto end = start + fromZeroIndex;
         std::for_each(start, end, [this](const QString &line) { flushScriptLine(line); });
         savedLines_.erase(start, end);
         break;
@@ -64,7 +67,7 @@ ScriptWriter::~ScriptWriter() noexcept
     }
 
     flushSavedLines();
-    switch (generationSettings_.scriptWriteMode) {
+    switch (recordSettings_.scriptWriteMode) {
     case common::ScriptWriteMode::NewScript: {
         flushScriptLine("}", 0);
         script_.close();
@@ -76,7 +79,7 @@ ScriptWriter::~ScriptWriter() noexcept
         }
         script_.close();
 
-        const auto &originalScriptPath = generationSettings_.scriptPath;
+        const auto &originalScriptPath = recordSettings_.scriptPath;
         if (QFile::exists(originalScriptPath)) {
             QFile::remove(originalScriptPath);
         }
@@ -112,7 +115,7 @@ void ScriptWriter::handleNewComment(const QString &comment) noexcept
     flushSavedLines();
 
     const auto commentLines = comment.trimmed().split('\n');
-    const auto blockComment = commentLines.size() >= generationSettings_.blockCommentMinimumCount;
+    const auto blockComment = commentLines.size() >= recordSettings_.blockCommentMinimumCount;
 
     if (blockComment) {
         flushScriptLine("/*");
@@ -168,7 +171,7 @@ void ScriptWriter::flushScriptLine(const QString &scriptLine, int indentMultipli
         scriptStream_ << Qt::endl;
     }
     else {
-        scriptStream_ << QString(generationSettings_.indentWidth * indentMultiplier, ' ')
+        scriptStream_ << QString(recordSettings_.indentWidth * indentMultiplier, ' ')
                       << scriptLine.trimmed() << Qt::endl;
     }
     scriptStream_.flush();

@@ -1,9 +1,8 @@
 #include "ProbeABI.hpp"
 
-#include <config.h>
-
 #include <QFileInfo>
-#include <QDebug>
+
+#include <config.h>
 
 namespace QtAda::launcher::probe {
 void ProbeABI::setQtVersion(int major, int minor) noexcept

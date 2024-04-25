@@ -3,15 +3,6 @@
 #include <QDir>
 
 namespace QtAda::launcher::injector {
-bool AbstractInjector::launch(const QStringList &launchArgs, const QString &probeDllPath,
-                              const QProcessEnvironment &env) noexcept
-{
-    Q_UNUSED(launchArgs);
-    Q_UNUSED(probeDllPath);
-    Q_UNUSED(env);
-    return false;
-}
-
 void AbstractInjector::setWorkingDirectory(const QString &dirPath) noexcept
 {
     workingDirectory_ = dirPath;

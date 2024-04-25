@@ -6,14 +6,14 @@
 #include <vector>
 #include <optional>
 
-#include "GenerationSettings.hpp"
+#include "Settings.hpp"
 #include "InprocessTools.hpp"
 
 namespace QtAda::inprocess {
 class ScriptWriter final : public QObject {
     Q_OBJECT
 public:
-    explicit ScriptWriter(const common::GenerationSettings &settings,
+    explicit ScriptWriter(const common::RecordSettings &settings,
                           QObject *parent = nullptr) noexcept;
     ~ScriptWriter() noexcept;
 
@@ -79,7 +79,7 @@ private:
         }
     } linesHandler_;
 
-    const common::GenerationSettings generationSettings_;
+    const common::RecordSettings recordSettings_;
 
     QFile script_;
     QTextStream scriptStream_;

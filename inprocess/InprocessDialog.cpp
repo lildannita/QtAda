@@ -10,13 +10,13 @@
 #include <QPushButton>
 #include <QTextEdit>
 
+#include "InprocessController.hpp"
 #include "InprocessTools.hpp"
 #include "ScriptWriter.hpp"
 #include "PropertiesWatcher.hpp"
 
 namespace QtAda::inprocess {
-InprocessDialog::InprocessDialog(const common::GenerationSettings &settings,
-                                 QWidget *parent) noexcept
+InprocessDialog::InprocessDialog(const common::RecordSettings &settings, QWidget *parent) noexcept
     : QDialog{ parent }
     , inprocessController_{ new InprocessController }
     , propertiesWatcher_{ new PropertiesWatcher(inprocessController_, this) }
@@ -111,6 +111,8 @@ InprocessDialog::InprocessDialog(const common::GenerationSettings &settings,
 
     this->adjustSize();
     this->layout()->setSizeConstraint(QLayout::SetFixedSize);
+    this->setAttribute(Qt::WA_DeleteOnClose);
+    this->show();
 }
 
 InprocessDialog::~InprocessDialog() noexcept

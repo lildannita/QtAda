@@ -2,8 +2,7 @@
 
 #include <QDialog>
 
-#include "InprocessController.hpp"
-#include "GenerationSettings.hpp"
+#include "Settings.hpp"
 
 QT_BEGIN_NAMESPACE
 class QToolButton;
@@ -17,21 +16,29 @@ QT_END_NAMESPACE
 namespace QtAda::inprocess {
 class PropertiesWatcher;
 class ScriptWriter;
+class InprocessController;
 
 class InprocessDialog final : public QDialog {
     Q_OBJECT
 public:
-    explicit InprocessDialog(const common::GenerationSettings &settings,
+    explicit InprocessDialog(const common::RecordSettings &settings,
                              QWidget *parent = nullptr) noexcept;
     ~InprocessDialog() noexcept;
+
+signals:
+    void closed();
 
 private slots:
     //! TODO:
     void completeScript() noexcept
     {
+        emit closed();
+        this->close();
     }
     void cancelScript() noexcept
     {
+        emit closed();
+        this->close();
     }
 
     void addVerification() noexcept;

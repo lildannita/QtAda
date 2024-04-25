@@ -42,10 +42,12 @@ set(core_SRCS
   utils/Tools.cpp
   gui/ControlDialog.cpp
   gui/PropertiesWatcher.cpp)
-qt5_wrap_cpp(core_HDRS ${core_MOC_HDRS} TARGET core)
-qt5_add_resources(icons_RSRC ${QTADA_RESOURCES_DIR}/icons.qrc)
+qt5_wrap_cpp(gen_SRCS ${core_MOC_HDRS})
+qt5_add_resources(gen_SRCS ${QTADA_RESOURCES_DIR}/icons.qrc)
 
-add_library(core SHARED ${core_SRCS} ${core_HDRS} ${icons_RSRC})
+add_library(core SHARED ${core_SRCS}
+                        ${core_HDRS}
+                        ${gen_SRCS})
 set_target_properties(core PROPERTIES PREFIX ${QTADA_LIB_PREFIX}
                                       OUTPUT_NAME ${QTADA_CORE_BASENAME}
                                       LIBRARY_OUTPUT_DIRECTORY ${QTADA_LIB_DIR}

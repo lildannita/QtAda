@@ -1,24 +1,36 @@
 #pragma once
 
-#include "ProbeABI.hpp"
-
 #include <QStringList>
 #include <QProcessEnvironment>
 
+#include "ProbeABI.hpp"
+#include "Settings.hpp"
+#include "Common.hpp"
+
 namespace QtAda::launcher {
-enum LauncherState {
+enum class LauncherState {
     Initial = 0,
     InjectorFinished = 1,
     InjectorFailed = 2,
-    //    ClientStarted = 4,
-    //    Complete = InjectorFinished | ClientStarted
+};
+
+enum class LaunchType {
+    None = 0,
+    Record = 1,
+    RecordNoInprocess = 2,
+    Execute = 3,
 };
 
 struct UserLaunchOptions final {
     QStringList launchAppArguments;
     QString workingDirectory;
+    int timeoutValue = common::DEFAULT_WAITING_TIMER_VALUE;
 
-    bool isValid();
+    LaunchType type = LaunchType::None;
+    common::RecordSettings recordSettings;
+    common::ExecuteSettings executeSettings;
+
+    std::optional<int> initFromArgs(const char *appPath, QStringList args) noexcept;
 };
 
 struct LaunchOptions final {
@@ -27,7 +39,7 @@ struct LaunchOptions final {
     probe::ProbeABI probe;
     QProcessEnvironment env;
 
-    uint8_t state = LauncherState::Initial;
+    LauncherState state = LauncherState::Initial;
     int exitCode = 0;
 
     explicit LaunchOptions(const UserLaunchOptions &options) noexcept;

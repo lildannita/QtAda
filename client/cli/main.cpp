@@ -1,11 +1,11 @@
-#include "Launcher.hpp"
-#include "MainWindow.hpp"
-
-#include <QDebug>
-#include <QStringList>
 #include <QApplication>
 #include <QCoreApplication>
+#include <QStringList>
 #include <csignal>
+
+#include "Common.hpp"
+#include "Launcher.hpp"
+#include "MainWindow.hpp"
 
 void shutdown(int sig)
 {
@@ -13,7 +13,9 @@ void shutdown(int sig)
 
     if (!handlingSignal) {
         handlingSignal = 1;
-        qInfo() << "Signal" << sig << "received, shutting down.";
+        std::cout << std::endl;
+        QtAda::common::printQtAdaOutMessage(
+            QStringLiteral("Signal %1 received, shutting down.").arg(sig));
         QCoreApplication *app = QCoreApplication::instance();
         app->quit();
         return;
@@ -36,18 +38,7 @@ void installSignalHandler()
 #endif
 }
 
-void printUsage(const char *appPath)
-{
-    qInfo() << "Usage:" << appPath << "[options] <application> [args]";
-    qInfo() << "";
-    qInfo() << "Options: ";
-    qInfo() << " -h, --help                       \tprint program help and exit";
-    qInfo() << " -w, --workspace                  \tset working directory for executable";
-    qInfo() << "";
-}
-
-using namespace QtAda;
-
+namespace QtAda {
 int guiInitializer(int argc, char *argv[])
 {
     QApplication app(argc, argv);
@@ -74,34 +65,49 @@ int cliInitializer(int argc, char *argv[])
     }
 
     launcher::UserLaunchOptions options;
-    while (!args.isEmpty() && args.first().startsWith('-')) {
-        const auto arg = args.takeFirst();
-        if ((arg == QLatin1String("-h")) || (arg == QLatin1String("--help"))) {
-            printUsage(*argv);
-            return 0;
-        }
-        if ((arg == QLatin1String("-w")) || (arg == QLatin1String("--workspace"))) {
-            options.workingDirectory = std::move(args.takeFirst());
-        }
-    }
-    options.launchAppArguments = std::move(args);
-
-    QCoreApplication app(argc, argv);
-    launcher::Launcher launcher(options);
-    if (launcher.launch()) {
-        QObject::connect(&launcher, &launcher::Launcher::launcherFinished, &app,
-                         &QCoreApplication::quit);
-    }
-    else {
-        return launcher.exitCode();
+    const auto argsErrors = options.initFromArgs(*argv, std::move(args));
+    if (argsErrors.has_value()) {
+        return *argsErrors;
     }
 
-    auto exec = app.exec();
-    return exec == 0 ? launcher.exitCode() : exec;
+    switch (options.type) {
+    case launcher::LaunchType::Record: {
+        QApplication app(argc, argv);
+        launcher::Launcher launcher(options);
+        if (launcher.launch()) {
+            QObject::connect(&launcher, &launcher::Launcher::launcherFinished, &app,
+                             &QCoreApplication::quit);
+        }
+        else {
+            return launcher.exitCode();
+        }
+
+        auto exec = app.exec();
+        return exec == 0 ? launcher.exitCode() : exec;
+    }
+    case launcher::LaunchType::RecordNoInprocess:
+    case launcher::LaunchType::Execute: {
+        QCoreApplication app(argc, argv);
+        launcher::Launcher launcher(options);
+        if (launcher.launch()) {
+            QObject::connect(&launcher, &launcher::Launcher::launcherFinished, &app,
+                             &QCoreApplication::quit);
+        }
+        else {
+            return launcher.exitCode();
+        }
+
+        auto exec = app.exec();
+        return exec == 0 ? launcher.exitCode() : exec;
+    }
+    default:
+        Q_UNREACHABLE();
+    }
 }
+} // namespace QtAda
 
 int main(int argc, char *argv[])
 {
     installSignalHandler();
-    return argc <= 1 ? guiInitializer(argc, argv) : cliInitializer(argc, argv);
+    return argc <= 1 ? QtAda::guiInitializer(argc, argv) : QtAda::cliInitializer(argc, argv);
 }

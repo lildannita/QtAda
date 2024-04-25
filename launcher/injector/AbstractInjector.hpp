@@ -16,12 +16,14 @@ public:
     ~AbstractInjector() override = default;
 
     virtual bool launch(const QStringList &launchArgs, const QString &probeDllPath,
-                        const QProcessEnvironment &env) noexcept;
+                        const QProcessEnvironment &env) noexcept
+        = 0;
     virtual void stop() = 0;
     virtual int exitCode() = 0;
     virtual QProcess::ExitStatus exitStatus() = 0;
     virtual QProcess::ProcessError processError() = 0;
     virtual QString errorMessage() = 0;
+    virtual bool isLaunched() = 0;
 
     void setWorkingDirectory(const QString &dirPath) noexcept;
     QString workingDirectory() const noexcept;

@@ -1,31 +1,28 @@
 #include "Launcher.hpp"
 
+#include <QApplication>
 #include <QLocalServer>
 #include <QLocalSocket>
 #include <QFile>
-#include <QDebug>
-#include <iostream>
 
 #include "injector/PreloadInjector.hpp"
-#include "utils/SocketMessages.hpp"
+#include "InprocessDialog.hpp"
+#include "SocketMessages.hpp"
 
-static constexpr int DEFAULT_WAITING_TIMER_VALUE = 60;
-static constexpr char ENV_TIMER_VAR_NAME[] = "QTADA_LAUNCHER_TIMEOUT";
+#include "Common.hpp"
 
 namespace QtAda::launcher {
-Launcher::Launcher(const UserLaunchOptions &userOptions, QObject *parent) noexcept
+Launcher::Launcher(const UserLaunchOptions &userOptions, bool fromGui, QObject *parent) noexcept
     : options_(std::move(userOptions))
 {
-    const auto userTimeoutValue = qgetenv(ENV_TIMER_VAR_NAME).toInt();
-    waitingTimeoutValue_ = std::max(DEFAULT_WAITING_TIMER_VALUE, userTimeoutValue);
-    waitingTimer_.setInterval(waitingTimeoutValue_ * 1000);
+    waitingTimer_.setInterval(options_.userOptions.timeoutValue * 1000);
     waitingTimer_.setSingleShot(true);
 
     server_ = new QLocalServer(this);
     connect(server_, &QLocalServer::newConnection, this, &Launcher::handleNewConnection);
-    if (!server_->listen(core::socket::SERVER_PATH)) {
-        QFile::remove(core::socket::SERVER_PATH);
-        assert(server_->listen(core::socket::SERVER_PATH));
+    if (!server_->listen(common::SERVER_PATH)) {
+        QFile::remove(common::SERVER_PATH);
+        assert(server_->listen(common::SERVER_PATH));
     }
 
     connect(&waitingTimer_, &QTimer::timeout, this, &Launcher::timeout);
@@ -34,23 +31,33 @@ Launcher::Launcher(const UserLaunchOptions &userOptions, QObject *parent) noexce
     connect(injector_.get(), &injector::AbstractInjector::started, this, &Launcher::restartTimer);
     connect(injector_.get(), &injector::AbstractInjector::finished, this,
             &Launcher::injectorFinished, Qt::QueuedConnection);
-    connect(injector_.get(), &injector::AbstractInjector::stdErrMessage, this,
-            &Launcher::printStdErrMessage);
-    connect(injector_.get(), &injector::AbstractInjector::stdOutMessage, this,
-            &Launcher::printStdOutMessage);
+
+    if (fromGui) {
+        connect(injector_.get(), &injector::AbstractInjector::stdErrMessage, this,
+                &Launcher::stdErrMessage);
+        connect(injector_.get(), &injector::AbstractInjector::stdOutMessage, this,
+                &Launcher::stdOutMessage);
+    }
+    else {
+        connect(injector_.get(), &injector::AbstractInjector::stdErrMessage,
+                common::printStdErrMessage);
+        connect(injector_.get(), &injector::AbstractInjector::stdOutMessage,
+                common::printStdOutMessage);
+        connect(this, &Launcher::launcherErrMessage, common::printQtAdaErrMessage);
+        connect(this, &Launcher::launcherOutMessage, common::printQtAdaOutMessage);
+    }
 }
 
 Launcher::~Launcher() noexcept
 {
-    if (injector_) {
+    if (injector_ != nullptr) {
         injector_->stop();
     }
-
     if (probeSocket_ != nullptr) {
         // По идее Probe должен быть уже удален к этому моменту (так как
         // деструктор ProcessInjector должен остановить процесс), но на
         // всякий случай отправляем дополнительное сообщение об окончании.
-        probeSocket_->write(core::socket::LAUNCHER_DESTROYED);
+        probeSocket_->write(common::LAUNCHER_DESTROYED);
     }
     server_->close();
 }
@@ -64,13 +71,11 @@ void Launcher::handleNewConnection() noexcept
 
 void Launcher::timeout() noexcept
 {
-    options_.state |= LauncherState::InjectorFailed;
-    qWarning() << qPrintable(
-        QStringLiteral("Target not responding for %1 seconds. Try to setting the "
-                       "env variable '%2' to a bigger value (in seconds).")
-            .arg(waitingTimeoutValue_)
-            .arg(ENV_TIMER_VAR_NAME));
-
+    options_.state = LauncherState::InjectorFailed;
+    emit launcherErrMessage(
+        QStringLiteral("Target not responding for %1 seconds. Try to setting the timeout value "
+                       "(use --help) to a bigger value (in seconds).")
+            .arg(options_.userOptions.timeoutValue));
     checkIfLauncherIsFinished();
 }
 
@@ -89,16 +94,18 @@ void Launcher::injectorFinished() noexcept
         return;
     }
 
+    options_.state = LauncherState::InjectorFinished;
     options_.exitCode = injector_->exitCode();
-    if ((options_.state & LauncherState::InjectorFailed) == 0) {
-        options_.state |= InjectorFinished;
-    }
     checkIfLauncherIsFinished();
 }
 
 bool Launcher::launch() noexcept
 {
-    //! TODO: проверить что мы уже запустили Launcher
+    assert(injector_ != nullptr);
+    assert(injector_->isLaunched() == false);
+
+    //! TODO: добавить в env Qt библиотеки, если их не обнаружено
+
     if (options_.absoluteExecutablePath.isEmpty()) {
         handleLauncherFailure(-1, QStringLiteral("Error: '%1' - no such executable file.")
                                       .arg(options_.userOptions.launchAppArguments.constFirst()));
@@ -119,8 +126,10 @@ bool Launcher::launch() noexcept
 
     injector_->setWorkingDirectory(options_.userOptions.workingDirectory);
 
-    assert(injector_ != nullptr);
-    //! TODO: добавить в env Qt библиотеки, если их не обнаружено
+    if (options_.userOptions.type == LaunchType::Record) {
+        inprocessDialog_ = new inprocess::InprocessDialog(options_.userOptions.recordSettings);
+    }
+
     if (!injector_->launch(options_.userOptions.launchAppArguments, probeDll, options_.env)) {
         QString errorMsg
             = QStringLiteral("Failed to launch target '%1'.")
@@ -140,38 +149,42 @@ bool Launcher::launch() noexcept
 void Launcher::handleLauncherFailure(int exitCode, const QString &errorMessage) noexcept
 {
     options_.exitCode = exitCode;
-    options_.state |= LauncherState::InjectorFailed;
+    options_.state = LauncherState::InjectorFailed;
 
-    qCritical() << qPrintable(errorMessage);
+    emit launcherErrMessage(errorMessage);
     checkIfLauncherIsFinished();
 }
 
 void Launcher::checkIfLauncherIsFinished() noexcept
 {
     if (options_.state == LauncherState::InjectorFinished) {
-        emit launcherFinished();
+        if (inprocessDialog_ != nullptr) {
+            emit launcherOutMessage(
+                QStringLiteral("The application under test has been closed. Please complete the "
+                               "script generation in the dialog."));
+            connect(inprocessDialog_, &inprocess::InprocessDialog::closed, this,
+                    &Launcher::launcherFinished);
+        }
+        else {
+            emit launcherFinished();
+        }
     }
-    else if ((options_.state & LauncherState::InjectorFailed) != 0) {
+    else if (options_.state == LauncherState::InjectorFailed) {
         if (options_.exitCode == 0) {
             options_.exitCode = 1;
         }
+        destroyInprocessDialog();
         emit launcherFinished();
     }
 }
 
-void Launcher::printStdOutMessage(const QString &msg) const noexcept
+void Launcher::destroyInprocessDialog() noexcept
 {
-    //! TODO: почему-то при запуске Launcher из GUI без std::flush
-    //! вывод буфферезируется и отображается на консоли только после
-    //! закрытия GUI
-    std::cout << qPrintable(msg) << std::flush;
-}
-
-void Launcher::printStdErrMessage(const QString &msg) const noexcept
-{
-    //! TODO: почему-то при запуске Launcher из GUI без std::flush
-    //! вывод буфферезируется и отображается на консоли только после
-    //! закрытия GUI
-    std::cerr << qPrintable(msg) << std::flush;
+    if (inprocessDialog_ == nullptr) {
+        return;
+    }
+    inprocessDialog_->close();
+    inprocessDialog_->deleteLater();
+    inprocessDialog_ = nullptr;
 }
 } // namespace QtAda::launcher

@@ -26,6 +26,10 @@ public:
     {
         return errorMessage_;
     }
+    bool isLaunched() noexcept override
+    {
+        return process_.state() != QProcess::NotRunning;
+    }
 
 protected:
     bool injectAndLaunch(const QStringList &launchArgs, const QProcessEnvironment &env);

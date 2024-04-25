@@ -8,7 +8,5 @@ class PreloadInjector final : public ProcessInjector {
 public:
     bool launch(const QStringList &launchArgs, const QString &probeDllPath,
                 const QProcessEnvironment &env) noexcept override;
-
-private:
 };
 } // namespace QtAda::launcher::injector
