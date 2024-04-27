@@ -7,14 +7,13 @@
 namespace QtAda::launcher {
 static void printMultiplyDefinitionError()
 {
-    common::printQtAdaErrMessage(
-        QStringLiteral("Multiply definition of application's launch type."));
+    printQtAdaErrMessage(QStringLiteral("Multiply definition of application's launch type."));
 }
 
 static void printErrors(const std::vector<QString> &errors)
 {
     for (const auto &error : errors) {
-        common::printQtAdaErrMessage(error);
+        printQtAdaErrMessage(error);
     }
 }
 
@@ -23,7 +22,7 @@ static bool argToInt(int &option, const QString &value, const QString &arg) noex
     bool isOk = false;
     option = value.toInt(&isOk);
     if (!isOk) {
-        common::printQtAdaErrMessage(QStringLiteral("Invalid value for %1.").arg(arg));
+        printQtAdaErrMessage(QStringLiteral("Invalid value for %1.").arg(arg));
         return false;
     }
     return true;
@@ -34,7 +33,7 @@ std::optional<int> UserLaunchOptions::initFromArgs(const char *appPath, QStringL
     while (!args.isEmpty() && args.first().startsWith('-')) {
         const auto arg = args.takeFirst();
         if ((arg == QLatin1String("-h")) || (arg == QLatin1String("--help"))) {
-            common::printUsage(appPath);
+            printUsage(appPath);
             return 0;
         }
         else if ((arg == QLatin1String("-w")) || (arg == QLatin1String("--workspace"))) {
@@ -44,10 +43,10 @@ std::optional<int> UserLaunchOptions::initFromArgs(const char *appPath, QStringL
             if (!argToInt(timeoutValue, args.takeFirst(), arg)) {
                 return 1;
             }
-            if (timeoutValue < common::DEFAULT_WAITING_TIMER_VALUE) {
-                common::printQtAdaErrMessage(
+            if (timeoutValue < DEFAULT_WAITING_TIMER_VALUE) {
+                printQtAdaErrMessage(
                     QStringLiteral("Timeout value must be greater than %1 seconds.")
-                        .arg(common::DEFAULT_WAITING_TIMER_VALUE));
+                        .arg(DEFAULT_WAITING_TIMER_VALUE));
             }
         }
         else if ((arg == QLatin1String("-r")) || (arg == QLatin1String("--record"))) {
@@ -55,26 +54,16 @@ std::optional<int> UserLaunchOptions::initFromArgs(const char *appPath, QStringL
                 printMultiplyDefinitionError();
                 return 1;
             }
-            type = launcher::LaunchType::Record;
+            type = LaunchType::Record;
             recordSettings.scriptPath = std::move(args.takeFirst());
-            break;
-        }
-        else if ((arg == QLatin1String("-a")) || (arg == QLatin1String("--record-actions"))) {
-            if (type != launcher::LaunchType::None) {
-                printMultiplyDefinitionError();
-                return 1;
-            }
-            type = launcher::LaunchType::RecordNoInprocess;
-            recordSettings.scriptPath = std::move(args.takeFirst());
-            recordSettings.inprocessDialog = false;
             break;
         }
         else if ((arg == QLatin1String("-e")) || (arg == QLatin1String("--execute"))) {
-            if (type != launcher::LaunchType::None) {
+            if (type != LaunchType::None) {
                 printMultiplyDefinitionError();
                 return 1;
             }
-            type = launcher::LaunchType::Execute;
+            type = LaunchType::Execute;
             executeSettings.scriptPath = std::move(args.takeFirst());
             break;
         }
@@ -95,19 +84,19 @@ std::optional<int> UserLaunchOptions::initFromArgs(const char *appPath, QStringL
             recordSettings.duplicateMouseEvent = true;
         }
         else if (arg == QLatin1String("--only-index")) {
-            recordSettings.textIndexBehavior = common::TextIndexBehavior::OnlyIndex;
+            recordSettings.textIndexBehavior = TextIndexBehavior::OnlyIndex;
         }
         else if (arg == QLatin1String("--only-text")) {
-            recordSettings.textIndexBehavior = common::TextIndexBehavior::OnlyText;
+            recordSettings.textIndexBehavior = TextIndexBehavior::OnlyText;
         }
         else if (arg == QLatin1String("--text-index")) {
-            recordSettings.textIndexBehavior = common::TextIndexBehavior::TextIndex;
+            recordSettings.textIndexBehavior = TextIndexBehavior::TextIndex;
         }
         else if (arg == QLatin1String("--new-script")) {
-            recordSettings.scriptWriteMode = common::ScriptWriteMode::NewScript;
+            recordSettings.scriptWriteMode = ScriptWriteMode::NewScript;
         }
         else if (arg == QLatin1String("--update-script")) {
-            recordSettings.scriptWriteMode = common::ScriptWriteMode::UpdateScript;
+            recordSettings.scriptWriteMode = ScriptWriteMode::UpdateScript;
             if (!argToInt(recordSettings.appendLineIndex, args.takeFirst(), arg)) {
                 return 1;
             }
@@ -121,14 +110,13 @@ std::optional<int> UserLaunchOptions::initFromArgs(const char *appPath, QStringL
             }
         }
         else {
-            common::printQtAdaErrMessage(QStringLiteral("Unknown parameter: %1.").arg(arg));
+            printQtAdaErrMessage(QStringLiteral("Unknown parameter: %1.").arg(arg));
             return 1;
         }
     }
 
     switch (type) {
-    case LaunchType::Record:
-    case LaunchType::RecordNoInprocess: {
+    case LaunchType::Record: {
         const auto errors = recordSettings.isValid();
         if (errors.has_value()) {
             printErrors(*errors);
@@ -136,7 +124,7 @@ std::optional<int> UserLaunchOptions::initFromArgs(const char *appPath, QStringL
         }
         break;
     }
-    case launcher::LaunchType::Execute: {
+    case LaunchType::Execute: {
         const auto errors = executeSettings.isValid();
         if (errors.has_value()) {
             printErrors(*errors);
@@ -144,14 +132,19 @@ std::optional<int> UserLaunchOptions::initFromArgs(const char *appPath, QStringL
         }
         break;
     }
-    case launcher::LaunchType::None: {
-        common::printQtAdaErrMessage(QStringLiteral("Launch type is not specified."));
+    case LaunchType::None: {
+        printQtAdaErrMessage(QStringLiteral("Launch type is not specified."));
         return 1;
     }
     default:
         Q_UNREACHABLE();
     }
     launchAppArguments = std::move(args);
+
+    if (launchAppArguments.isEmpty()) {
+        printQtAdaErrMessage(QStringLiteral("Application path is not specified."));
+        return 1;
+    }
 
     return std::nullopt;
 }

@@ -23,7 +23,7 @@ namespace QtAda::core {
 class WidgetEventFilter final : public GuiEventFilter<QWidget, WidgetClass> {
     Q_OBJECT
 public:
-    WidgetEventFilter(const GenerationSettings &settings, QObject *parent = nullptr) noexcept;
+    WidgetEventFilter(const RecordSettings &settings, QObject *parent = nullptr) noexcept;
 
     void setMousePressFilter(const QObject *obj, const QEvent *event) noexcept override;
     void handleKeyEvent(const QObject *obj, const QEvent *event) noexcept override;

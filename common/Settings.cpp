@@ -5,7 +5,7 @@
 #include <QJsonObject>
 #include <QJsonDocument>
 
-namespace QtAda::common {
+namespace QtAda {
 static int countScriptLines(const QString &filePath)
 {
     QFile file(filePath);
@@ -34,10 +34,10 @@ static bool fileCanBeWritten(const QFileInfo &fileInfo) noexcept
         return false;
     }
 
-    QFile tmp(fileInfo.path() + "/tmp.qtada");
+    QFile tmp(QStringLiteral("%1/tmp.qtada").arg(fileInfo.path()));
     if (tmp.open(QIODevice::WriteOnly)) {
         tmp.close();
-        QFile::remove(fileInfo.path());
+        tmp.remove();
         return true;
     }
     return false;
@@ -185,4 +185,4 @@ const ExecuteSettings ExecuteSettings::fromJson(const QByteArray &data) noexcept
     return settings;
 }
 
-} // namespace QtAda::common
+} // namespace QtAda

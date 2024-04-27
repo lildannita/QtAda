@@ -5,32 +5,32 @@
 #include <set>
 #include <memory>
 
-#include "GenerationSettings.hpp"
+#include "Settings.hpp"
 
 QT_BEGIN_NAMESPACE
 class QTimer;
 class QLocalSocket;
+class QRemoteObjectNode;
+class InprocessControllerReplica;
 QT_END_NAMESPACE
 
-namespace QtAda::core::gui {
-class ControlDialog;
-}
-
 namespace QtAda::core {
-//! class MetaObjectHandler;
 class UserEventFilter;
 class UserVerificationFilter;
-class ScriptWriter;
 
 class Probe : public QObject {
     Q_OBJECT
 
 public:
-    explicit Probe(const GenerationSettings &settings, QObject *parent = nullptr) noexcept;
+    explicit Probe(const LaunchType launchType, const std::optional<RecordSettings> &recordSettings,
+                   const std::optional<ExecuteSettings> &executeSettings,
+                   QObject *parent = nullptr) noexcept;
     ~Probe() noexcept;
 
     static bool initialized() noexcept;
-    static void initProbe(const GenerationSettings &settings) noexcept;
+    static void initProbe(const LaunchType launchType,
+                          const std::optional<RecordSettings> &recordSettings,
+                          const std::optional<ExecuteSettings> &executeSettings) noexcept;
     static Probe *probeInstance() noexcept;
 
     static void startup() noexcept;
@@ -47,7 +47,7 @@ signals:
     void objectReparented(QObject *obj);
 
 private slots:
-    void installInternalParameters() noexcept;
+    void installInternalEventFilter() noexcept;
     void handleObjectsQueue() noexcept;
     void kill() noexcept;
 
@@ -56,11 +56,22 @@ private slots:
     void handleScriptCompleted() noexcept;
     void handleScriptCancelled() noexcept;
 
-    void readLauncherMessage() noexcept;
-
 private:
     static QAtomicPointer<Probe> s_probeInstance;
-    QLocalSocket *socket_ = nullptr;
+    QTimer *queueTimer_ = nullptr;
+    QLocalSocket *initSocket_ = nullptr;
+
+    QRemoteObjectNode *inprocessNode_ = nullptr;
+    std::shared_ptr<InprocessControllerReplica> inprocessController_ = nullptr;
+
+    UserEventFilter *userEventFilter_ = nullptr;
+    UserVerificationFilter *userVerificationFilter_ = nullptr;
+    bool filtersPaused_ = false;
+    bool verificationMode_ = false;
+
+    const LaunchType launchType_;
+    const std::optional<const RecordSettings> recordSettings_;
+    const std::optional<const ExecuteSettings> executeSettings_;
 
     // Очень важно, что построение дерева объектов должно происходить
     // в одном потоке из экземпляров, которые мы сохраняем в knownObjects_
@@ -78,24 +89,6 @@ private:
     std::set<const QObject *> knownObjects_;
     std::vector<QObject *> reparentedObjects_;
 
-    QTimer *queueTimer_ = nullptr;
-    //! Этот класс был создан на ранних этапах разработки QtAda,
-    //! и подразумевалось, что он будет отвечать за отображение
-    //! дерева элементов и их свойств. Но на текущий момент было
-    //! решено "облегчить" задачу отображения дерева элементов и
-    //! их свойств (как это сейчас делается в gui/PropertiesWatcher)
-    //! MetaObjectHandler *metaObjectHandler_ = nullptr;
-
-    ScriptWriter *scriptWriter_ = nullptr;
-    UserEventFilter *userEventFilter_ = nullptr;
-    UserVerificationFilter *userVerificationFilter_ = nullptr;
-    bool filtersPaused_ = false;
-    bool verificationMode_ = false;
-    const GenerationSettings generationSettings_;
-
-    std::unique_ptr<gui::ControlDialog> controlDialog_;
-    const QObject *controlDialog() const noexcept;
-
     void addObjectAndParentsToKnown(QObject *obj) noexcept;
     void findObjectsFromCoreApp() noexcept;
 
@@ -109,6 +102,7 @@ private:
     bool isIternalObject(QObject *obj) const noexcept;
     bool isStrangeClass(QObject *obj) const noexcept;
 
+    const QObject *inprocessController() const noexcept;
     static bool canShowWidgets() noexcept;
 };
 } // namespace QtAda::core

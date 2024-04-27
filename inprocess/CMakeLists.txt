@@ -27,11 +27,12 @@ add_library(inprocess SHARED ${inprocess_SRCS}
                              ${inprocess_REPS}
                              ${gen_SRCS})
 set_target_properties(inprocess PROPERTIES PREFIX ${QTADA_LIB_PREFIX}
-                                      OUTPUT_NAME ${QTADA_INPROCESS_BASENAME}
-                                      LIBRARY_OUTPUT_DIRECTORY ${QTADA_LIB_DIR}
-                                      RUNTIME_OUTPUT_DIRECTORY ${QTADA_LIB_DIR})
+                                           OUTPUT_NAME ${QTADA_INPROCESS_BASENAME}
+                                           LIBRARY_OUTPUT_DIRECTORY ${QTADA_LIB_DIR}
+                                           RUNTIME_OUTPUT_DIRECTORY ${QTADA_LIB_DIR})
 target_link_libraries(inprocess PRIVATE common
                                         Qt5::Core
                                         Qt5::Widgets
+                                        Qt5::Network
                                         Qt5::RemoteObjects)
 target_include_directories(inprocess PRIVATE ${QTADA_COMMON_INCLUDE_DIR})

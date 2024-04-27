@@ -79,21 +79,21 @@ bool LastKeyEvent::registerEvent(const QString &path, const QEvent *event) noexc
     const auto now = QDateTime::currentDateTime();
     if (keyEvent->type() == type && std::llabs(now.msecsTo(timestamp)) < EVENT_TIME_DIFF_MS
         && keyEvent->key() == key) {
-        // if (objectPath == path) {
-        //     return false;
-        // }
-        // const auto parentPath = objectPath.left(objectPath.lastIndexOf('/'));
-        // if (parentPath == path) {
-        //     objectPath = path;
-        //     return false;
-        // }
+        //! if (objectPath == path) {
+        //!     return false;
+        //! }
+        //! const auto parentPath = objectPath.left(objectPath.lastIndexOf('/'));
+        //! if (parentPath == path) {
+        //!     objectPath = path;
+        //!     return false;
+        //! }
         return false;
     }
 
     type = keyEvent->type();
     timestamp = now;
     key = keyEvent->key();
-    // objectPath = path;
+    //! objectPath = path;
 
     return true;
 }

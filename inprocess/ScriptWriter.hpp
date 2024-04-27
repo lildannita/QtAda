@@ -13,8 +13,7 @@ namespace QtAda::inprocess {
 class ScriptWriter final : public QObject {
     Q_OBJECT
 public:
-    explicit ScriptWriter(const common::RecordSettings &settings,
-                          QObject *parent = nullptr) noexcept;
+    explicit ScriptWriter(const RecordSettings &settings, QObject *parent = nullptr) noexcept;
     ~ScriptWriter() noexcept;
 
 signals:
@@ -79,7 +78,7 @@ private:
         }
     } linesHandler_;
 
-    const common::RecordSettings recordSettings_;
+    const RecordSettings recordSettings_;
 
     QFile script_;
     QTextStream scriptStream_;

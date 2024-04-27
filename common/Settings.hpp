@@ -6,7 +6,13 @@
 
 #include "Common.hpp"
 
-namespace QtAda::common {
+namespace QtAda {
+enum class LaunchType {
+    None = 0,
+    Record = 1,
+    Execute = 2,
+};
+
 enum class TextIndexBehavior {
     OnlyIndex = 0,
     OnlyText = 1,
@@ -47,4 +53,4 @@ struct ExecuteSettings final {
     const QByteArray toJson() const noexcept;
     static const ExecuteSettings fromJson(const QByteArray &data) noexcept;
 };
-} // namespace QtAda::common
+} // namespace QtAda

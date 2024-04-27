@@ -2,6 +2,8 @@
 
 #include <QCoreApplication>
 #include <QApplication>
+#include <QScreen>
+#include <QTimer>
 #include <QToolButton>
 #include <QVBoxLayout>
 #include <QHBoxLayout>
@@ -15,9 +17,12 @@
 #include "ScriptWriter.hpp"
 #include "PropertiesWatcher.hpp"
 
+#include <QRemoteObjectHost>
+
 namespace QtAda::inprocess {
-InprocessDialog::InprocessDialog(const common::RecordSettings &settings, QWidget *parent) noexcept
+InprocessDialog::InprocessDialog(const RecordSettings &settings, QWidget *parent) noexcept
     : QDialog{ parent }
+    , inprocessHost_{ new QRemoteObjectHost(QUrl(REMOTE_OBJECT_PATH)) }
     , inprocessController_{ new InprocessController }
     , propertiesWatcher_{ new PropertiesWatcher(inprocessController_, this) }
     , scriptWriter_{ new ScriptWriter(settings, this) }
@@ -34,15 +39,22 @@ InprocessDialog::InprocessDialog(const common::RecordSettings &settings, QWidget
     , acceptCommentButton_{ new QPushButton }
     , clearCommentButton_{ new QPushButton }
 {
+    connect(inprocessController_, &InprocessController::applicationStarted, this,
+            &InprocessDialog::showDialog);
+    connect(inprocessController_, &InprocessController::newScriptLine, scriptWriter_,
+            &ScriptWriter::handleNewLine);
     connect(propertiesWatcher_, &PropertiesWatcher::newMetaPropertyVerification, scriptWriter_,
             &ScriptWriter::handleNewMetaPropertyVerification);
     connect(scriptWriter_, &ScriptWriter::newScriptCommandDetected, this,
             &InprocessDialog::setTextToScriptLabel);
 
+    inprocessHost_->enableRemoting(inprocessController_);
+
     // Настройка параметров окна диалога
     this->setWindowTitle("QtAda | Control Bar");
     this->setWindowFlags(Qt::CustomizeWindowHint | Qt::WindowTitleHint);
     this->setWindowIcon(QIcon(":/icons/app.png"));
+    this->setAttribute(Qt::WA_DeleteOnClose);
 
     // Инициализация основных кнопок
     initToolButton(completeScriptButton_, "Complete Script", ":/icons/scenario_ready.svg");
@@ -111,8 +123,9 @@ InprocessDialog::InprocessDialog(const common::RecordSettings &settings, QWidget
 
     this->adjustSize();
     this->layout()->setSizeConstraint(QLayout::SetFixedSize);
-    this->setAttribute(Qt::WA_DeleteOnClose);
-    this->show();
+
+    //! TODO: Костыль, см. InprocessController::startInitServer().
+    inprocessController_->startInitServer();
 }
 
 InprocessDialog::~InprocessDialog() noexcept
@@ -121,6 +134,16 @@ InprocessDialog::~InprocessDialog() noexcept
         inprocessController_->deleteLater();
     }
     inprocessController_ = nullptr;
+}
+
+void InprocessDialog::showDialog() noexcept
+{
+    const auto screenGeometry = QApplication::primaryScreen()->geometry();
+    this->move(screenGeometry.width() - this->width(), 0);
+    this->show();
+    this->raise();
+
+    emit applicationStarted();
 }
 
 void InprocessDialog::initToolButton(QToolButton *button, const QString &text,
@@ -235,5 +258,17 @@ void InprocessDialog::setLabelTextColor(const QString &color) noexcept
     else {
         scriptLineLabel_->setStyleSheet("QLabel { color : " + color + "; }");
     }
+}
+
+void InprocessDialog::completeScript() noexcept
+{
+    emit inprocessClosed();
+    this->close();
+}
+
+void InprocessDialog::cancelScript() noexcept
+{
+    scriptWriter_->handleCancelledScript();
+    completeScript();
 }
 } // namespace QtAda::inprocess

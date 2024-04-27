@@ -2,9 +2,6 @@
 
 #include <QQmlProperty>
 
-//! TODO: убрать
-#include <iostream>
-
 namespace QtAda::core::filters {
 // Принцип построения этого std::map смотри в WidgetEventFilter.cpp
 static const std::map<QuickClass, std::pair<QLatin1String, size_t>> s_quickMetaMap = {
@@ -50,7 +47,7 @@ static const std::vector<QuickClass> s_processedSliders = {
 
 //! TODO: нужна ли обработка зажатия кастомной кнопки?
 static QString qButtonsFilter(const QQuickItem *item, const QMouseEvent *event,
-                              const GenerationSettings &settings) noexcept
+                              const RecordSettings &settings) noexcept
 {
     Q_UNUSED(settings);
     if (!utils::mouseEventCanBeFiltered(item, event)) {
@@ -134,7 +131,7 @@ static QString qButtonsFilter(const QQuickItem *item, const QMouseEvent *event,
 }
 
 static QString qDelayButtonFilter(const QQuickItem *item, const QMouseEvent *event,
-                                  const GenerationSettings &settings) noexcept
+                                  const RecordSettings &settings) noexcept
 {
     Q_UNUSED(settings);
     if (!utils::mouseEventCanBeFiltered(item, event)) {
@@ -206,7 +203,7 @@ static QString qRangeSliderFilter(const QQuickItem *item, const QMouseEvent *eve
 }
 
 static QString qScrollBarFilter(const QQuickItem *item, const QMouseEvent *event,
-                                const GenerationSettings &settings) noexcept
+                                const RecordSettings &settings) noexcept
 {
     Q_UNUSED(settings);
     if (!utils::mouseEventCanBeFiltered(item, event)) {
@@ -272,7 +269,7 @@ static QString qSpinBoxFilter(const QQuickItem *item, const QMouseEvent *event,
 }
 
 static QString qComboBoxContainerFilter(const QQuickItem *item, const QMouseEvent *event,
-                                        const GenerationSettings &settings) noexcept
+                                        const RecordSettings &settings) noexcept
 {
     Q_UNUSED(settings);
     if (!utils::mouseEventCanBeFiltered(item, event)) {
@@ -314,12 +311,12 @@ static QString qComboBoxFilter(const QQuickItem *item, const QMouseEvent *event,
                               Q_RETURN_ARG(QString, textValue), Q_ARG(int, *extra.changeIndex));
     return QStringLiteral("selectItem('%1', %2);")
         .arg(utils::objectPath(item))
-        .arg(utils::textIndexStatement(extra.generationSettings.textIndexBehavior(),
-                                       *extra.changeIndex, textValue));
+        .arg(utils::textIndexStatement(extra.recordSettings.textIndexBehavior, *extra.changeIndex,
+                                       textValue));
 }
 
 static QString qTumblerFilter(const QQuickItem *item, const QMouseEvent *event,
-                              const GenerationSettings &settings) noexcept
+                              const RecordSettings &settings) noexcept
 {
     if (!utils::mouseEventCanBeFiltered(item, event)) {
         return QString();
@@ -336,7 +333,7 @@ static QString qTumblerFilter(const QQuickItem *item, const QMouseEvent *event,
     //! но оно предпочительнее, чем просто индекс. В будущем надо будет реализовать поиск
     //! текстового описания элементов.
     const auto currentIndex = utils::getFromVariant<int>(QQmlProperty::read(item, "currentIndex"));
-    const auto textIndexBehavior = settings.textIndexBehavior();
+    const auto textIndexBehavior = settings.textIndexBehavior;
     return QStringLiteral("%1selectItem('%2', %3);")
         .arg(textIndexBehavior == TextIndexBehavior::OnlyText
                      || textIndexBehavior == TextIndexBehavior::TextIndex
@@ -347,7 +344,7 @@ static QString qTumblerFilter(const QQuickItem *item, const QMouseEvent *event,
 }
 
 static QString qItemViewFilter(const QQuickItem *item, const QMouseEvent *event,
-                               const GenerationSettings &settings) noexcept
+                               const RecordSettings &settings) noexcept
 {
     Q_UNUSED(settings);
     if (!utils::mouseEventCanBeFiltered(item, event)) {
@@ -393,7 +390,7 @@ static QString qPathViewFilter(const QQuickItem *item, const QMouseEvent *event,
 }
 
 static QString qSwipeViewFilter(const QQuickItem *item, const QMouseEvent *event,
-                                const GenerationSettings &settings) noexcept
+                                const RecordSettings &settings) noexcept
 {
     Q_UNUSED(settings);
     if (!utils::mouseEventCanBeFiltered(item, event)) {
@@ -418,7 +415,7 @@ static QString qSwipeViewFilter(const QQuickItem *item, const QMouseEvent *event
 }
 
 static QString qTextFocusFilters(const QQuickItem *item, const QMouseEvent *event,
-                                 const GenerationSettings &settings) noexcept
+                                 const RecordSettings &settings) noexcept
 {
     Q_UNUSED(settings);
     for (const auto &quickClass : s_processedTextItems) {
@@ -446,7 +443,7 @@ static QString qTextFocusFilters(const QQuickItem *item, const QMouseEvent *even
 } // namespace QtAda::core::filters
 
 namespace QtAda::core {
-QuickEventFilter::QuickEventFilter(const GenerationSettings &settings, QObject *parent) noexcept
+QuickEventFilter::QuickEventFilter(const RecordSettings &settings, QObject *parent) noexcept
     : GuiEventFilter{ settings, parent }
     , postReleaseWatchDog_{ settings }
 {
@@ -502,7 +499,7 @@ std::pair<QString, bool> QuickEventFilter::callMouseFilters(const QObject *obj, 
     }
 
     for (auto &filter : mouseFilters_) {
-        const auto result = filter(item, mouseEvent, generationSettings_);
+        const auto result = filter(item, mouseEvent, recordSettings_);
         if (!result.isEmpty()) {
             return { result, false };
         }
@@ -755,6 +752,7 @@ QString QuickEventFilter::handleCloseEvent(const QObject *obj, const QEvent *eve
                                  filters::s_quickMetaMap.at(QuickClass::Window).first)) {
         return QStringLiteral("closeWindow(%1);").arg(utils::objectPath(obj));
     }
-    Q_UNREACHABLE();
+    //! TODO: Временная заглушка, см. WidgetEventFilter::handleCloseEvent()
+    return QStringLiteral("// close(%1);").arg(utils::objectPath(obj));
 }
 } // namespace QtAda::core

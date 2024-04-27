@@ -10,36 +10,31 @@ class QVBoxLayout;
 class QHBoxLayout;
 class QLabel;
 class QTextEdit;
-class QFrame;
+class QRemoteObjectHost;
 QT_END_NAMESPACE
 
 namespace QtAda::inprocess {
+class InprocessController;
 class PropertiesWatcher;
 class ScriptWriter;
-class InprocessController;
 
 class InprocessDialog final : public QDialog {
     Q_OBJECT
 public:
-    explicit InprocessDialog(const common::RecordSettings &settings,
-                             QWidget *parent = nullptr) noexcept;
+    explicit InprocessDialog(const RecordSettings &settings, QWidget *parent = nullptr) noexcept;
     ~InprocessDialog() noexcept;
 
+    void setTextToScriptLabel(const QString &text) noexcept;
+
 signals:
-    void closed();
+    void applicationStarted();
+    void inprocessClosed();
 
 private slots:
-    //! TODO:
-    void completeScript() noexcept
-    {
-        emit closed();
-        this->close();
-    }
-    void cancelScript() noexcept
-    {
-        emit closed();
-        this->close();
-    }
+    void showDialog() noexcept;
+
+    void completeScript() noexcept;
+    void cancelScript() noexcept;
 
     void addVerification() noexcept;
     void addComment() noexcept;
@@ -52,7 +47,9 @@ private slots:
     void setNewCommandLine(const QString &command) noexcept;
 
 private:
+    QRemoteObjectHost *inprocessHost_ = nullptr;
     InprocessController *inprocessController_ = nullptr;
+
     ScriptWriter *scriptWriter_ = nullptr;
 
     QToolButton *completeScriptButton_ = nullptr;
@@ -78,7 +75,6 @@ private:
     void initToolButton(QToolButton *button, const QString &text, const QString &iconPath) noexcept;
     void handleVisibility() noexcept;
 
-    void setTextToScriptLabel(const QString &text) noexcept;
     void setPlayPauseMessageToScriptLabel(bool isPaused) noexcept;
     void setVerificationMessageToScriptLabel(bool isInMode) noexcept;
     void setLabelTextColor(const QString &color = QString()) noexcept;

@@ -6,7 +6,7 @@ namespace QtAda::core {
 class QuickEventFilter : public GuiEventFilter<QQuickItem, QuickClass> {
     Q_OBJECT
 public:
-    QuickEventFilter(const GenerationSettings &settings, QObject *parent = nullptr) noexcept;
+    QuickEventFilter(const RecordSettings &settings, QObject *parent = nullptr) noexcept;
 
     void setMousePressFilter(const QObject *obj, const QEvent *event) noexcept override;
     void handleKeyEvent(const QObject *obj, const QEvent *event) noexcept override;
@@ -80,7 +80,7 @@ private:
         ExtraInfoForDelayed extra;
         bool needToStartTimer = false;
 
-        PostReleaseWatchDog(const GenerationSettings &settings)
+        PostReleaseWatchDog(const RecordSettings &settings)
             : extra{ settings }
         {
         }

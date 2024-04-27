@@ -3,10 +3,18 @@
 #include <QString>
 #include <iostream>
 
-namespace QtAda::common {
+namespace QtAda {
 static constexpr int DEFAULT_WAITING_TIMER_VALUE = 60;
 static constexpr int DEFAULT_INDENT_WIDTH = 4;
 static constexpr int MINIMUM_CYCLE_COUNT = 3;
+
+static constexpr char ENV_UNSET_PRELOAD[] = "QTADA_NEED_TO_UNSET_PRELOAD";
+static constexpr char ENV_LAUNCH_TYPE[] = "QTADA_LAUNCH_TYPE";
+static constexpr char ENV_LAUNCH_SETTINGS[] = "QTADA_LAUNCH_SETTINGS";
+
+static constexpr char REMOTE_OBJECT_PATH[] = "local:QTADA_REMOTE_OBJECT";
+//! TODO: Костыль, см. InprocessController::startInitServer().
+static constexpr char INIT_CONNECTION_SERVER[] = "/tmp/QTADA_INIT_CONNECTION_SERVER";
 
 static constexpr char RESET_COLOR[] = "\033[0m";
 static constexpr char APP_ERR_COLOR[] = "\033[33m";
@@ -20,7 +28,6 @@ Usage: %1 [options] <launch type> <script path> <application> [args]
 
 Launch type:
  -r, --record                           record test script
- -a, --record-actions                   record only actions in application (without verifications)
  -e, --execute                          execute test script
 
 Options:
@@ -77,4 +84,4 @@ inline void printQtAdaErrMessage(const QString &msg) noexcept
               << std::endl
               << std::flush;
 }
-} // namespace QtAda::common
+} // namespace QtAda

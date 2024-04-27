@@ -16,7 +16,7 @@
 #include "InprocessTools.hpp"
 
 namespace QtAda::inprocess {
-static QList<int> getItemPath(const QModelIndex &index)
+static QList<int> getItemIndexPath(const QModelIndex &index)
 {
     QList<int> path;
     QModelIndex current = index;
@@ -215,7 +215,7 @@ void PropertiesWatcher::framedSelectionChanged(const QItemSelection &selected,
     }
     const auto index = selected.indexes().first();
     assert(index.isValid());
-    emit inprocessController_->requestFramedObjectChange(getItemPath(std::move(index)));
+    emit inprocessController_->requestFramedObjectChange(getItemIndexPath(std::move(index)));
 }
 
 void PropertiesWatcher::metaSelectionChanged() noexcept
@@ -251,14 +251,14 @@ void PropertiesWatcher::acceptSelection() noexcept
 
 void PropertiesWatcher::fillTreeModel(QStandardItem *parentItem, const QVariantMap &model)
 {
-    QStandardItem *item = new QStandardItem(model["name"].toString());
-    QStandardItem *descItem = new QStandardItem(model["description"].toString());
+    QStandardItem *item = new QStandardItem(model["object"].toString());
+    item->setData(model["path"], Qt::UserRole);
 
     if (parentItem) {
-        parentItem->appendRow({ item, descItem });
+        parentItem->appendRow(item);
     }
     else {
-        framedObjectModel_->appendRow({ item, descItem });
+        framedObjectModel_->appendRow(item);
     }
 
     if (model.contains("children") && model["children"].canConvert<QVariantList>()) {

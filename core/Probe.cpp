@@ -3,25 +3,19 @@
 #include <QCoreApplication>
 #include <QGuiApplication>
 #include <QApplication>
+#include <QRemoteObjectNode>
 #include <QLocalSocket>
-#include <QScreen>
 #include <QTimer>
 #include <QThread>
 #include <QRecursiveMutex>
 #include <QWindow>
-#include <QMetaMethod>
+#include <QDialog>
 #include <private/qhooks_p.h>
 
 #include "ProbeGuard.hpp"
-//! #include "MetaObjectHandler.hpp"
 #include "UserEventFilter.hpp"
 #include "UserVerificationFilter.hpp"
-#include "ScriptWriter.hpp"
-
-#include "utils/SocketMessages.hpp"
-#include "gui/ControlDialog.hpp"
-
-#include "inprocess/rep_InprocessController_replica.h"
+#include <inprocess/rep_InprocessController_replica.h>
 
 namespace QtAda::core {
 static constexpr char QTADA_NAMESPACE[] = "QtAda::";
@@ -52,14 +46,14 @@ struct LilProbe {
 };
 Q_GLOBAL_STATIC(LilProbe, s_lilProbe)
 
-Probe::Probe(const GenerationSettings &settings, QObject *parent) noexcept
+Probe::Probe(const LaunchType launchType, const std::optional<RecordSettings> &recordSettings,
+             const std::optional<ExecuteSettings> &executeSettings, QObject *parent) noexcept
     : QObject{ parent }
     , queueTimer_{ new QTimer(this) }
-    , userEventFilter_{ new UserEventFilter(settings, this) }
-    , userVerificationFilter_{ new UserVerificationFilter(this) }
-    , scriptWriter_{ new ScriptWriter(settings, this) }
-    , generationSettings_{ settings }
-//! , metaObjectHandler_{ new MetaObjectHandler(this) }
+    , initSocket_{ new QLocalSocket(this) }
+    , launchType_{ launchType }
+    , recordSettings_{ recordSettings }
+    , executeSettings_{ executeSettings }
 {
     Q_ASSERT(thread() == qApp->thread());
 
@@ -67,50 +61,50 @@ Probe::Probe(const GenerationSettings &settings, QObject *parent) noexcept
     queueTimer_->setInterval(0);
     connect(queueTimer_, &QTimer::timeout, this, &Probe::handleObjectsQueue);
 
-    //! connect(this, &Probe::objectCreated, metaObjectHandler_,
-    //!        &MetaObjectHandler::objectCreatedOutside);
-    //! connect(this, &Probe::objectDestroyed, metaObjectHandler_,
-    //!        &MetaObjectHandler::objectDestroyedOutside);
+    inprocessNode_ = new QRemoteObjectNode(this);
+    inprocessNode_->connectToNode(QUrl(REMOTE_OBJECT_PATH));
+    inprocessController_.reset(inprocessNode_->acquire<InprocessControllerReplica>());
 
-    connect(userEventFilter_, &UserEventFilter::newScriptLine, scriptWriter_,
-            &ScriptWriter::handleNewLine);
+    switch (launchType_) {
+    case LaunchType::Record: {
+        assert(recordSettings.has_value());
+        userEventFilter_ = new UserEventFilter(*recordSettings, this);
+        userVerificationFilter_ = new UserVerificationFilter(this);
 
-    if (canShowWidgets()) {
-        // Инициализация ControlDialog (QDialog) для приложения на базе QApplication
-        controlDialog_ = std::make_unique<gui::ControlDialog>();
-
-        // Настройка сигнал-слотов для связи ControlDialog <-> UserEventFilter
-        connect(userEventFilter_, &UserEventFilter::newScriptLine, controlDialog_.get(),
-                &gui::ControlDialog::handleNewScriptLine);
-
-        // Настройка сигнал-слотов для связи ControlDialog <-> UserVerificationFilter
-        connect(userVerificationFilter_, &UserVerificationFilter::objectSelected,
-                controlDialog_.get(), &gui::ControlDialog::objectSelectedInGui);
-        connect(userVerificationFilter_, &UserVerificationFilter::frameCreated,
-                controlDialog_.get(), &gui::ControlDialog::frameCreatedInGui);
-        connect(userVerificationFilter_, &UserVerificationFilter::frameDestroyed,
-                controlDialog_.get(), &gui::ControlDialog::frameDestroyedInGui);
-        connect(controlDialog_.get(), &gui::ControlDialog::framedObjectChangedFromWatcher,
-                userVerificationFilter_, &UserVerificationFilter::handleFramedObjectChange);
-
-        // Настройка сигнал-слотов для связи ControlDialog <-> ScriptWriter
-        connect(controlDialog_.get(), &gui::ControlDialog::newCommentLine, scriptWriter_,
-                &ScriptWriter::handleNewComment);
-        connect(controlDialog_.get(), &gui::ControlDialog::newMetaPropertyVerification,
-                scriptWriter_, &ScriptWriter::handleNewMetaPropertyVerification);
-
-        // Настройка сигнал-слотов для управления текущими eventFilter для всего приложения
-        connect(controlDialog_.get(), &gui::ControlDialog::applicationPaused, this,
+        connect(userEventFilter_, &UserEventFilter::newScriptLine, inprocessController_.get(),
+                &InprocessControllerReplica::sendNewScriptLine);
+        connect(userVerificationFilter_, &UserVerificationFilter::newFramedRootObjectData,
+                inprocessController_.get(),
+                &InprocessControllerReplica::sendNewFramedRootObjectData);
+        connect(userVerificationFilter_, &UserVerificationFilter::newMetaPropertyData,
+                inprocessController_.get(), &InprocessControllerReplica::sendNewMetaPropertyData);
+        connect(inprocessController_.get(), &InprocessControllerReplica::applicationPaused, this,
                 &Probe::handleApplicationPaused);
-        connect(controlDialog_.get(), &gui::ControlDialog::verificationModeChanged, this,
-                &Probe::handleVerificationMode);
-
-        // Настройка сигнал-слотов для закрытия приложения
-        connect(controlDialog_.get(), &gui::ControlDialog::scriptCompleted, this,
+        connect(inprocessController_.get(), &InprocessControllerReplica::scriptCompleted, this,
                 &Probe::handleScriptCompleted);
-        connect(controlDialog_.get(), &gui::ControlDialog::scriptCancelled, this,
+        connect(inprocessController_.get(), &InprocessControllerReplica::scriptCancelled, this,
                 &Probe::handleScriptCancelled);
+        connect(inprocessController_.get(), &InprocessControllerReplica::verificationModeChanged,
+                this, &Probe::handleVerificationMode);
+        connect(inprocessController_.get(), &InprocessControllerReplica::requestFramedObjectChange,
+                userVerificationFilter_, &UserVerificationFilter::changeFramedObject);
+        break;
     }
+    case LaunchType::Execute: {
+        assert(executeSettings.has_value());
+        //! TODO: здесь должна быть настройка для запуска тестового скрипта
+        break;
+    }
+    default:
+        Q_UNREACHABLE();
+    }
+
+    //! TODO: Костыль, см. InprocessController::startInitServer().
+    connect(initSocket_, &QLocalSocket::disconnected, this, [this] {
+        initSocket_->deleteLater();
+        initSocket_ = nullptr;
+    });
+    initSocket_->connectToServer(INIT_CONNECTION_SERVER);
 }
 
 Probe::~Probe() noexcept
@@ -137,7 +131,9 @@ void Probe::kill() noexcept
     delete this;
 }
 
-void Probe::initProbe(const GenerationSettings &settings) noexcept
+void Probe::initProbe(const LaunchType launchType,
+                      const std::optional<RecordSettings> &recordSettings,
+                      const std::optional<ExecuteSettings> &executeSettings) noexcept
 {
     assert(qApp);
     assert(!initialized());
@@ -145,7 +141,7 @@ void Probe::initProbe(const GenerationSettings &settings) noexcept
     Probe *probe = nullptr;
     {
         ProbeGuard guard;
-        probe = new Probe(settings);
+        probe = new Probe(launchType, recordSettings, executeSettings);
     }
 
     connect(qApp, &QCoreApplication::aboutToQuit, probe, &Probe::kill);
@@ -163,7 +159,7 @@ void Probe::initProbe(const GenerationSettings &settings) noexcept
         probe->findObjectsFromCoreApp();
     }
 
-    QMetaObject::invokeMethod(probe, "installInternalParameters", Qt::QueuedConnection);
+    QMetaObject::invokeMethod(probe, "installInternalEventFilter", Qt::QueuedConnection);
 }
 
 void Probe::startup() noexcept
@@ -171,9 +167,9 @@ void Probe::startup() noexcept
     s_lilProbe()->hooksInstalled = true;
 }
 
-const QObject *Probe::controlDialog() const noexcept
+const QObject *Probe::inprocessController() const noexcept
 {
-    return qobject_cast<const QObject *>(controlDialog_.get());
+    return qobject_cast<const QObject *>(inprocessController_.get());
 }
 
 bool Probe::canShowWidgets() noexcept
@@ -181,29 +177,17 @@ bool Probe::canShowWidgets() noexcept
     return QCoreApplication::instance()->inherits("QApplication");
 }
 
-void Probe::installInternalParameters() noexcept
+void Probe::installInternalEventFilter() noexcept
 {
     QCoreApplication::instance()->installEventFilter(this);
-
-    socket_ = new QLocalSocket(this);
-    socket_->connectToServer(socket::SERVER_PATH);
-    connect(socket_, &QLocalSocket::disconnected, socket_, &QLocalSocket::deleteLater);
-    connect(socket_, &QLocalSocket::readyRead, this, &Probe::readLauncherMessage);
-
-    if (canShowWidgets()) {
-        assert(controlDialog_ != nullptr);
-        const auto screenGeometry = QApplication::primaryScreen()->geometry();
-        controlDialog_->move(screenGeometry.width() - controlDialog_->width(), screenGeometry.y());
-        controlDialog_->show();
-    }
 }
 
 void Probe::handleApplicationPaused(bool isPaused) noexcept
 {
-    filtersPaused_ = isPaused;
-    if (filtersPaused_) {
+    if (isPaused) {
         userVerificationFilter_->cleanupFrames();
     }
+    filtersPaused_ = isPaused;
 }
 
 void Probe::handleVerificationMode(bool isMode) noexcept
@@ -217,7 +201,7 @@ void Probe::handleVerificationMode(bool isMode) noexcept
 void Probe::handleScriptCompleted() noexcept
 {
     handleVerificationMode(false);
-    if (generationSettings_.closeWindowsOnExit()) {
+    if (recordSettings_->closeWindowsOnExit) {
         if (canShowWidgets()) {
             QApplication::closeAllWindows();
         }
@@ -233,7 +217,6 @@ void Probe::handleScriptCompleted() noexcept
 
 void Probe::handleScriptCancelled() noexcept
 {
-    scriptWriter_->handleCancelledScript();
     QCoreApplication::quit();
 }
 
@@ -327,16 +310,12 @@ bool Probe::eventFilter(QObject *reciever, QEvent *event)
         }
     }
 
-    if (!filtersPaused_ && !isIternalObject(reciever) && !isStrangeClass(reciever)) {
+    if (launchType_ == LaunchType::Record && !filtersPaused_ && !isIternalObject(reciever)
+        && !isStrangeClass(reciever)) {
         if (verificationMode_) {
             return userVerificationFilter_->eventFilter(reciever, event);
         }
         else {
-            //! TODO: Временное решение борьбы с "блокировкой" диалогом. Позволяет
-            //! общаться с нашим ControlDialog даже когда запущен любой диалог.
-            if (auto *dialog = qobject_cast<QDialog *>(reciever)) {
-                dialog->setWindowModality(Qt::NonModal);
-            }
             userEventFilter_->eventFilter(reciever, event);
         }
     }
@@ -438,7 +417,7 @@ bool Probe::isIternalObject(QObject *obj) const noexcept
         }
         ++iteration;
 
-        if (o == this || o == controlDialog()
+        if (o == this || o == inprocessController()
             || (qstrncmp(o->metaObject()->className(), QTADA_NAMESPACE, QTADA_NAMESPACE_LEN)
                 == 0)) {
             return true;
@@ -592,8 +571,14 @@ void Probe::explicitObjectCreation(QObject *obj) noexcept
 
     if (isIternalObject(obj)) {
         bool successErase = knownObjects_.erase(obj);
-        assert(successErase);
+        assert(successErase == true);
         return;
+    }
+
+    //! TODO: Временное решение борьбы с "блокировкой" диалогом. Позволяет
+    //! общаться с нашим ControlDialog даже когда запущен любой диалог.
+    if (auto *dialog = qobject_cast<QDialog *>(obj)) {
+        dialog->setWindowModality(Qt::NonModal);
     }
 
     for (QObject *parent = obj->parent(); parent != nullptr; parent = parent->parent()) {
@@ -605,13 +590,5 @@ void Probe::explicitObjectCreation(QObject *obj) noexcept
     assert(!obj->parent() || isKnownObject(obj->parent()));
 
     emit objectCreated(obj);
-}
-
-void Probe::readLauncherMessage() noexcept
-{
-    const auto message = socket_->readAll();
-    if (message == socket::LAUNCHER_DESTROYED) {
-        QCoreApplication::quit();
-    }
 }
 } // namespace QtAda::core

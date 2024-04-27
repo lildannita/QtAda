@@ -14,21 +14,14 @@ enum class LauncherState {
     InjectorFailed = 2,
 };
 
-enum class LaunchType {
-    None = 0,
-    Record = 1,
-    RecordNoInprocess = 2,
-    Execute = 3,
-};
-
 struct UserLaunchOptions final {
     QStringList launchAppArguments;
     QString workingDirectory;
-    int timeoutValue = common::DEFAULT_WAITING_TIMER_VALUE;
+    int timeoutValue = DEFAULT_WAITING_TIMER_VALUE;
 
     LaunchType type = LaunchType::None;
-    common::RecordSettings recordSettings;
-    common::ExecuteSettings executeSettings;
+    RecordSettings recordSettings;
+    ExecuteSettings executeSettings;
 
     std::optional<int> initFromArgs(const char *appPath, QStringList args) noexcept;
 };

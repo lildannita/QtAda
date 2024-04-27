@@ -31,9 +31,6 @@
 #include "utils/CommonFilters.hpp"
 #include "utils/FilterUtils.hpp"
 
-//! TODO: remove
-#include <iostream>
-
 namespace QtAda::core::filters {
 /*
  * Число - это максимальная степень вложенности нужного класса относительно изначально
@@ -79,7 +76,7 @@ static const std::vector<WidgetClass> s_processedTextWidgets = {
 
 //! TODO: нужна ли обработка зажатия кастомной кнопки?
 static QString qButtonsFilter(const QWidget *widget, const QMouseEvent *event,
-                              const GenerationSettings &settings) noexcept
+                              const RecordSettings &settings) noexcept
 {
     Q_UNUSED(settings);
     if (!utils::mouseEventCanBeFiltered(widget, event)) {
@@ -115,7 +112,6 @@ static QString qButtonsFilter(const QWidget *widget, const QMouseEvent *event,
         rectContains = currentWidget->rect().contains(clickPos);
     }
     else {
-
         //! TODO: Для QRadioButton и QCheckBox может быть такое, что "область нажатия"
         //! не совпадает с размерами самого объекта (для QButton такой проблемы нет),
         //! поэтому дополнительно используем minimumSizeHint(), который как раз должен
@@ -175,7 +171,7 @@ static QString qButtonsFilter(const QWidget *widget, const QMouseEvent *event,
 }
 
 static QString qComboBoxFilter(const QWidget *widget, const QMouseEvent *event,
-                               const GenerationSettings &settings) noexcept
+                               const RecordSettings &settings) noexcept
 {
     if (!utils::mouseEventCanBeFiltered(widget, event)) {
         return QString();
@@ -205,7 +201,7 @@ static QString qComboBoxFilter(const QWidget *widget, const QMouseEvent *event,
         const auto index = comboBoxView->currentIndex().row();
         return QStringLiteral("selectItem('%1', %2);")
             .arg(utils::objectPath(widget))
-            .arg(utils::textIndexStatement(settings.textIndexBehavior(), index,
+            .arg(utils::textIndexStatement(settings.textIndexBehavior, index,
                                            comboBox->itemText(index)));
     }
     /*
@@ -510,7 +506,7 @@ static QString qItemViewClickFilter(const QAbstractItemView *view,
 }
 
 static QString qItemViewFilter(const QWidget *widget, const QMouseEvent *event,
-                               const GenerationSettings &settings) noexcept
+                               const RecordSettings &settings) noexcept
 {
     Q_UNUSED(settings);
     if (!utils::mouseEventCanBeFiltered(widget, event)) {
@@ -611,7 +607,7 @@ static QString qItemViewSelectionFilter(const QWidget *widget, const QMouseEvent
 }
 
 static QString qMenuBarFilter(const QWidget *widget, const QMouseEvent *event,
-                              const GenerationSettings &settings) noexcept
+                              const RecordSettings &settings) noexcept
 {
     if (!utils::mouseEventCanBeFiltered(widget, event, true)) {
         return QString();
@@ -636,7 +632,7 @@ static QString qMenuBarFilter(const QWidget *widget, const QMouseEvent *event,
         return QStringLiteral("%1activateMenuAction('%2', %3%4);")
             .arg(action->isSeparator() ? " // Looks like QMenu::Separator clicked\n// " : "")
             .arg(utils::objectPath(widget))
-            .arg(utils::textIndexStatement(settings.textIndexBehavior(),
+            .arg(utils::textIndexStatement(settings.textIndexBehavior,
                                            menuBar->actions().indexOf(action), action->text()))
             .arg(action->isCheckable()
                      ? QStringLiteral(", %1").arg(action->isChecked() ? "false" : "true")
@@ -652,7 +648,7 @@ static QString qMenuBarFilter(const QWidget *widget, const QMouseEvent *event,
 }
 
 static QString qMenuFilter(const QWidget *widget, const QMouseEvent *event,
-                           const GenerationSettings &settings) noexcept
+                           const RecordSettings &settings) noexcept
 {
     if (!utils::mouseEventCanBeFiltered(widget, event)) {
         return QString();
@@ -679,7 +675,7 @@ static QString qMenuFilter(const QWidget *widget, const QMouseEvent *event,
         return QStringLiteral("%1activateMenuAction('%2', %3%4);")
             .arg(action->isSeparator() ? " // Looks like QMenu::Separator clicked\n// " : "")
             .arg(utils::objectPath(widget))
-            .arg(utils::textIndexStatement(settings.textIndexBehavior(),
+            .arg(utils::textIndexStatement(settings.textIndexBehavior,
                                            menu->actions().indexOf(action), action->text()))
             .arg(action->isCheckable()
                      ? QStringLiteral(", %1").arg(action->isChecked() ? "false" : "true")
@@ -688,7 +684,7 @@ static QString qMenuFilter(const QWidget *widget, const QMouseEvent *event,
 }
 
 static QString qTabBarFilter(const QWidget *widget, const QMouseEvent *event,
-                             const GenerationSettings &settings) noexcept
+                             const RecordSettings &settings) noexcept
 {
     if (!utils::mouseEventCanBeFiltered(widget, event)) {
         return QString();
@@ -704,12 +700,11 @@ static QString qTabBarFilter(const QWidget *widget, const QMouseEvent *event,
     const auto index = tabBar->currentIndex();
     return QStringLiteral("selectTabItem('%1', '%2');")
         .arg(utils::objectPath(widget))
-        .arg(
-            utils::textIndexStatement(settings.textIndexBehavior(), index, tabBar->tabText(index)));
+        .arg(utils::textIndexStatement(settings.textIndexBehavior, index, tabBar->tabText(index)));
 }
 
 static QString qTextFocusFilters(const QWidget *widget, const QMouseEvent *event,
-                                 const GenerationSettings &settings) noexcept
+                                 const RecordSettings &settings) noexcept
 {
     Q_UNUSED(settings);
     for (const auto &widgetClass : s_processedTextWidgets) {
@@ -745,7 +740,7 @@ static QString qTextFocusFilters(const QWidget *widget, const QMouseEvent *event
 } // namespace QtAda::core::filters
 
 namespace QtAda::core {
-WidgetEventFilter::WidgetEventFilter(const GenerationSettings &settings, QObject *parent) noexcept
+WidgetEventFilter::WidgetEventFilter(const RecordSettings &settings, QObject *parent) noexcept
     : GuiEventFilter{ settings, parent }
 {
     mouseFilters_ = {
@@ -810,7 +805,7 @@ std::pair<QString, bool> WidgetEventFilter::callMouseFilters(const QObject *obj,
     }
 
     for (auto &filter : mouseFilters_) {
-        const auto result = filter(widget, mouseEvent, generationSettings_);
+        const auto result = filter(widget, mouseEvent, recordSettings_);
         if (!result.isEmpty()) {
             return { result, false };
         }
@@ -832,7 +827,7 @@ void WidgetEventFilter::setMousePressFilter(const QObject *obj, const QEvent *ev
     delayedWatchDog_.clear();
 
     for (auto &filter : specificMouseFilters_) {
-        const auto result = filter(widget, mouseEvent, generationSettings_);
+        const auto result = filter(widget, mouseEvent, recordSettings_);
         if (!result.isEmpty()) {
             delayedWatchDog_.initSpecific(widget, event, std::move(result));
             return;

@@ -7,15 +7,14 @@
 #include "Launcher.hpp"
 #include "MainWindow.hpp"
 
+namespace QtAda {
 void shutdown(int sig)
 {
     static volatile std::sig_atomic_t handlingSignal = 0;
 
     if (!handlingSignal) {
         handlingSignal = 1;
-        std::cout << std::endl;
-        QtAda::common::printQtAdaOutMessage(
-            QStringLiteral("Signal %1 received, shutting down.").arg(sig));
+        printQtAdaOutMessage(QStringLiteral("Signal %1 received, shutting down.").arg(sig));
         QCoreApplication *app = QCoreApplication::instance();
         app->quit();
         return;
@@ -38,7 +37,6 @@ void installSignalHandler()
 #endif
 }
 
-namespace QtAda {
 int guiInitializer(int argc, char *argv[])
 {
     QApplication app(argc, argv);
@@ -71,7 +69,7 @@ int cliInitializer(int argc, char *argv[])
     }
 
     switch (options.type) {
-    case launcher::LaunchType::Record: {
+    case LaunchType::Record: {
         QApplication app(argc, argv);
         launcher::Launcher launcher(options);
         if (launcher.launch()) {
@@ -85,8 +83,7 @@ int cliInitializer(int argc, char *argv[])
         auto exec = app.exec();
         return exec == 0 ? launcher.exitCode() : exec;
     }
-    case launcher::LaunchType::RecordNoInprocess:
-    case launcher::LaunchType::Execute: {
+    case LaunchType::Execute: {
         QCoreApplication app(argc, argv);
         launcher::Launcher launcher(options);
         if (launcher.launch()) {
@@ -108,6 +105,6 @@ int cliInitializer(int argc, char *argv[])
 
 int main(int argc, char *argv[])
 {
-    installSignalHandler();
+    QtAda::installSignalHandler();
     return argc <= 1 ? QtAda::guiInitializer(argc, argv) : QtAda::cliInitializer(argc, argv);
 }

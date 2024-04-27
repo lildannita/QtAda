@@ -6,11 +6,6 @@
 
 #include "LaunchOptions.hpp"
 
-QT_BEGIN_NAMESPACE
-class QLocalServer;
-class QLocalSocket;
-QT_END_NAMESPACE
-
 namespace QtAda::launcher::injector {
 class AbstractInjector;
 }
@@ -44,18 +39,12 @@ private slots:
     void restartTimer() noexcept;
     void timeout() noexcept;
     void injectorFinished() noexcept;
-    void handleNewConnection() noexcept;
 
 private:
     LaunchOptions options_;
     std::unique_ptr<injector::AbstractInjector> injector_;
 
     inprocess::InprocessDialog *inprocessDialog_ = nullptr;
-
-    // Используются для "лишнего" подтверждения успешного запуска и инъекции кода,
-    // а также для получения предупреждений и ошибок при запуске тестового скрипта.
-    QLocalServer *server_ = nullptr;
-    QLocalSocket *probeSocket_ = nullptr;
 
     QTimer waitingTimer_;
 

@@ -3,6 +3,8 @@
 #include <QObject>
 #include <QQuickPaintedItem>
 #include <QPainter>
+#include <QStandardItemModel>
+#include <optional>
 
 #include "LastEvent.hpp"
 
@@ -43,23 +45,24 @@ public:
     void cleanupFrames() noexcept;
 
 signals:
-    void objectSelected(const QObject *obj);
-    void frameCreated(const QObject *frame);
-    void frameDestroyed();
+    void newFramedRootObjectData(const QVariantMap &model, const QList<QVariantMap> &rootMetaData);
+    void newMetaPropertyData(const QList<QVariantMap> &metaData);
 
 public slots:
-    void handleFramedObjectChange(QObject *obj)
-    {
-        callHandlers(obj, true);
-    }
+    void changeFramedObject(const QList<int> &rowPath) noexcept;
 
 private:
     LastMouseEvent lastPressEvent_;
     QFrame *lastFrame_ = nullptr;
     QQuickPaintedItem *lastPaintedItem_ = nullptr;
 
+    QStandardItemModel framedRootObjectModel_;
+
     void callHandlers(QObject *obj, bool isExtTrigger) noexcept;
-    void handleWidgetVerification(QWidget *widget, bool isExtTrigger) noexcept;
-    void handleItemVerification(QQuickItem *item, bool isExtTrigger) noexcept;
+    bool handleWidgetVerification(QWidget *widget, bool isExtTrigger) noexcept;
+    bool handleItemVerification(QQuickItem *item, bool isExtTrigger) noexcept;
+
+    std::optional<QVariantMap> updateFramedRootObjectModel(const QObject *object,
+                                                           QStandardItem *parentViewItem) noexcept;
 };
 } // namespace QtAda::core

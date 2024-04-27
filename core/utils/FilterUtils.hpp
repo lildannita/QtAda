@@ -3,11 +3,8 @@
 #include <optional>
 #include <qnamespace.h>
 
-#include "GenerationSettings.hpp"
+#include "Settings.hpp"
 #include "ProcessedObjects.hpp"
-
-//! TODO: убрать
-#include <iostream>
 
 QT_BEGIN_NAMESPACE
 class QItemSelectionModel;
@@ -232,7 +229,5 @@ QString textIndexStatement(TextIndexBehavior behavior, int index,
                            const QString &text = QString()) noexcept;
 
 // Special filters for QWidgets:
-QString widgetIdInView(const QWidget *widget, const int index,
-                       const WidgetClass widgetClass) noexcept;
 QString selectedCellsData(const QItemSelectionModel *model) noexcept;
 } // namespace QtAda::core::utils

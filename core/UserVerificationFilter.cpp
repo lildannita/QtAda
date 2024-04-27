@@ -7,6 +7,7 @@
 #include <regex>
 
 #include "utils/FilterUtils.hpp"
+#include "utils/Tools.hpp"
 
 namespace QtAda::core {
 static bool checkIfLayout(const QMetaObject *metaObject)
@@ -31,8 +32,6 @@ static GuiComponent *findMostSuitableParent(GuiComponent *component) noexcept
         auto *parentComponent = qobject_cast<GuiComponent *>(parent);
         parent = parent->parent();
         if (parentComponent == nullptr) {
-            //! TODO: Может все-таки лучше продолжать поиск, так как, например, для
-            //! QtQuick не все графические элементы являются QQuickItem.
             break;
         }
 
@@ -44,6 +43,67 @@ static GuiComponent *findMostSuitableParent(GuiComponent *component) noexcept
         }
     }
     return foundParentComponent;
+}
+
+static QList<QVariantMap> serilizeMetaPropertyData(const QObject *object) noexcept
+{
+    assert(object != nullptr);
+    QList<QVariantMap> metaPropertyData;
+
+    const auto *metaObject = object->metaObject();
+    assert(metaObject != nullptr);
+    const auto propertyCount = metaObject->propertyCount();
+    for (int i = 0; i < propertyCount; i++) {
+        const auto metaProperty = metaObject->property(i);
+        assert(metaProperty.isValid());
+
+        QVariantMap metaRow;
+        metaRow["property"] = metaProperty.name();
+        metaRow["value"] = tools::metaPropertyValueToString(object, metaProperty);
+        metaPropertyData.append(metaRow);
+    }
+    return metaPropertyData;
+}
+
+std::optional<QVariantMap>
+UserVerificationFilter::updateFramedRootObjectModel(const QObject *object,
+                                                    QStandardItem *parentViewItem) noexcept
+{
+    assert(object != nullptr);
+    QVariantMap rowMap;
+    if (object == qobject_cast<const QObject *>(lastFrame_)
+        || object == qobject_cast<const QObject *>(lastPaintedItem_)) {
+        return std::nullopt;
+    }
+
+    const auto objectName = object->objectName();
+    rowMap["object"] = QStringLiteral("%1 (%2)")
+                           .arg(objectName.isEmpty() ? tools::pointerToString(object) : objectName)
+                           .arg(object->metaObject()->className());
+    rowMap["path"] = utils::objectPath(object);
+
+    auto *viewItem = new QStandardItem();
+    viewItem->setData(QVariant::fromValue(const_cast<QObject *>(object)), Qt::UserRole);
+    if (parentViewItem == nullptr) {
+        framedRootObjectModel_.appendRow(viewItem);
+    }
+    else {
+        parentViewItem->appendRow(viewItem);
+    }
+
+    QVariantList childrenData;
+    for (auto *child : object->children()) {
+        const auto childMap = updateFramedRootObjectModel(child, viewItem);
+        if (childMap.has_value()) {
+            childrenData.append(std::move(*childMap));
+        }
+    }
+
+    if (!childrenData.isEmpty()) {
+        rowMap["children"] = childrenData;
+    }
+
+    return rowMap;
 }
 
 void UserVerificationFilter::cleanupFrames() noexcept
@@ -59,10 +119,10 @@ void UserVerificationFilter::cleanupFrames() noexcept
         lastPaintedItem_ = nullptr;
     }
 
-    emit frameDestroyed();
+    framedRootObjectModel_.clear();
 }
 
-void UserVerificationFilter::handleWidgetVerification(QWidget *widget, bool isExtTrigger) noexcept
+bool UserVerificationFilter::handleWidgetVerification(QWidget *widget, bool isExtTrigger) noexcept
 {
     if (!isExtTrigger) {
         widget = findMostSuitableParent(widget);
@@ -70,7 +130,7 @@ void UserVerificationFilter::handleWidgetVerification(QWidget *widget, bool isEx
     assert(widget != nullptr);
 
     if (lastFrame_ != nullptr && lastFrame_->parentWidget() == widget) {
-        return;
+        return false;
     }
 
     if (lastFrame_ == nullptr) {
@@ -86,7 +146,6 @@ void UserVerificationFilter::handleWidgetVerification(QWidget *widget, bool isEx
                                   "  border: 3px solid rgb(217, 4, 41); "
                                   "  background-color: rgba(239, 35, 60, 127); "
                                   "}");
-        emit frameCreated(qobject_cast<const QObject *>(lastFrame_));
     }
     else {
         lastFrame_->hide();
@@ -95,12 +154,10 @@ void UserVerificationFilter::handleWidgetVerification(QWidget *widget, bool isEx
     lastFrame_->setGeometry(widget->rect());
     lastFrame_->show();
 
-    if (!isExtTrigger) {
-        emit objectSelected(qobject_cast<const QObject *>(widget));
-    }
+    return true;
 }
 
-void UserVerificationFilter::handleItemVerification(QQuickItem *item, bool isExtTrigger) noexcept
+bool UserVerificationFilter::handleItemVerification(QQuickItem *item, bool isExtTrigger) noexcept
 {
     if (!isExtTrigger) {
         item = findMostSuitableParent(item);
@@ -108,12 +165,11 @@ void UserVerificationFilter::handleItemVerification(QQuickItem *item, bool isExt
     assert(item != nullptr);
 
     if (lastPaintedItem_ != nullptr && lastPaintedItem_->parentItem() == item) {
-        return;
+        return false;
     }
 
     if (lastPaintedItem_ == nullptr) {
         lastPaintedItem_ = new QuickFrame(item);
-        emit frameCreated(qobject_cast<const QObject *>(lastPaintedItem_));
     }
     else {
         lastPaintedItem_->setParentItem(item);
@@ -122,19 +178,75 @@ void UserVerificationFilter::handleItemVerification(QQuickItem *item, bool isExt
     lastPaintedItem_->setHeight(item->height());
     lastPaintedItem_->update();
 
-    if (!isExtTrigger) {
-        emit objectSelected(qobject_cast<const QObject *>(item));
-    }
+    return true;
 }
 
 void UserVerificationFilter::callHandlers(QObject *obj, bool isExtTrigger) noexcept
 {
+    //! TODO: Сейчас рисуем рамку только около компонентов, которые могут быть
+    //! преобразованы в QWidget или в QQuickItem, так как для других компонентов
+    //! не можем "легко" получить геометрию. QObject, которые не можем преобразовать
+    //! в графический компонент, мы все равно включаем в дерево потомков выбранного
+    //! графического компонента, и все равно отображаем его мета-информацию, но
+    //! так как это не "явный" графический компонент, то и рамку для него не рисуем.
+    //!
+    //! Проблема в том, что QObject все равно может быть отображен в GUI, как, например,
+    //! делегаты для QtWidgets. В этом случае его родитель (являющийся графическим
+    //! компонентом) занимается отображением QObject внутри себя. И по идее в таких
+    //! случаях можно "обновить" рамку, используя координаты QObject внутри графического
+    //! компонента (если они есть).
+
+    bool isFrameUpdated = false;
     if (auto *widget = qobject_cast<QWidget *>(obj)) {
-        handleWidgetVerification(widget, isExtTrigger);
+        isFrameUpdated = handleWidgetVerification(widget, isExtTrigger);
     }
     else if (auto *item = qobject_cast<QQuickItem *>(obj)) {
-        handleItemVerification(item, isExtTrigger);
+        isFrameUpdated = handleItemVerification(item, isExtTrigger);
     }
+    else {
+        if (!isExtTrigger) {
+            return;
+        }
+        const auto metaPropertyData = serilizeMetaPropertyData(obj);
+        emit newMetaPropertyData(std::move(metaPropertyData));
+    }
+
+    if (!isFrameUpdated) {
+        return;
+    }
+
+    const auto metaPropertyData = serilizeMetaPropertyData(obj);
+    if (!isExtTrigger) {
+        const auto serializedRootModel = updateFramedRootObjectModel(obj, nullptr);
+        assert(serializedRootModel.has_value());
+        emit newFramedRootObjectData(std::move(*serializedRootModel), std::move(metaPropertyData));
+    }
+    else {
+        emit newMetaPropertyData(std::move(metaPropertyData));
+    }
+}
+
+void UserVerificationFilter::changeFramedObject(const QList<int> &rowPath) noexcept
+{
+    if (framedRootObjectModel_.rowCount() == 0) {
+        return;
+    }
+
+    auto path = rowPath;
+    QModelIndex newFramedObjectIndex = framedRootObjectModel_.index(path.takeFirst(), 0);
+    for (const auto row : rowPath) {
+        newFramedObjectIndex = framedRootObjectModel_.index(row, 0, newFramedObjectIndex);
+        if (!newFramedObjectIndex.isValid()) {
+            return;
+        }
+    }
+
+    if (!newFramedObjectIndex.isValid()) {
+        return;
+    }
+
+    auto *newFramedObject = newFramedObjectIndex.data(Qt::UserRole).value<QObject *>();
+    callHandlers(newFramedObject, true);
 }
 
 bool UserVerificationFilter::eventFilter(QObject *obj, QEvent *event) noexcept

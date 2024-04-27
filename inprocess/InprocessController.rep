@@ -1,26 +1,26 @@
-//#include <QStandardItemModel>
-//#include <deque>
-
 #include <QVariantMap>
 #include <QList>
-#include <QPair>
 #include <QString>
 
 class InprocessController
 {
-    // UserVerificationFilter -> PropertiesWatcher signals:
-    SIGNAL(newFramedRootObjectData(const QVariantMap &model, const QList<QVariantMap> &rootMetaData))
-    SIGNAL(newMetaPropertyData(const QList<QVariantMap> &metaData))
+    // Из Replica мы не можем просто вызывать сигналы, которые дойдут до Source,
+    // поэтому объявляем слоты, которые реализуем в InprocessController.hpp, и
+    // цель которых - просто вызвать соответствующие сигналы внутри себя.
 
-    // PropertiesWatcher -> UserVerificationFilter signals:
-    SIGNAL(requestFramedObjectChange(const QList<int> &rowPath))
+    // UserEventFilter -> InprocessDialog slots:
+    SLOT(sendNewScriptLine(const QString &line))
+
+    // UserVerificationFilter -> PropertiesWatcher slots:
+    SLOT(sendNewFramedRootObjectData(const QVariantMap &model, const QList<QVariantMap> &rootMetaData))
+    SLOT(sendNewMetaPropertyData(const QList<QVariantMap> &metaData))
 
     // InprocessDialog -> UserEventFilter signals:
-    SIGNAL(newScriptLine(const QString &line))
-
-    // UserEventFilter -> InprocessDialog signals:
     SIGNAL(scriptCompleted())
     SIGNAL(verificationModeChanged(bool isVerificationMode))
     SIGNAL(applicationPaused(bool isPaused))
     SIGNAL(scriptCancelled())
+
+    // PropertiesWatcher -> UserVerificationFilter signals:
+    SIGNAL(requestFramedObjectChange(const QList<int> &rowPath))
 };

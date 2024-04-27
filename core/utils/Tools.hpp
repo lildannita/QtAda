@@ -22,6 +22,5 @@ template <typename T> QString pointerToString(T *ptr) noexcept
                                QChar('0'));
 }
 
-std::vector<QString> cutLine(const QString &line) noexcept;
 QString metaPropertyValueToString(const QObject *obj, const QMetaProperty &property) noexcept;
 } // namespace QtAda::core::tools

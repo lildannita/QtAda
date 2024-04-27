@@ -4,7 +4,7 @@
 #include <QDir>
 
 namespace QtAda::inprocess {
-ScriptWriter::ScriptWriter(const common::RecordSettings &settings, QObject *parent) noexcept
+ScriptWriter::ScriptWriter(const RecordSettings &settings, QObject *parent) noexcept
     : QObject{ parent }
     , recordSettings_{ settings }
     , linesHandler_{ settings.needToGenerateCycle, settings.cycleMinimumCount }
@@ -15,7 +15,7 @@ ScriptWriter::ScriptWriter(const common::RecordSettings &settings, QObject *pare
     assert(scriptInfo.suffix() == "js");
 
     switch (settings.scriptWriteMode) {
-    case common::ScriptWriteMode::NewScript: {
+    case ScriptWriteMode::NewScript: {
         script_.setFileName(recordSettings_.scriptPath);
         bool isOpen = script_.open(QIODevice::WriteOnly | QIODevice::Truncate);
         assert(isOpen == true);
@@ -23,7 +23,7 @@ ScriptWriter::ScriptWriter(const common::RecordSettings &settings, QObject *pare
         flushScriptLine("function test() {", 0);
         break;
     }
-    case common::ScriptWriteMode::UpdateScript: {
+    case ScriptWriteMode::UpdateScript: {
         assert(scriptInfo.exists());
 
         QFile originalScript(recordSettings_.scriptPath);
@@ -59,21 +59,20 @@ ScriptWriter::~ScriptWriter() noexcept
 {
     if (scriptCancelled_) {
         script_.close();
-        const auto filePath = script_.fileName();
-        if (QFile::exists(filePath)) {
-            QFile::remove(filePath);
+        if (script_.exists()) {
+            script_.remove();
         }
         return;
     }
 
     flushSavedLines();
     switch (recordSettings_.scriptWriteMode) {
-    case common::ScriptWriteMode::NewScript: {
+    case ScriptWriteMode::NewScript: {
         flushScriptLine("}", 0);
         script_.close();
         break;
     }
-    case common::ScriptWriteMode::UpdateScript: {
+    case ScriptWriteMode::UpdateScript: {
         for (const auto &line : savedLines_) {
             flushScriptLine(line);
         }

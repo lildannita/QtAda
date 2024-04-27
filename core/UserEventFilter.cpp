@@ -4,15 +4,13 @@
 #include <QQuickItem>
 #include <QWidget>
 #include <QRegularExpression>
+#include <QEvent>
 
 #include "GuiEventFilter.hpp"
 #include "utils/CommonFilters.hpp"
 
-//! TODO: remove
-#include <iostream>
-
 namespace QtAda::core {
-UserEventFilter::UserEventFilter(const GenerationSettings &settings, QObject *parent) noexcept
+UserEventFilter::UserEventFilter(const RecordSettings &settings, QObject *parent) noexcept
     : QObject{ parent }
 {
     widgetFilter_ = std::make_shared<WidgetEventFilter>(settings, this);
@@ -32,10 +30,6 @@ UserEventFilter::UserEventFilter(const GenerationSettings &settings, QObject *pa
         }
         clearDelayed();
     });
-
-    //! TODO: убрать
-    connect(this, &UserEventFilter::newScriptLine, this,
-            [](const QString &line) { std::cout << line.toStdString() << std::endl; });
 }
 
 MouseEventInfo UserEventFilter::mouseEventInfo(const QString &objPath) const noexcept

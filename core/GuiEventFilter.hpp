@@ -9,7 +9,7 @@
 #include <QRegularExpression>
 #include <QString>
 
-#include "GenerationSettings.hpp"
+#include "Settings.hpp"
 #include "ProcessedObjects.hpp"
 #include "utils/CommonFilters.hpp"
 
@@ -29,7 +29,7 @@ struct ExtraInfoForDelayed final {
         Collapsed,
     };
 
-    const GenerationSettings generationSettings;
+    const RecordSettings recordSettings;
 
     bool isContinuous = false;
     std::optional<int> changeType = std::nullopt;
@@ -37,8 +37,8 @@ struct ExtraInfoForDelayed final {
     std::optional<int> changeIndex;
     std::vector<int> collectedIndexes;
 
-    ExtraInfoForDelayed(const GenerationSettings &settings)
-        : generationSettings{ settings }
+    ExtraInfoForDelayed(const RecordSettings &settings)
+        : recordSettings{ settings }
     {
     }
 
@@ -55,9 +55,9 @@ struct ExtraInfoForDelayed final {
 class GuiEventFilterBase : public QObject {
     Q_OBJECT
 public:
-    GuiEventFilterBase(const GenerationSettings &settings, QObject *parent = nullptr)
+    GuiEventFilterBase(const RecordSettings &settings, QObject *parent = nullptr)
         : QObject{ parent }
-        , generationSettings_{ settings }
+        , recordSettings_{ settings }
     {
     }
 
@@ -76,7 +76,7 @@ public:
         if (scriptLine.isEmpty()) {
             scriptLine = filters::qMouseEventHandler(obj, event, info.objPath);
         }
-        else if (generationSettings_.duplicateMouseEvent()) {
+        else if (recordSettings_.duplicateMouseEvent) {
             static QRegularExpression s_regex("mouse(Dbl)?Click");
             if (!s_regex.match(scriptLine).hasMatch()) {
                 scriptLine += QStringLiteral("\n// %1").arg(
@@ -97,7 +97,7 @@ signals:
     void newKeyScriptLine(const QString &line) const;
 
 protected:
-    const GenerationSettings generationSettings_;
+    const RecordSettings recordSettings_;
 
     virtual void processKeyEvent(const QString &text) noexcept = 0;
     virtual std::pair<QString, bool> callMouseFilters(const QObject *obj, const QEvent *event,
@@ -111,14 +111,14 @@ protected slots:
 template <typename GuiComponent, typename EnumType>
 class GuiEventFilter : public GuiEventFilterBase {
 protected:
-    using MouseFilterFunction = std::function<QString(const GuiComponent *, const QMouseEvent *,
-                                                      const GenerationSettings &)>;
+    using MouseFilterFunction
+        = std::function<QString(const GuiComponent *, const QMouseEvent *, const RecordSettings &)>;
     using SignalMouseFilterFunction = std::function<QString(
         const GuiComponent *, const QMouseEvent *, const ExtraInfoForDelayed &)>;
 
     using Connections = std::vector<QMetaObject::Connection>;
 
-    GuiEventFilter(const GenerationSettings &settings, QObject *parent = nullptr)
+    GuiEventFilter(const RecordSettings &settings, QObject *parent = nullptr)
         : GuiEventFilterBase{ settings, parent }
         , delayedWatchDog_{ settings }
     {
@@ -145,7 +145,7 @@ protected:
         ExtraInfoForDelayed extra;
         QString specificResult;
 
-        DelayedWatchDog(const GenerationSettings &settings)
+        DelayedWatchDog(const RecordSettings &settings)
             : extra{ settings }
         {
         }

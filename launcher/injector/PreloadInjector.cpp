@@ -1,6 +1,7 @@
 #include "PreloadInjector.hpp"
 
 #include "LauncherUtils.hpp"
+#include "Common.hpp"
 
 namespace QtAda::launcher::injector {
 bool PreloadInjector::launch(const QStringList &launchArgs, const QString &probeDllPath,
@@ -28,12 +29,7 @@ bool PreloadInjector::launch(const QStringList &launchArgs, const QString &probe
      * иметь LD_PRELOAD в окружении, чтобы не использовать Hooks для дочерних
      * процессов, которые может запустить тестируемое приложение
      */
-    _env.insert(QStringLiteral("QTADA_NEED_TO_UNSET_PRELOAD"), QStringLiteral("1"));
-
-    //! TODO: remove, когда будет готов GUI QtAda
-    _env.insert(QStringLiteral("QTADA_GENERATION_SETTINGS"),
-                QStringLiteral(
-                    "textIndexBehavoir=0;duplicateMouseEvent=0;scriptPath=/files/trash/qtada.js"));
+    _env.insert(ENV_UNSET_PRELOAD, QStringLiteral("1"));
 
     return injectAndLaunch(launchArgs, _env);
 }

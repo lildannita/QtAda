@@ -1,33 +1,22 @@
 #pragma once
 
 #include <QObject>
-#include <QWidget>
-#include <QEvent>
-#include <QMouseEvent>
-
-#include <QDateTime>
-#include <QPoint>
 #include <QTimer>
-
 #include <optional>
-#include <vector>
-#include <queue>
 
 #include "WidgetEventFilter.hpp"
 #include "QuickEventFilter.hpp"
 #include "LastEvent.hpp"
 
 QT_BEGIN_NAMESPACE
-class QQuickItem;
+class QEvent;
 QT_END_NAMESPACE
 
 namespace QtAda::core {
 class UserEventFilter final : public QObject {
     Q_OBJECT
 public:
-    UserEventFilter(const GenerationSettings &generationSettings,
-                    QObject *parent = nullptr) noexcept;
-
+    UserEventFilter(const RecordSettings &settings, QObject *parent = nullptr) noexcept;
     bool eventFilter(QObject *obj, QEvent *event) noexcept override;
 
 signals:
