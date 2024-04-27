@@ -94,8 +94,6 @@ InprocessDialog::InprocessDialog(const RecordSettings &settings, QWidget *parent
     scriptLayout->addWidget(tools::generateSeparator(this, true));
     scriptLayout->addWidget(scriptLineLabel_);
 
-    // Инициализация текстового редактора для ввода комментария
-    commentTextEdit_->setPlaceholderText("Enter comment text...");
     // Инициализация кнопок для управления комментарием
     acceptCommentButton_->setText("Accept");
     acceptCommentButton_->setFocusPolicy(Qt::NoFocus);
@@ -108,6 +106,9 @@ InprocessDialog::InprocessDialog(const RecordSettings &settings, QWidget *parent
     QVBoxLayout *commentButtonsLayout = new QVBoxLayout(commentButtons);
     commentButtonsLayout->addWidget(acceptCommentButton_);
     commentButtonsLayout->addWidget(clearCommentButton_);
+    // Инициализация текстового редактора для ввода комментария
+    commentTextEdit_->setPlaceholderText("Enter comment text...");
+    commentTextEdit_->setFixedHeight(commentButtonsLayout->sizeHint().height());
     // Инициализация макета для ввода комментариев
     QHBoxLayout *commentLayout = new QHBoxLayout(commentWidget_);
     commentLayout->addWidget(commentTextEdit_);
@@ -138,8 +139,9 @@ InprocessDialog::~InprocessDialog() noexcept
 
 void InprocessDialog::showDialog() noexcept
 {
-    const auto screenGeometry = QApplication::primaryScreen()->geometry();
-    this->move(screenGeometry.width() - this->width(), 0);
+    const auto screenGeometry = QApplication::screenAt(QCursor::pos())->geometry();
+    this->move(screenGeometry.left() + screenGeometry.width() - this->width(),
+               screenGeometry.top());
     this->show();
     this->raise();
 
@@ -163,6 +165,9 @@ void InprocessDialog::addVerification() noexcept
     emit inprocessController_->verificationModeChanged(isInMode);
     setVerificationMessageToScriptLabel(isInMode);
     handleVisibility();
+    if (!isInMode) {
+        propertiesWatcher_->clear();
+    }
 }
 
 void InprocessDialog::addComment() noexcept
@@ -176,6 +181,12 @@ void InprocessDialog::pause() noexcept
     playButton_->setVisible(true);
     setPlayPauseMessageToScriptLabel(true);
     emit inprocessController_->applicationPaused(true);
+
+    addVerificationButton_->setEnabled(false);
+    if (propertiesWatcher_->isVisible()) {
+        propertiesWatcher_->setVisible(false);
+        propertiesWatcher_->clear();
+    }
 }
 
 void InprocessDialog::play() noexcept
@@ -184,6 +195,13 @@ void InprocessDialog::play() noexcept
     playButton_->setVisible(false);
     setPlayPauseMessageToScriptLabel(false);
     emit inprocessController_->applicationPaused(false);
+
+    addVerificationButton_->setEnabled(true);
+    const auto propertiesWasVisible = addVerificationButton_->isChecked();
+    if (propertiesWasVisible) {
+        propertiesWatcher_->setVisible(propertiesWasVisible);
+        QTimer::singleShot(1000, this, [this] { setVerificationMessageToScriptLabel(true); });
+    }
 }
 
 void InprocessDialog::handleVisibility() noexcept
