@@ -170,6 +170,7 @@ void InprocessDialog::showDialog() noexcept
     this->show();
     this->raise();
 
+    started_ = true;
     emit applicationStarted();
 }
 

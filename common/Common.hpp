@@ -17,7 +17,6 @@ static constexpr char REMOTE_OBJECT_PATH[] = "local:QTADA_REMOTE_OBJECT";
 static constexpr char INIT_CONNECTION_SERVER[] = "/tmp/QTADA_INIT_CONNECTION_SERVER";
 
 static constexpr char RESET_COLOR[] = "\033[0m";
-static constexpr char APP_ERR_COLOR[] = "\033[33m";
 static constexpr char QTADA_ERR_COLOR[] = "\033[37;41m";
 static constexpr char QTADA_OUT_COLOR[] = "\033[30;42m";
 
@@ -59,14 +58,9 @@ Options:
     std::cout << qPrintable(usage) << std::endl << std::flush;
 }
 
-inline void printStdOutMessage(const QString &msg) noexcept
+inline void printStdMessage(const QString &msg) noexcept
 {
     std::cout << qPrintable(msg) << std::flush;
-}
-
-inline void printStdErrMessage(const QString &msg) noexcept
-{
-    std::cout << APP_ERR_COLOR << qPrintable(msg) << RESET_COLOR << std::flush;
 }
 
 inline void printQtAdaOutMessage(const QString &msg) noexcept

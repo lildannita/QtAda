@@ -30,8 +30,7 @@ public:
 
 signals:
     void launcherFinished();
-    void stdOutMessage(const QString &msg);
-    void stdErrMessage(const QString &msg);
+    void stdMessage(const QString &msg);
     void launcherOutMessage(const QString &msg);
     void launcherErrMessage(const QString &msg);
 

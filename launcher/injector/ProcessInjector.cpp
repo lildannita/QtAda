@@ -80,12 +80,12 @@ void ProcessInjector::processFailed() noexcept
 void ProcessInjector::readStdOutMessage() noexcept
 {
     const auto msg = process_.readAllStandardOutput();
-    emit stdOutMessage(msg);
+    emit stdMessage(msg);
 }
 
 void ProcessInjector::readStdErrMessage() noexcept
 {
     const auto msg = process_.readAllStandardError();
-    emit stdErrMessage(msg);
+    emit stdMessage(msg);
 }
 } // namespace QtAda::launcher::injector

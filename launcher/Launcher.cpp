@@ -23,14 +23,11 @@ Launcher::Launcher(const UserLaunchOptions &userOptions, bool fromGui, QObject *
             &Launcher::injectorFinished, Qt::QueuedConnection);
 
     if (fromGui) {
-        connect(injector_.get(), &injector::AbstractInjector::stdErrMessage, this,
-                &Launcher::stdErrMessage);
-        connect(injector_.get(), &injector::AbstractInjector::stdOutMessage, this,
-                &Launcher::stdOutMessage);
+        connect(injector_.get(), &injector::AbstractInjector::stdMessage, this,
+                &Launcher::stdMessage);
     }
     else {
-        connect(injector_.get(), &injector::AbstractInjector::stdErrMessage, printStdErrMessage);
-        connect(injector_.get(), &injector::AbstractInjector::stdOutMessage, printStdOutMessage);
+        connect(injector_.get(), &injector::AbstractInjector::stdMessage, printStdMessage);
         connect(this, &Launcher::launcherErrMessage, printQtAdaErrMessage);
         connect(this, &Launcher::launcherOutMessage, printQtAdaOutMessage);
     }
@@ -109,9 +106,7 @@ bool Launcher::launch() noexcept
             assert(waitingTimer_.isActive());
             waitingTimer_.stop();
         });
-        connect(injector_.get(), &injector::AbstractInjector::stdErrMessage, inprocessDialog_,
-                &inprocess::InprocessDialog::appendLogMessage);
-        connect(injector_.get(), &injector::AbstractInjector::stdOutMessage, inprocessDialog_,
+        connect(injector_.get(), &injector::AbstractInjector::stdMessage, inprocessDialog_,
                 &inprocess::InprocessDialog::appendLogMessage);
         break;
     }
@@ -153,7 +148,7 @@ void Launcher::handleLauncherFailure(int exitCode, const QString &errorMessage) 
 void Launcher::checkIfLauncherIsFinished() noexcept
 {
     if (options_.state == LauncherState::InjectorFinished) {
-        if (inprocessDialog_ != nullptr) {
+        if (inprocessDialog_ != nullptr && inprocessDialog_->isStarted()) {
             inprocessDialog_->setTextToScriptLabel(
                 QStringLiteral("The application under test has been closed. Please complete the "
                                "script generation in the dialog."));

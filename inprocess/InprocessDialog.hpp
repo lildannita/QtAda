@@ -23,6 +23,10 @@ public:
     ~InprocessDialog() noexcept;
 
     void setTextToScriptLabel(const QString &text) noexcept;
+    bool isStarted() const noexcept
+    {
+        return started_;
+    }
 
 public slots:
     void appendLogMessage(const QString &line) noexcept;
@@ -49,6 +53,8 @@ private slots:
     void setNewCommandLine(const QString &command) noexcept;
 
 private:
+    bool started_ = false;
+
     QRemoteObjectHost *inprocessHost_ = nullptr;
     InprocessController *inprocessController_ = nullptr;
 

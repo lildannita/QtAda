@@ -31,8 +31,7 @@ public:
 signals:
     void started();
     void finished();
-    void stdOutMessage(const QString &message);
-    void stdErrMessage(const QString &message);
+    void stdMessage(const QString &message);
 
 private:
     QString workingDirectory_;
