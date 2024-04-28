@@ -24,6 +24,9 @@ public:
 
     void setTextToScriptLabel(const QString &text) noexcept;
 
+public slots:
+    void appendLogMessage(const QString &line) noexcept;
+
 signals:
     void applicationStarted();
     void inprocessClosed();
@@ -64,6 +67,8 @@ private:
 
     QWidget *commentWidget_ = nullptr;
     QTextEdit *commentTextEdit_ = nullptr;
+
+    QTextEdit *logTextArea_ = nullptr;
 
     bool needToRestoreLabelColor_ = false;
 

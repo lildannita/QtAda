@@ -26,6 +26,7 @@ InprocessDialog::InprocessDialog(const RecordSettings &settings, QWidget *parent
     , lineLabel_{ new QLabel(this) }
     , commentWidget_{ new QWidget(this) }
     , commentTextEdit_{ new QTextEdit(this) }
+    , logTextArea_{ new QTextEdit(this) }
 {
     connect(inprocessController_, &InprocessController::applicationStarted, this,
             &InprocessDialog::showDialog);
@@ -107,18 +108,28 @@ InprocessDialog::InprocessDialog(const RecordSettings &settings, QWidget *parent
     commentButtonsLayout->addWidget(clearCommentButton);
     // Инициализация текстового редактора для ввода комментария
     commentTextEdit_->setPlaceholderText("Enter comment text...");
-    commentTextEdit_->setFixedHeight(commentButtonsLayout->sizeHint().height());
+    const auto commentHeightHint = commentButtonsLayout->sizeHint().height();
+    commentTextEdit_->setFixedHeight(commentHeightHint);
     // Инициализация макета для ввода комментариев
     auto *commentLayout = new QHBoxLayout(commentWidget_);
     commentLayout->addWidget(commentTextEdit_);
     commentLayout->addWidget(commentButtons);
     commentWidget_->setVisible(false);
 
+    logTextArea_->setFontPointSize(logTextArea_->fontPointSize() * 0.8);
+    logTextArea_->setWordWrapMode(QTextOption::WordWrap);
+    logTextArea_->setFixedHeight(commentHeightHint);
+    logTextArea_->setPlaceholderText(
+        "Log messages from the application under test will be displayed here");
+    logTextArea_->setReadOnly(true);
+    logTextArea_->setVisible(false);
+
     // Инициализация основного макета
     auto *mainLayout = new QVBoxLayout(this);
     mainLayout->addWidget(buttons);
     mainLayout->addWidget(propertiesWatcher_);
     mainLayout->addWidget(commentWidget_);
+    mainLayout->addWidget(logTextArea_);
     mainLayout->addWidget(labelWidget);
 
     this->adjustSize();
@@ -179,6 +190,7 @@ void InprocessDialog::handleCommentToggle(bool isChecked) noexcept
 
 void InprocessDialog::handleLogToggle(bool isChecked) noexcept
 {
+    logTextArea_->setVisible(isChecked);
 }
 
 void InprocessDialog::pause() noexcept
@@ -288,5 +300,13 @@ void InprocessDialog::cancelScript() noexcept
 {
     scriptWriter_->handleCancelledScript();
     completeScript();
+}
+
+void InprocessDialog::appendLogMessage(const QString &line) noexcept
+{
+    if (line.isEmpty()) {
+        return;
+    }
+    logTextArea_->append(line.trimmed());
 }
 } // namespace QtAda::inprocess

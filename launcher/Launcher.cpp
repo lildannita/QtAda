@@ -109,6 +109,10 @@ bool Launcher::launch() noexcept
             assert(waitingTimer_.isActive());
             waitingTimer_.stop();
         });
+        connect(injector_.get(), &injector::AbstractInjector::stdErrMessage, inprocessDialog_,
+                &inprocess::InprocessDialog::appendLogMessage);
+        connect(injector_.get(), &injector::AbstractInjector::stdOutMessage, inprocessDialog_,
+                &inprocess::InprocessDialog::appendLogMessage);
         break;
     }
     case LaunchType::Execute: {
