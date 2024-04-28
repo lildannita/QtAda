@@ -5,13 +5,17 @@ set(QTADA_GUI_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR} PARENT_SCOPE)
 set(gui_UI
   MainWindow.ui)
 set(gui_MOC_HDRS
+  StartDialog.hpp
   MainWindow.hpp)
 set(gui_HDRS
-  ${gui_MOC_HDRS})
+  ${gui_MOC_HDRS}
+  GuiTools.hpp)
 set(gui_SRCS
+  StartDialog.cpp
   MainWindow.cpp)
 qt5_wrap_cpp(gen_SRCS ${gui_MOC_HDRS})
 qt5_wrap_ui(gen_SRCS ${gui_UI})
+qt5_add_resources(gen_SRCS ${QTADA_RESOURCES_DIR}/main.qrc)
 
 add_library(gui SHARED ${gui_SRCS}
                        ${gui_HDRS}

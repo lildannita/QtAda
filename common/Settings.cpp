@@ -34,7 +34,7 @@ static bool fileCanBeWritten(const QFileInfo &fileInfo) noexcept
         return false;
     }
 
-    QFile tmp(QStringLiteral("%1/tmp.qtada").arg(fileInfo.path()));
+    QFile tmp(QStringLiteral("%1/tmp.qtada-tmp").arg(fileInfo.path()));
     if (tmp.open(QIODevice::WriteOnly)) {
         tmp.close();
         tmp.remove();

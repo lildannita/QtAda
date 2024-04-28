@@ -77,7 +77,7 @@ ScriptWriter::ScriptWriter(const RecordSettings &settings, QObject *parent) noex
         }
         originalScript.close();
 
-        script_.setFileName(recordSettings_.scriptPath + ".qtada");
+        script_.setFileName(recordSettings_.scriptPath + ".qtada-tmp");
         isOpen = script_.open(QIODevice::WriteOnly | QIODevice::Truncate);
         assert(isOpen == true);
         scriptStream_.setDevice(&script_);

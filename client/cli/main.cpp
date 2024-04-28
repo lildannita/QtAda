@@ -5,7 +5,7 @@
 
 #include "Common.hpp"
 #include "Launcher.hpp"
-#include "MainWindow.hpp"
+#include "StartDialog.hpp"
 
 namespace QtAda {
 void shutdown(int sig)
@@ -41,8 +41,8 @@ int guiInitializer(int argc, char *argv[])
 {
     QApplication app(argc, argv);
 
-    gui::MainWindow mainWin;
-    mainWin.show();
+    gui::StartDialog startDialog;
+    startDialog.show();
 
     auto exec = app.exec();
     return exec;
