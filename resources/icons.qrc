@@ -1,11 +1,12 @@
 <RCC>
     <qresource prefix="/icons">
-        <file>add_comment.svg</file>
-        <file>add_verification.svg</file>
+        <file>comment.svg</file>
+        <file>verification.svg</file>
         <file>pause.svg</file>
         <file>play.svg</file>
-        <file>scenario_cancel.svg</file>
-        <file>scenario_ready.svg</file>
+        <file>cancel.svg</file>
+        <file>complete.svg</file>
+        <file>log.svg</file>
         <file>app.png</file>
     </qresource>
 </RCC>

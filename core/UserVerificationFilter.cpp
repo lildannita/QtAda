@@ -203,20 +203,10 @@ void UserVerificationFilter::callHandlers(QObject *obj, bool isExtTrigger) noexc
     else if (auto *item = qobject_cast<QQuickItem *>(obj)) {
         isFrameUpdated = handleItemVerification(item, isExtTrigger);
     }
-    else {
-        if (!isExtTrigger) {
-            return;
-        }
-        const auto metaPropertyData = serilizeMetaPropertyData(obj);
-        emit newMetaPropertyData(std::move(metaPropertyData));
-    }
-
-    if (!isFrameUpdated) {
-        return;
-    }
 
     const auto metaPropertyData = serilizeMetaPropertyData(obj);
-    if (!isExtTrigger) {
+    if (isFrameUpdated && !isExtTrigger) {
+        framedRootObjectModel_.clear();
         const auto serializedRootModel = updateFramedRootObjectModel(obj, nullptr);
         assert(serializedRootModel.has_value());
         emit newFramedRootObjectData(std::move(*serializedRootModel), std::move(metaPropertyData));
@@ -233,17 +223,12 @@ void UserVerificationFilter::changeFramedObject(const QList<int> &rowPath) noexc
     }
 
     auto path = rowPath;
-    QModelIndex newFramedObjectIndex = framedRootObjectModel_.index(path.takeFirst(), 0);
-    for (const auto row : rowPath) {
+    auto newFramedObjectIndex = framedRootObjectModel_.index(path.takeFirst(), 0);
+    for (const auto row : path) {
+        assert(newFramedObjectIndex.isValid());
         newFramedObjectIndex = framedRootObjectModel_.index(row, 0, newFramedObjectIndex);
-        if (!newFramedObjectIndex.isValid()) {
-            return;
-        }
     }
-
-    if (!newFramedObjectIndex.isValid()) {
-        return;
-    }
+    assert(newFramedObjectIndex.isValid());
 
     auto *newFramedObject = newFramedObjectIndex.data(Qt::UserRole).value<QObject *>();
     callHandlers(newFramedObject, true);

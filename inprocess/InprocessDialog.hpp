@@ -6,8 +6,6 @@
 
 QT_BEGIN_NAMESPACE
 class QToolButton;
-class QVBoxLayout;
-class QHBoxLayout;
 class QLabel;
 class QTextEdit;
 class QRemoteObjectHost;
@@ -36,8 +34,9 @@ private slots:
     void completeScript() noexcept;
     void cancelScript() noexcept;
 
-    void addVerification() noexcept;
-    void addComment() noexcept;
+    void handleVerificationToggle(bool isChecked) noexcept;
+    void handleCommentToggle(bool isChecked) noexcept;
+    void handleLogToggle(bool isChecked) noexcept;
     void play() noexcept;
     void pause() noexcept;
 
@@ -52,28 +51,21 @@ private:
 
     ScriptWriter *scriptWriter_ = nullptr;
 
-    QToolButton *completeScriptButton_ = nullptr;
-    QToolButton *addVerificationButton_ = nullptr;
-    QToolButton *addCommentButton_ = nullptr;
+    QToolButton *verificationButton_ = nullptr;
     QToolButton *pauseButton_ = nullptr;
     QToolButton *playButton_ = nullptr;
-    QToolButton *cancelScriptButton_ = nullptr;
+    QToolButton *initButton(const QString &text, const QString &iconPath,
+                            const QSize &minimumSize = QSize()) noexcept;
 
-    QWidget *scriptWidget_ = nullptr;
-    QLabel *scriptLineLabel_ = nullptr;
-    QString lastLabelText_ = QString();
+    QLabel *lineLabel_ = nullptr;
+    QString lastLabelText_;
 
     PropertiesWatcher *propertiesWatcher_ = nullptr;
 
     QWidget *commentWidget_ = nullptr;
     QTextEdit *commentTextEdit_ = nullptr;
-    QPushButton *acceptCommentButton_ = nullptr;
-    QPushButton *clearCommentButton_ = nullptr;
 
     bool needToRestoreLabelColor_ = false;
-
-    void initToolButton(QToolButton *button, const QString &text, const QString &iconPath) noexcept;
-    void handleVisibility() noexcept;
 
     void setPlayPauseMessageToScriptLabel(bool isPaused) noexcept;
     void setVerificationMessageToScriptLabel(bool isInMode) noexcept;

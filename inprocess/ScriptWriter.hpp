@@ -55,27 +55,12 @@ private:
             return needToGenerateCycle && count >= cycleMinimumCount;
         }
 
-        bool registerLine(const QString &line) noexcept
-        {
-            if (line.isEmpty()) {
-                return false;
-            }
-
-            if (line == repeatingLine) {
-                count++;
-                return false;
-            }
-
-            count = 1;
-            repeatingLine = line;
-            cutLine = tools::cutLine(repeatingLine);
-            return true;
-        }
-
         QString forStatement() const noexcept
         {
             return QStringLiteral("for (let i = 0; i < %1; i++) {").arg(count);
         }
+
+        bool registerLine(const QString &line) noexcept;
     } linesHandler_;
 
     const RecordSettings recordSettings_;

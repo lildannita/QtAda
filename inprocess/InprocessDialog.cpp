@@ -1,43 +1,31 @@
 #include "InprocessDialog.hpp"
 
-#include <QCoreApplication>
 #include <QApplication>
 #include <QScreen>
 #include <QTimer>
-#include <QToolButton>
 #include <QVBoxLayout>
 #include <QHBoxLayout>
-#include <QFrame>
 #include <QLabel>
+#include <QToolButton>
 #include <QPushButton>
 #include <QTextEdit>
+#include <QRemoteObjectHost>
 
 #include "InprocessController.hpp"
 #include "InprocessTools.hpp"
 #include "ScriptWriter.hpp"
 #include "PropertiesWatcher.hpp"
 
-#include <QRemoteObjectHost>
-
 namespace QtAda::inprocess {
 InprocessDialog::InprocessDialog(const RecordSettings &settings, QWidget *parent) noexcept
     : QDialog{ parent }
-    , inprocessHost_{ new QRemoteObjectHost(QUrl(REMOTE_OBJECT_PATH)) }
+    , inprocessHost_{ new QRemoteObjectHost(QUrl(REMOTE_OBJECT_PATH), this) }
     , inprocessController_{ new InprocessController }
     , propertiesWatcher_{ new PropertiesWatcher(inprocessController_, this) }
     , scriptWriter_{ new ScriptWriter(settings, this) }
-    , completeScriptButton_{ new QToolButton }
-    , addVerificationButton_{ new QToolButton }
-    , addCommentButton_{ new QToolButton }
-    , pauseButton_{ new QToolButton }
-    , playButton_{ new QToolButton }
-    , cancelScriptButton_{ new QToolButton }
-    , scriptWidget_{ new QWidget }
-    , scriptLineLabel_{ new QLabel }
-    , commentWidget_{ new QWidget }
-    , commentTextEdit_{ new QTextEdit }
-    , acceptCommentButton_{ new QPushButton }
-    , clearCommentButton_{ new QPushButton }
+    , lineLabel_{ new QLabel(this) }
+    , commentWidget_{ new QWidget(this) }
+    , commentTextEdit_{ new QTextEdit(this) }
 {
     connect(inprocessController_, &InprocessController::applicationStarted, this,
             &InprocessDialog::showDialog);
@@ -57,70 +45,81 @@ InprocessDialog::InprocessDialog(const RecordSettings &settings, QWidget *parent
     this->setAttribute(Qt::WA_DeleteOnClose);
 
     // Инициализация основных кнопок
-    initToolButton(completeScriptButton_, "Complete Script", ":/icons/scenario_ready.svg");
-    initToolButton(addVerificationButton_, "Add Verification", ":/icons/add_verification.svg");
-    initToolButton(addCommentButton_, "Add Comment", ":/icons/add_comment.svg");
-    initToolButton(pauseButton_, "Pause", ":/icons/pause.svg");
-    initToolButton(playButton_, "Play", ":/icons/play.svg");
-    initToolButton(cancelScriptButton_, "Cancel script", ":/icons/scenario_cancel.svg");
-    addVerificationButton_->setCheckable(true);
-    addCommentButton_->setCheckable(true);
-    playButton_->setFixedSize(pauseButton_->sizeHint());
+    auto *cancelButton = initButton("Cancel\nscript", ":/icons/cancel.svg");
+    const auto minimumButtonSize = cancelButton->sizeHint();
+    auto *completeButton
+        = initButton("Complete\nScript", ":/icons/complete.svg", minimumButtonSize);
+    verificationButton_
+        = initButton("Add\nVerification", ":/icons/verification.svg", minimumButtonSize);
+    verificationButton_->setCheckable(true);
+    auto *commentButton = initButton("Add\nComment", ":/icons/comment.svg", minimumButtonSize);
+    commentButton->setCheckable(true);
+    auto *logButton = initButton("View\nLog", ":/icons/log.svg", minimumButtonSize);
+    logButton->setCheckable(true);
+    pauseButton_ = initButton("Pause", ":/icons/pause.svg", minimumButtonSize);
+    playButton_ = initButton("Play", ":/icons/play.svg", minimumButtonSize);
     playButton_->setVisible(false);
     // Подключение слотов к основным кнопкам
-    connect(completeScriptButton_, &QToolButton::clicked, this, &InprocessDialog::completeScript);
-    connect(addVerificationButton_, &QToolButton::clicked, this, &InprocessDialog::addVerification);
-    connect(addCommentButton_, &QToolButton::clicked, this, &InprocessDialog::addComment);
+    connect(completeButton, &QToolButton::clicked, this, &InprocessDialog::completeScript);
+    connect(verificationButton_, &QToolButton::toggled, this,
+            &InprocessDialog::handleVerificationToggle);
+    connect(commentButton, &QToolButton::toggled, this, &InprocessDialog::handleCommentToggle);
+    connect(logButton, &QToolButton::toggled, this, &InprocessDialog::handleLogToggle);
     connect(pauseButton_, &QToolButton::clicked, this, &InprocessDialog::pause);
     connect(playButton_, &QToolButton::clicked, this, &InprocessDialog::play);
-    connect(cancelScriptButton_, &QToolButton::clicked, this, &InprocessDialog::cancelScript);
+    connect(cancelButton, &QToolButton::clicked, this, &InprocessDialog::cancelScript);
     // Инициализация макета с кнопками
-    QWidget *buttons = new QWidget;
-    QHBoxLayout *buttonLayout = new QHBoxLayout(buttons);
-    buttonLayout->addWidget(completeScriptButton_);
-    buttonLayout->addWidget(addVerificationButton_);
-    buttonLayout->addWidget(addCommentButton_);
-    buttonLayout->addWidget(tools::generateSeparator(this));
+    auto *buttons = new QWidget(this);
+    auto *buttonLayout = new QHBoxLayout(buttons);
+    buttonLayout->addWidget(completeButton);
+    buttonLayout->addWidget(verificationButton_);
+    buttonLayout->addWidget(commentButton);
+    buttonLayout->addWidget(tools::initSeparator(this));
+    buttonLayout->addWidget(logButton);
+    buttonLayout->addWidget(tools::initSeparator(this));
     buttonLayout->addWidget(pauseButton_);
     buttonLayout->addWidget(playButton_);
-    buttonLayout->addWidget(cancelScriptButton_);
+    buttonLayout->addWidget(cancelButton);
 
     // Инициализация строки, отображающей последнюю сгенерированную команду
-    scriptLineLabel_->setTextFormat(Qt::PlainText);
-    scriptLineLabel_->setWordWrap(true);
+    lineLabel_->setTextFormat(Qt::PlainText);
+    lineLabel_->setWordWrap(true);
     setTextToScriptLabel("Start interacting in the application under test!");
     // Инициализация макета для строки
-    QVBoxLayout *scriptLayout = new QVBoxLayout(scriptWidget_);
-    scriptLayout->addWidget(tools::generateSeparator(this, true));
-    scriptLayout->addWidget(scriptLineLabel_);
+    auto *labelWidget = new QWidget(this);
+    auto *scriptLayout = new QVBoxLayout(labelWidget);
+    scriptLayout->addWidget(tools::initSeparator(this, true));
+    scriptLayout->addWidget(lineLabel_);
 
     // Инициализация кнопок для управления комментарием
-    acceptCommentButton_->setText("Accept");
-    acceptCommentButton_->setFocusPolicy(Qt::NoFocus);
-    clearCommentButton_->setText("Clear");
-    clearCommentButton_->setFocusPolicy(Qt::NoFocus);
-    connect(acceptCommentButton_, &QPushButton::clicked, this, &InprocessDialog::acceptComment);
-    connect(clearCommentButton_, &QPushButton::clicked, this, &InprocessDialog::clearComment);
+    auto *acceptCommentButton = new QPushButton(this);
+    auto *clearCommentButton = new QPushButton(this);
+    acceptCommentButton->setText("Accept");
+    acceptCommentButton->setFocusPolicy(Qt::NoFocus);
+    clearCommentButton->setText("Clear");
+    clearCommentButton->setFocusPolicy(Qt::NoFocus);
+    connect(acceptCommentButton, &QPushButton::clicked, this, &InprocessDialog::acceptComment);
+    connect(clearCommentButton, &QPushButton::clicked, this, &InprocessDialog::clearComment);
     // Инициализация макета под кнопки для управления комментарием
-    QWidget *commentButtons = new QWidget;
-    QVBoxLayout *commentButtonsLayout = new QVBoxLayout(commentButtons);
-    commentButtonsLayout->addWidget(acceptCommentButton_);
-    commentButtonsLayout->addWidget(clearCommentButton_);
+    auto *commentButtons = new QWidget(this);
+    auto *commentButtonsLayout = new QVBoxLayout(commentButtons);
+    commentButtonsLayout->addWidget(acceptCommentButton);
+    commentButtonsLayout->addWidget(clearCommentButton);
     // Инициализация текстового редактора для ввода комментария
     commentTextEdit_->setPlaceholderText("Enter comment text...");
     commentTextEdit_->setFixedHeight(commentButtonsLayout->sizeHint().height());
     // Инициализация макета для ввода комментариев
-    QHBoxLayout *commentLayout = new QHBoxLayout(commentWidget_);
+    auto *commentLayout = new QHBoxLayout(commentWidget_);
     commentLayout->addWidget(commentTextEdit_);
     commentLayout->addWidget(commentButtons);
     commentWidget_->setVisible(false);
 
     // Инициализация основного макета
-    QVBoxLayout *mainLayout = new QVBoxLayout(this);
+    auto *mainLayout = new QVBoxLayout(this);
     mainLayout->addWidget(buttons);
     mainLayout->addWidget(propertiesWatcher_);
     mainLayout->addWidget(commentWidget_);
-    mainLayout->addWidget(scriptWidget_);
+    mainLayout->addWidget(labelWidget);
 
     this->adjustSize();
     this->layout()->setSizeConstraint(QLayout::SetFixedSize);
@@ -137,6 +136,21 @@ InprocessDialog::~InprocessDialog() noexcept
     inprocessController_ = nullptr;
 }
 
+QToolButton *InprocessDialog::initButton(const QString &text, const QString &iconPath,
+                                         const QSize &minimumSize) noexcept
+{
+    auto *button = new QToolButton(this);
+    button->setText(text);
+    button->setIcon(QIcon(iconPath));
+    button->setIconSize(QSize(30, 30));
+    button->setToolButtonStyle(Qt::ToolButtonTextUnderIcon);
+    button->setFocusPolicy(Qt::NoFocus);
+    if (minimumSize.isValid()) {
+        button->setMinimumSize(minimumSize);
+    }
+    return button;
+}
+
 void InprocessDialog::showDialog() noexcept
 {
     const auto screenGeometry = QApplication::screenAt(QCursor::pos())->geometry();
@@ -148,31 +162,23 @@ void InprocessDialog::showDialog() noexcept
     emit applicationStarted();
 }
 
-void InprocessDialog::initToolButton(QToolButton *button, const QString &text,
-                                     const QString &iconPath) noexcept
+void InprocessDialog::handleVerificationToggle(bool isChecked) noexcept
 {
-    assert(button != nullptr);
-    button->setText(text);
-    button->setIcon(QIcon(iconPath));
-    button->setIconSize(QSize(30, 30));
-    button->setToolButtonStyle(Qt::ToolButtonTextUnderIcon);
-    button->setFocusPolicy(Qt::NoFocus);
-}
-
-void InprocessDialog::addVerification() noexcept
-{
-    const auto isInMode = addVerificationButton_->isChecked();
-    emit inprocessController_->verificationModeChanged(isInMode);
-    setVerificationMessageToScriptLabel(isInMode);
-    handleVisibility();
-    if (!isInMode) {
+    emit inprocessController_->verificationModeChanged(isChecked);
+    setVerificationMessageToScriptLabel(isChecked);
+    propertiesWatcher_->setVisible(isChecked);
+    if (!isChecked) {
         propertiesWatcher_->clear();
     }
 }
 
-void InprocessDialog::addComment() noexcept
+void InprocessDialog::handleCommentToggle(bool isChecked) noexcept
 {
-    handleVisibility();
+    commentWidget_->setVisible(isChecked);
+}
+
+void InprocessDialog::handleLogToggle(bool isChecked) noexcept
+{
 }
 
 void InprocessDialog::pause() noexcept
@@ -182,7 +188,7 @@ void InprocessDialog::pause() noexcept
     setPlayPauseMessageToScriptLabel(true);
     emit inprocessController_->applicationPaused(true);
 
-    addVerificationButton_->setEnabled(false);
+    verificationButton_->setEnabled(false);
     if (propertiesWatcher_->isVisible()) {
         propertiesWatcher_->setVisible(false);
         propertiesWatcher_->clear();
@@ -191,23 +197,17 @@ void InprocessDialog::pause() noexcept
 
 void InprocessDialog::play() noexcept
 {
-    pauseButton_->setVisible(true);
     playButton_->setVisible(false);
+    pauseButton_->setVisible(true);
     setPlayPauseMessageToScriptLabel(false);
     emit inprocessController_->applicationPaused(false);
 
-    addVerificationButton_->setEnabled(true);
-    const auto propertiesWasVisible = addVerificationButton_->isChecked();
+    verificationButton_->setEnabled(true);
+    const auto propertiesWasVisible = verificationButton_->isChecked();
     if (propertiesWasVisible) {
         propertiesWatcher_->setVisible(propertiesWasVisible);
         QTimer::singleShot(1000, this, [this] { setVerificationMessageToScriptLabel(true); });
     }
-}
-
-void InprocessDialog::handleVisibility() noexcept
-{
-    commentWidget_->setVisible(addCommentButton_->isChecked());
-    propertiesWatcher_->setVisible(addVerificationButton_->isChecked());
 }
 
 void InprocessDialog::acceptComment() noexcept
@@ -228,53 +228,53 @@ void InprocessDialog::setNewCommandLine(const QString &command) noexcept
 
 void InprocessDialog::setTextToScriptLabel(const QString &text) noexcept
 {
-    assert(scriptLineLabel_ != nullptr);
+    assert(lineLabel_ != nullptr);
     if (needToRestoreLabelColor_) {
         needToRestoreLabelColor_ = false;
         setLabelTextColor();
     }
-    scriptLineLabel_->setText(text);
+    lineLabel_->setText(text);
 }
 
 void InprocessDialog::setPlayPauseMessageToScriptLabel(bool isPaused) noexcept
 {
-    assert(scriptLineLabel_ != nullptr);
+    assert(lineLabel_ != nullptr);
     if (isPaused) {
         setLabelTextColor("#F8961E");
-        scriptLineLabel_->setText("Recording paused. Please be cautious as your further actions in "
-                                  "the application may lead to a non-functional test script.");
+        lineLabel_->setText("Recording paused. Please be cautious as your further actions in "
+                            "the application may lead to a non-functional test script.");
     }
     else {
         setLabelTextColor("#90BE6D");
-        scriptLineLabel_->setText("Recording resumed.");
+        lineLabel_->setText("Recording resumed.");
         needToRestoreLabelColor_ = true;
     }
 }
 
 void InprocessDialog::setVerificationMessageToScriptLabel(bool isInMode) noexcept
 {
-    assert(scriptLineLabel_ != nullptr);
+    assert(lineLabel_ != nullptr);
     if (isInMode) {
-        lastLabelText_ = scriptLineLabel_->text();
+        lastLabelText_ = lineLabel_->text();
         setLabelTextColor("#43AA8B");
-        scriptLineLabel_->setText(
+        lineLabel_->setText(
             "You are in Verification Mode. Click on the desired component in your GUI.");
     }
     else {
         assert(!lastLabelText_.isEmpty());
         setLabelTextColor();
-        scriptLineLabel_->setText(lastLabelText_);
+        lineLabel_->setText(lastLabelText_);
     }
 }
 
 void InprocessDialog::setLabelTextColor(const QString &color) noexcept
 {
-    assert(scriptLineLabel_ != nullptr);
+    assert(lineLabel_ != nullptr);
     if (color.isEmpty()) {
-        scriptLineLabel_->setStyleSheet("");
+        lineLabel_->setStyleSheet("");
     }
     else {
-        scriptLineLabel_->setStyleSheet("QLabel { color : " + color + "; }");
+        lineLabel_->setStyleSheet("QLabel { color : " + color + "; }");
     }
 }
 

@@ -1,9 +1,7 @@
 #pragma once
 
 #include <QWidget>
-#include <deque>
-
-#include "InprocessController.hpp"
+#include <QVariantMap>
 
 QT_BEGIN_NAMESPACE
 class QPushButton;
@@ -16,6 +14,8 @@ class QStandardItem;
 QT_END_NAMESPACE
 
 namespace QtAda::inprocess {
+class InprocessController;
+
 class PropertiesWatcher : public QWidget {
     Q_OBJECT
 public:
@@ -50,7 +50,7 @@ private:
     QTableView *tableView_ = nullptr;
     QStandardItemModel *metaPropertyModel_ = nullptr;
 
-    void initButton(QPushButton *button, const QString &text) noexcept;
+    QPushButton *initButton(const QString &text) noexcept;
     void fillTreeModel(QStandardItem *parentItem, const QVariantMap &model);
 };
 } // namespace QtAda::inprocess

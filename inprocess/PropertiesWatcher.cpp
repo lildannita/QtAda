@@ -9,11 +9,12 @@
 #include <QTreeView>
 #include <QTableView>
 #include <QHeaderView>
-#include <vector>
+#include <QVariantMap>
 #include <QSplitter>
 #include <QLabel>
 
 #include "InprocessTools.hpp"
+#include "InprocessController.hpp"
 
 namespace QtAda::inprocess {
 static QList<int> getItemIndexPath(const QModelIndex &index)
@@ -31,13 +32,12 @@ PropertiesWatcher::PropertiesWatcher(InprocessController *inprocessController,
                                      QWidget *parent) noexcept
     : QWidget{ parent }
     , inprocessController_{ inprocessController }
-    , acceptSelectionButton_{ new QPushButton }
-    , treeView_{ new QTreeView }
+    , treeView_{ new QTreeView(this) }
     , framedObjectModel_{ new QStandardItemModel(this) }
     , tableView_{ new QTableView }
     , metaPropertyModel_{ new QStandardItemModel(this) }
-    , contentWidget_{ new QWidget }
-    , placeholderLabel_{ new QLabel }
+    , contentWidget_{ new QWidget(this) }
+    , placeholderLabel_{ new QLabel(this) }
 {
     connect(inprocessController_, &InprocessController::newFramedRootObjectData, this,
             &PropertiesWatcher::setFramedRootObjectData);
@@ -60,17 +60,15 @@ PropertiesWatcher::PropertiesWatcher(InprocessController *inprocessController,
             &PropertiesWatcher::metaSelectionChanged);
 
     // Инициализация растягивающегося макета под View-компоненты
-    QSplitter *viewsSplitter = new QSplitter(Qt::Vertical);
+    auto *viewsSplitter = new QSplitter(Qt::Vertical);
     viewsSplitter->setChildrenCollapsible(false);
     viewsSplitter->addWidget(treeView_);
     viewsSplitter->addWidget(tableView_);
 
     // Инициализация кнопок, управляющих выбором свойств инспектируемого объекта
-    QPushButton *selectAllButton = new QPushButton;
-    QPushButton *clearSelectionButton = new QPushButton;
-    initButton(selectAllButton, "Select All");
-    initButton(clearSelectionButton, "Clear Selection");
-    initButton(acceptSelectionButton_, "Accept Selection");
+    auto *selectAllButton = initButton("Select All");
+    auto *clearSelectionButton = initButton("Clear Selection");
+    acceptSelectionButton_ = initButton("Accept Selection");
     connect(selectAllButton, &QPushButton::clicked, tableView_, &QAbstractItemView::selectAll);
     connect(clearSelectionButton, &QPushButton::clicked, tableView_,
             &QAbstractItemView::clearSelection);
@@ -79,15 +77,15 @@ PropertiesWatcher::PropertiesWatcher(InprocessController *inprocessController,
     acceptSelectionButton_->setEnabled(false);
 
     // Инициализация макета с кнопками
-    QWidget *buttonsWidget = new QWidget;
-    QHBoxLayout *buttonsLayout = new QHBoxLayout(buttonsWidget);
+    auto *buttonsWidget = new QWidget;
+    auto *buttonsLayout = new QHBoxLayout(buttonsWidget);
     buttonsLayout->addWidget(selectAllButton);
     buttonsLayout->addWidget(clearSelectionButton);
-    buttonsLayout->addWidget(tools::generateSeparator(this));
+    buttonsLayout->addWidget(tools::initSeparator(this));
     buttonsLayout->addWidget(acceptSelectionButton_);
 
     // Инициализация макета под основные компоненты
-    QVBoxLayout *contentLayout = new QVBoxLayout(contentWidget_);
+    auto *contentLayout = new QVBoxLayout(contentWidget_);
     contentLayout->addWidget(viewsSplitter);
     contentLayout->addWidget(buttonsWidget);
     contentWidget_->setVisible(false);
@@ -101,18 +99,19 @@ PropertiesWatcher::PropertiesWatcher(InprocessController *inprocessController,
     placeholderLabel_->setFixedHeight(contentWidget_->sizeHint().height());
 
     // Инициализация основного макета
-    QVBoxLayout *mainLayout = new QVBoxLayout(this);
+    auto *mainLayout = new QVBoxLayout(this);
     mainLayout->addWidget(placeholderLabel_);
     mainLayout->addWidget(contentWidget_);
 
     this->setVisible(false);
 }
 
-void PropertiesWatcher::initButton(QPushButton *button, const QString &text) noexcept
+QPushButton *PropertiesWatcher::initButton(const QString &text) noexcept
 {
-    assert(button != nullptr);
+    auto *button = new QPushButton(this);
     button->setText(text);
     button->setFocusPolicy(Qt::NoFocus);
+    return button;
 }
 
 void PropertiesWatcher::clear(bool hideContent) noexcept
@@ -251,7 +250,7 @@ void PropertiesWatcher::acceptSelection() noexcept
 
 void PropertiesWatcher::fillTreeModel(QStandardItem *parentItem, const QVariantMap &model)
 {
-    QStandardItem *item = new QStandardItem(model["object"].toString());
+    auto *item = new QStandardItem(model["object"].toString());
     item->setData(model["path"], Qt::UserRole);
 
     if (parentItem) {
@@ -261,9 +260,10 @@ void PropertiesWatcher::fillTreeModel(QStandardItem *parentItem, const QVariantM
         framedObjectModel_->appendRow(item);
     }
 
-    if (model.contains("children") && model["children"].canConvert<QVariantList>()) {
-        QVariantList children = model["children"].toList();
-        for (const QVariant &child : children) {
+    if (model.contains("children")) {
+        assert(model["children"].canConvert<QVariantList>());
+        const auto children = model["children"].toList();
+        for (const auto &child : children) {
             fillTreeModel(item, child.toMap());
         }
     }

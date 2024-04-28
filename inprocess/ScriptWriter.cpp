@@ -4,6 +4,48 @@
 #include <QDir>
 
 namespace QtAda::inprocess {
+static std::vector<QString> doCutLine(const QString &line) noexcept
+{
+    std::vector<int> indices;
+    int index = 0;
+    while ((index = line.indexOf('\n', index)) != -1) {
+        if (index == 0 || line[index - 1] != '\\') {
+            indices.push_back(index);
+        }
+        index += 1;
+    }
+
+    std::vector<QString> result;
+    index = 0;
+    for (const auto &position : indices) {
+        result.push_back(line.mid(index, position - index));
+        index = position + 1;
+    }
+
+    if (index < line.length()) {
+        result.push_back(line.mid(index));
+    }
+
+    return result;
+}
+
+bool ScriptWriter::LinesHandler::registerLine(const QString &line) noexcept
+{
+    if (line.isEmpty()) {
+        return false;
+    }
+
+    if (line == repeatingLine) {
+        count++;
+        return false;
+    }
+
+    count = 1;
+    repeatingLine = line;
+    cutLine = doCutLine(repeatingLine);
+    return true;
+}
+
 ScriptWriter::ScriptWriter(const RecordSettings &settings, QObject *parent) noexcept
     : QObject{ parent }
     , recordSettings_{ settings }
