@@ -3,8 +3,8 @@ cmake_minimum_required(VERSION 3.17 FATAL_ERROR)
 project(QtAda)
 
 set(QtAda_VERSION_MAJOR 0)
-set(QtAda_VERSION_MINOR 0)
-set(QtAda_VERSION_PATCH 1)
+set(QtAda_VERSION_MINOR 1)
+set(QtAda_VERSION_PATCH 0)
 
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 set(QT_MIN_VERSION 5.15.2)
