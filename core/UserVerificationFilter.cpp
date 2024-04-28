@@ -10,6 +10,11 @@
 #include "utils/Tools.hpp"
 
 namespace QtAda::core {
+static bool fuzzyCompare(qreal left, qreal right)
+{
+    return (!left || !right) ? qFuzzyIsNull(left - right) : qFuzzyCompare(left, right);
+}
+
 static bool checkIfLayout(const QMetaObject *metaObject)
 {
     assert(metaObject != nullptr);
@@ -17,32 +22,53 @@ static bool checkIfLayout(const QMetaObject *metaObject)
     return std::regex_match(metaObject->className(), layoutRegex);
 }
 
+static bool hasSameGeometry(const QQuickItem *parent, const QQuickItem *child) noexcept
+{
+    const auto parentCoordinates = parent->mapToGlobal(QPointF(0, 0));
+    const auto childCoordinates = child->mapToGlobal(QPointF(0, 0));
+    const auto sameHeight = fuzzyCompare(parent->height(), child->height());
+    const auto sameWidth = fuzzyCompare(parent->width(), child->width());
+    return parentCoordinates == childCoordinates && sameHeight && sameWidth;
+}
+
+static bool hasSameGeometry(const QWidget *parent, const QWidget *child) noexcept
+{
+    const auto parentCoordinates = parent->mapToGlobal(QPoint(0, 0));
+    const auto childCoordinates = child->mapToGlobal(QPoint(0, 0));
+    const auto sameHeight = parent->height() == child->height();
+    const auto sameWidth = parent->width() == child->width();
+    return parentCoordinates == childCoordinates && sameHeight && sameWidth;
+}
+
 template <typename GuiComponent>
-static GuiComponent *findMostSuitableParent(GuiComponent *component) noexcept
+static std::pair<QObject *, GuiComponent *> findMostSuitableParent(QObject *object,
+                                                                   GuiComponent *component) noexcept
 {
     CHECK_GUI_CLASS(GuiComponent);
 
-    if (component == nullptr) {
-        return nullptr;
-    }
+    assert(component != nullptr);
 
+    auto *foundParent = object;
     auto *foundParentComponent = component;
-    auto *parent = component->parent();
-    while (parent) {
-        auto *parentComponent = qobject_cast<GuiComponent *>(parent);
-        parent = parent->parent();
-        if (parentComponent == nullptr) {
+
+    auto *current = component->parent();
+    while (current != nullptr) {
+        auto *currentComponent = qobject_cast<GuiComponent *>(current);
+        if (currentComponent == nullptr) {
             break;
         }
 
-        if (!checkIfLayout(parentComponent->metaObject()) && component->x() == parentComponent->x()
-            && component->y() == parentComponent->y()
-            && component->height() == parentComponent->height()
-            && component->width() == parentComponent->width()) {
-            foundParentComponent = parentComponent;
+        if (!checkIfLayout(currentComponent->metaObject())
+            && hasSameGeometry(currentComponent, component)) {
+            foundParent = current;
+            foundParentComponent = currentComponent;
         }
+        current = current->parent();
     }
-    return foundParentComponent;
+
+    assert(foundParent != nullptr);
+    assert(foundParentComponent != nullptr);
+    return std::make_pair(foundParent, foundParentComponent);
 }
 
 static QList<QVariantMap> serilizeMetaPropertyData(const QObject *object) noexcept
@@ -124,11 +150,7 @@ void UserVerificationFilter::cleanupFrames() noexcept
 
 bool UserVerificationFilter::handleWidgetVerification(QWidget *widget, bool isExtTrigger) noexcept
 {
-    if (!isExtTrigger) {
-        widget = findMostSuitableParent(widget);
-    }
     assert(widget != nullptr);
-
     if (lastFrame_ != nullptr && lastFrame_->parentWidget() == widget) {
         return false;
     }
@@ -159,11 +181,7 @@ bool UserVerificationFilter::handleWidgetVerification(QWidget *widget, bool isEx
 
 bool UserVerificationFilter::handleItemVerification(QQuickItem *item, bool isExtTrigger) noexcept
 {
-    if (!isExtTrigger) {
-        item = findMostSuitableParent(item);
-    }
     assert(item != nullptr);
-
     if (lastPaintedItem_ != nullptr && lastPaintedItem_->parentItem() == item) {
         return false;
     }
@@ -198,9 +216,15 @@ void UserVerificationFilter::callHandlers(QObject *obj, bool isExtTrigger) noexc
 
     bool isFrameUpdated = false;
     if (auto *widget = qobject_cast<QWidget *>(obj)) {
+        if (!isExtTrigger) {
+            std::tie(obj, widget) = findMostSuitableParent(obj, widget);
+        }
         isFrameUpdated = handleWidgetVerification(widget, isExtTrigger);
     }
     else if (auto *item = qobject_cast<QQuickItem *>(obj)) {
+        if (!isExtTrigger) {
+            std::tie(obj, item) = findMostSuitableParent(obj, item);
+        }
         isFrameUpdated = handleItemVerification(item, isExtTrigger);
     }
 
