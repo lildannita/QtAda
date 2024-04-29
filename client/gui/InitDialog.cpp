@@ -1,4 +1,4 @@
-#include "StartDialog.hpp"
+#include "InitDialog.hpp"
 
 #include <QApplication>
 #include <QScreen>
@@ -20,7 +20,7 @@
 #include "GuiTools.hpp"
 
 namespace QtAda::gui {
-StartDialog::StartDialog(QWidget *parent)
+InitDialog::InitDialog(QWidget *parent)
     : QDialog(parent)
     , config_{ new QSettings(paths::QTADA_CONFIG, QSettings::IniFormat) }
 {
@@ -34,8 +34,8 @@ StartDialog::StartDialog(QWidget *parent)
     auto *openProjectButton = initButton("Open Project...", ":/icons/open_project.svg");
     auto *newProjectButton = initButton("New Project...", ":/icons/new_project.svg");
     auto *closeButton = initButton("Close", ":/icons/close.svg");
-    connect(newProjectButton, &QPushButton::clicked, this, &StartDialog::handleNewProject);
-    connect(openProjectButton, &QPushButton::clicked, this, &StartDialog::handleOpenProject);
+    connect(newProjectButton, &QPushButton::clicked, this, &InitDialog::handleNewProject);
+    connect(openProjectButton, &QPushButton::clicked, this, &InitDialog::handleOpenProject);
     connect(closeButton, &QPushButton::clicked, this, &QDialog::close);
     // Инициализация макета под основные кнопки
     auto *buttonsWidget = new QWidget(this);
@@ -59,7 +59,7 @@ StartDialog::StartDialog(QWidget *parent)
     recentView_->setEditTriggers(QAbstractItemView::NoEditTriggers);
     recentView_->setSelectionMode(QListView::NoSelection);
     recentView_->setVisible(isViewVisible);
-    connect(recentView_, &QListView::clicked, this, &StartDialog::handleRecentProject);
+    connect(recentView_, &QListView::clicked, this, &InitDialog::handleRecentProject);
     // Инициализация Label с сообщением об отсутсвии недавних проектов
     QLabel *emptyRecentLabel = new QLabel("No recent projects", this);
     emptyRecentLabel->setStyleSheet("QLabel { color : #F8961E ; }");
@@ -89,11 +89,11 @@ StartDialog::StartDialog(QWidget *parent)
     this->resize(prefferedSize);
 }
 
-StartDialog::~StartDialog()
+InitDialog::~InitDialog()
 {
 }
 
-QPushButton *StartDialog::initButton(const QString &text, const QString &iconPath) noexcept
+QPushButton *InitDialog::initButton(const QString &text, const QString &iconPath) noexcept
 {
     auto *button = new QPushButton(this);
     button->setText(text);
@@ -105,8 +105,8 @@ QPushButton *StartDialog::initButton(const QString &text, const QString &iconPat
     return button;
 }
 
-bool StartDialog::checkProjectFilePath(const QString &path, bool isOpenMode,
-                                       bool needToShowMsg) noexcept
+bool InitDialog::checkProjectFilePath(const QString &path, bool isOpenMode,
+                                      bool needToShowMsg) noexcept
 {
     assert(!path.isEmpty());
     auto fileInfo = QFileInfo(path);
@@ -149,7 +149,7 @@ bool StartDialog::checkProjectFilePath(const QString &path, bool isOpenMode,
     return true;
 }
 
-void StartDialog::updateRecentModel() noexcept
+void InitDialog::updateRecentModel() noexcept
 {
     assert(recentModel_ != nullptr);
     recentModel_->clear();
@@ -187,7 +187,7 @@ void StartDialog::updateRecentModel() noexcept
     assert(recentModel_->rowCount() > 0);
 }
 
-void StartDialog::updateRecentInConfig(const QString &path) noexcept
+void InitDialog::updateRecentInConfig(const QString &path) noexcept
 {
     auto recentProjects = config_->value(paths::CONFIG_RECENT_PROJECTS).toStringList();
     if (recentProjects.contains(path)) {
@@ -197,7 +197,7 @@ void StartDialog::updateRecentInConfig(const QString &path) noexcept
     config_->setValue(paths::CONFIG_RECENT_PROJECTS, recentProjects);
 }
 
-void StartDialog::handleNewProject() noexcept
+void InitDialog::handleNewProject() noexcept
 {
     const auto projectPath
         = QFileDialog::getSaveFileName(
@@ -209,11 +209,10 @@ void StartDialog::handleNewProject() noexcept
         return;
     }
     updateRecentInConfig(projectPath);
-
-    //! TODO: открывать MainWindow
+    acceptPath(std::move(projectPath));
 }
 
-void StartDialog::handleOpenProject() noexcept
+void InitDialog::handleOpenProject() noexcept
 {
     const auto projectPath
         = QFileDialog::getOpenFileName(this, "QtAda | Open Project", QDir::homePath(),
@@ -223,11 +222,10 @@ void StartDialog::handleOpenProject() noexcept
         return;
     }
     updateRecentInConfig(projectPath);
-
-    //! TODO: открывать MainWindow
+    acceptPath(std::move(projectPath));
 }
 
-void StartDialog::handleRecentProject(const QModelIndex &index) noexcept
+void InitDialog::handleRecentProject(const QModelIndex &index) noexcept
 {
     assert(index.isValid());
     const auto projectPath = index.data(Qt::UserRole).value<QString>();
@@ -248,7 +246,13 @@ void StartDialog::handleRecentProject(const QModelIndex &index) noexcept
         return;
     }
     updateRecentInConfig(projectPath);
+    acceptPath(std::move(projectPath));
+}
 
-    //! TODO: открывать MainWindow
+void InitDialog::acceptPath(const QString &path) noexcept
+{
+    assert(!path.isEmpty());
+    selectedProjectPath_ = path;
+    this->accept();
 }
 } // namespace QtAda::gui

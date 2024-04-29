@@ -12,11 +12,16 @@ class QString;
 QT_END_NAMESPACE
 
 namespace QtAda::gui {
-class StartDialog final : public QDialog {
+class InitDialog final : public QDialog {
     Q_OBJECT
 public:
-    StartDialog(QWidget *parent = nullptr);
-    ~StartDialog();
+    InitDialog(QWidget *parent = nullptr);
+    ~InitDialog();
+
+    const QString selectedProjectPath() const noexcept
+    {
+        return selectedProjectPath_;
+    }
 
 private slots:
     void handleNewProject() noexcept;
@@ -24,6 +29,8 @@ private slots:
     void handleRecentProject(const QModelIndex &index) noexcept;
 
 private:
+    QString selectedProjectPath_;
+
     QSettings *config_ = nullptr;
     QStandardItemModel *recentModel_ = nullptr;
     QListView *recentView_ = nullptr;
@@ -35,5 +42,7 @@ private:
     bool checkProjectFilePath(const QString &path, bool isOpenMode = false,
                               bool needToShowMsg = true) noexcept;
     void updateRecentInConfig(const QString &path) noexcept;
+
+    void acceptPath(const QString &path) noexcept;
 };
 } // namespace QtAda::gui

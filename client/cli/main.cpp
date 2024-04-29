@@ -5,7 +5,8 @@
 
 #include "Common.hpp"
 #include "Launcher.hpp"
-#include "StartDialog.hpp"
+#include "InitDialog.hpp"
+#include "MainWindow.hpp"
 
 namespace QtAda {
 void shutdown(int sig)
@@ -39,17 +40,24 @@ void installSignalHandler()
 
 int guiInitializer(int argc, char *argv[])
 {
+    using namespace gui;
     QApplication app(argc, argv);
 
-    gui::StartDialog startDialog;
-    startDialog.show();
+    InitDialog startDialog;
+    if (startDialog.exec() == QDialog::Accepted) {
+        MainWindow mainWindow;
+        mainWindow.show();
 
-    auto exec = app.exec();
-    return exec;
+        auto exec = app.exec();
+        return exec;
+    }
+
+    return 0;
 }
 
 int cliInitializer(int argc, char *argv[])
 {
+    using namespace launcher;
     QStringList args;
     args.reserve(argc);
     for (int i = 1; i < argc; ++i) {
@@ -62,7 +70,7 @@ int cliInitializer(int argc, char *argv[])
         return guiInitializer(argc, argv);
     }
 
-    launcher::UserLaunchOptions options;
+    UserLaunchOptions options;
     const auto argsErrors = options.initFromArgs(*argv, std::move(args));
     if (argsErrors.has_value()) {
         return *argsErrors;
@@ -71,10 +79,9 @@ int cliInitializer(int argc, char *argv[])
     switch (options.type) {
     case LaunchType::Record: {
         QApplication app(argc, argv);
-        launcher::Launcher launcher(options);
+        Launcher launcher(options);
         if (launcher.launch()) {
-            QObject::connect(&launcher, &launcher::Launcher::launcherFinished, &app,
-                             &QCoreApplication::quit);
+            QObject::connect(&launcher, &Launcher::launcherFinished, &app, &QCoreApplication::quit);
         }
         else {
             return launcher.exitCode();
@@ -85,10 +92,9 @@ int cliInitializer(int argc, char *argv[])
     }
     case LaunchType::Execute: {
         QCoreApplication app(argc, argv);
-        launcher::Launcher launcher(options);
+        Launcher launcher(options);
         if (launcher.launch()) {
-            QObject::connect(&launcher, &launcher::Launcher::launcherFinished, &app,
-                             &QCoreApplication::quit);
+            QObject::connect(&launcher, &Launcher::launcherFinished, &app, &QCoreApplication::quit);
         }
         else {
             return launcher.exitCode();
