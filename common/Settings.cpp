@@ -5,6 +5,8 @@
 #include <QJsonObject>
 #include <QJsonDocument>
 
+#include "Paths.hpp"
+
 namespace QtAda {
 static int countScriptLines(const QString &filePath)
 {
@@ -34,7 +36,7 @@ static bool fileCanBeWritten(const QFileInfo &fileInfo) noexcept
         return false;
     }
 
-    QFile tmp(QStringLiteral("%1/tmp.qtada-tmp").arg(fileInfo.path()));
+    QFile tmp(QStringLiteral("%1/tmp.%2").arg(fileInfo.path()).arg(paths::PROJECT_TMP_SUFFIX));
     if (tmp.open(QIODevice::WriteOnly)) {
         tmp.close();
         tmp.remove();

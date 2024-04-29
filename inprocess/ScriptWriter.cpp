@@ -3,6 +3,8 @@
 #include <QFileInfo>
 #include <QDir>
 
+#include "Paths.hpp"
+
 namespace QtAda::inprocess {
 static std::vector<QString> doCutLine(const QString &line) noexcept
 {
@@ -77,7 +79,8 @@ ScriptWriter::ScriptWriter(const RecordSettings &settings, QObject *parent) noex
         }
         originalScript.close();
 
-        script_.setFileName(recordSettings_.scriptPath + ".qtada-tmp");
+        script_.setFileName(
+            QStringLiteral("%1.%2").arg(recordSettings_.scriptPath).arg(paths::PROJECT_TMP_SUFFIX));
         isOpen = script_.open(QIODevice::WriteOnly | QIODevice::Truncate);
         assert(isOpen == true);
         scriptStream_.setDevice(&script_);

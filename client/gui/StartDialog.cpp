@@ -13,6 +13,7 @@
 #include <QString>
 #include <QFileInfo>
 
+#include <QMessageBox>
 #include <QFileDialog>
 
 #include "Paths.hpp"
@@ -45,37 +46,35 @@ StartDialog::StartDialog(QWidget *parent)
     buttonsLayout->addWidget(closeButton);
     buttonsWidget->setFixedWidth(buttonsLayout->sizeHint().width());
 
-    // Объявление компонентов для макета под раздел "недавние проекты"
+    // Инициализация компонентов для макета под раздел "недавние проекты"
     QLabel *recentLabel = new QLabel("Recent Projects:", this);
-    QListView *recentView = nullptr;
-    QLabel *noRecentProjectsLabel = nullptr;
-    // Инициализация компонентов для раздела "недавние проекты"
-    auto *recentModel = initRecentModel();
-    if (recentModel != nullptr) {
-        recentView = new QListView(this);
-        recentView->setModel(recentModel);
-        recentView->setIconSize(QSize(30, 30));
-        recentView->setSpacing(5);
-        recentView->setEditTriggers(QAbstractItemView::NoEditTriggers);
-    }
-    else {
-        noRecentProjectsLabel = new QLabel("No recent projects", this);
-        noRecentProjectsLabel->setStyleSheet("QLabel { color : #F8961E ; }");
-    }
+    // Инициализация ListView с недавними проектами
+    recentModel_ = new QStandardItemModel(this);
+    updateRecentModel();
+    const auto isViewVisible = recentModel_->rowCount() > 0;
+    recentView_ = new QListView(this);
+    recentView_->setModel(recentModel_);
+    recentView_->setIconSize(QSize(30, 30));
+    recentView_->setSpacing(5);
+    recentView_->setEditTriggers(QAbstractItemView::NoEditTriggers);
+    recentView_->setSelectionMode(QListView::NoSelection);
+    recentView_->setVisible(isViewVisible);
+    connect(recentView_, &QListView::clicked, this, &StartDialog::handleRecentProject);
+    // Инициализация Label с сообщением об отсутсвии недавних проектов
+    QLabel *emptyRecentLabel = new QLabel("No recent projects", this);
+    emptyRecentLabel->setStyleSheet("QLabel { color : #F8961E ; }");
+    // Инициализация макета под Label с сообщением об отсутсвии недавних проектов
+    emptyRecentWidget_ = new QWidget(this);
+    auto *emptyRecentLayout = new QVBoxLayout(emptyRecentWidget_);
+    emptyRecentLayout->addWidget(emptyRecentLabel);
+    tools::setVSpacer(emptyRecentLayout);
+    emptyRecentWidget_->setVisible(!isViewVisible);
     // Инициализация макета под раздел "недавние проекты"
     auto *recentWidget = new QWidget(this);
     auto *recentLayout = new QVBoxLayout(recentWidget);
     recentLayout->addWidget(recentLabel);
-    if (recentView != nullptr) {
-        recentLayout->addWidget(recentView);
-    }
-    else if (noRecentProjectsLabel != nullptr) {
-        recentLayout->addWidget(noRecentProjectsLabel);
-        tools::setVSpacer(recentLayout);
-    }
-    else {
-        Q_UNREACHABLE();
-    }
+    recentLayout->addWidget(recentView_);
+    recentLayout->addWidget(emptyRecentWidget_);
 
     // Инициализация основного макета
     QHBoxLayout *mainLayout = new QHBoxLayout(this);
@@ -106,55 +105,150 @@ QPushButton *StartDialog::initButton(const QString &text, const QString &iconPat
     return button;
 }
 
-QStandardItemModel *StartDialog::initRecentModel() noexcept
+bool StartDialog::checkProjectFilePath(const QString &path, bool isOpenMode,
+                                       bool needToShowMsg) noexcept
 {
-    auto recentProjects = config_->value(paths::INI_RECENT_PROJECTS).toStringList();
+    assert(!path.isEmpty());
+    auto fileInfo = QFileInfo(path);
+
+    if (fileInfo.suffix() != paths::PROJECT_SUFFIX) {
+        if (needToShowMsg) {
+            QMessageBox::critical(this, "QtAda | Error",
+                                  QStringLiteral("The project file extension must be '%1'.")
+                                      .arg(paths::PROJECT_SUFFIX));
+        }
+        return false;
+    }
+
+    if (isOpenMode) {
+        if (!fileInfo.exists()) {
+            if (needToShowMsg) {
+                QMessageBox::critical(this, "QtAda | Error",
+                                      QStringLiteral("The project file doesn't exist."));
+            }
+            return false;
+        }
+        if (!(fileInfo.isFile() && fileInfo.isReadable() && fileInfo.isWritable())) {
+            if (needToShowMsg) {
+                QMessageBox::critical(this, "QtAda | Error",
+                                      QStringLiteral("The project can't be opened."));
+            }
+            return false;
+        }
+    }
+    else {
+        auto file = QFile(path);
+        if (!file.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
+            QMessageBox::critical(this, "QtAda | Error",
+                                  QStringLiteral("The project file can't be created."));
+            return false;
+        }
+        file.close();
+    }
+
+    return true;
+}
+
+void StartDialog::updateRecentModel() noexcept
+{
+    assert(recentModel_ != nullptr);
+    recentModel_->clear();
+
+    auto recentProjects = config_->value(paths::CONFIG_RECENT_PROJECTS).toStringList();
     QStringList confirmedProjectPaths;
     QStringList confirmedProjectNames;
     while (!recentProjects.isEmpty()) {
         const auto projectPath = recentProjects.takeFirst().trimmed();
-        if (projectPath.isEmpty()) {
+        if (projectPath.isEmpty() || !checkProjectFilePath(projectPath, true, false)) {
             continue;
         }
-        const auto projectFile = QFileInfo(projectPath);
-        if (!projectFile.exists() || !projectFile.isReadable() || !projectFile.isWritable()
-            || projectFile.suffix() != QStringLiteral("qtada")) {
-            continue;
-        }
-        confirmedProjectNames.push_back(projectFile.fileName());
+        auto fileName = QFileInfo(projectPath).fileName();
+        fileName = fileName.left(fileName.lastIndexOf('.'));
+        confirmedProjectNames.push_back(std::move(fileName));
         confirmedProjectPaths.push_back(std::move(projectPath));
     }
 
     if (confirmedProjectPaths.isEmpty()) {
-        config_->setValue(paths::INI_RECENT_PROJECTS, "");
-        return nullptr;
+        config_->setValue(paths::CONFIG_RECENT_PROJECTS, "");
+        return;
     }
-    config_->setValue(paths::INI_RECENT_PROJECTS, confirmedProjectPaths);
+    config_->setValue(paths::CONFIG_RECENT_PROJECTS, confirmedProjectPaths);
 
     assert(confirmedProjectPaths.size() == confirmedProjectNames.size());
-    auto *recentModel_ = new QStandardItemModel(this);
     for (int i = 0; i < confirmedProjectPaths.size(); i++) {
-        const auto recentInfo = QStringLiteral("%1\n%2")
-                                    .arg(confirmedProjectNames.at(i))
-                                    .arg(confirmedProjectPaths.at(i));
-        auto *recentItem = new QStandardItem(std::move(recentInfo));
+        const auto recentPath = confirmedProjectPaths.at(i);
+        const auto recentInfo
+            = QStringLiteral("%1\n%2").arg(confirmedProjectNames.at(i)).arg(recentPath);
+        auto *recentItem = new QStandardItem(recentInfo);
         recentItem->setIcon(QIcon(":/icons/project.svg"));
+        recentItem->setData(std::move(recentPath), Qt::UserRole);
         recentModel_->appendRow(recentItem);
     }
     assert(recentModel_->rowCount() > 0);
+}
 
-    return recentModel_;
+void StartDialog::updateRecentInConfig(const QString &path) noexcept
+{
+    auto recentProjects = config_->value(paths::CONFIG_RECENT_PROJECTS).toStringList();
+    if (recentProjects.contains(path)) {
+        recentProjects.removeAll(path);
+    }
+    recentProjects.prepend(path);
+    config_->setValue(paths::CONFIG_RECENT_PROJECTS, recentProjects);
 }
 
 void StartDialog::handleNewProject() noexcept
 {
+    const auto projectPath
+        = QFileDialog::getSaveFileName(
+              this, "QtAda | New Project",
+              QStringLiteral("%1/untitled.%2").arg(QDir::homePath()).arg(paths::PROJECT_SUFFIX),
+              QStringLiteral("QtAda (*.%1)").arg(paths::PROJECT_SUFFIX))
+              .trimmed();
+    if (projectPath.isEmpty() || !checkProjectFilePath(projectPath)) {
+        return;
+    }
+    updateRecentInConfig(projectPath);
+
+    //! TODO: открывать MainWindow
 }
 
 void StartDialog::handleOpenProject() noexcept
 {
+    const auto projectPath
+        = QFileDialog::getOpenFileName(this, "QtAda | Open Project", QDir::homePath(),
+                                       QStringLiteral("QtAda (*.%1)").arg(paths::PROJECT_SUFFIX))
+              .trimmed();
+    if (projectPath.isEmpty() || !checkProjectFilePath(projectPath, true)) {
+        return;
+    }
+    updateRecentInConfig(projectPath);
+
+    //! TODO: открывать MainWindow
 }
 
-void StartDialog::handleRecentProject() noexcept
+void StartDialog::handleRecentProject(const QModelIndex &index) noexcept
 {
+    assert(index.isValid());
+    const auto projectPath = index.data(Qt::UserRole).value<QString>();
+    assert(!projectPath.isEmpty());
+    if (!checkProjectFilePath(projectPath, true)) {
+        updateRecentModel();
+        // Не пишем "в две строки", так как важно сначала выключить видимость
+        // одного виджета, а потом включить видимость другого, чтобы диалог
+        // не "прыгал".
+        if (recentModel_->rowCount() > 0) {
+            emptyRecentWidget_->setVisible(false);
+            recentView_->setVisible(true);
+        }
+        else {
+            recentView_->setVisible(false);
+            emptyRecentWidget_->setVisible(true);
+        }
+        return;
+    }
+    updateRecentInConfig(projectPath);
+
+    //! TODO: открывать MainWindow
 }
 } // namespace QtAda::gui
