@@ -12,7 +12,6 @@
 #include <QStandardItem>
 #include <QString>
 #include <QFileInfo>
-
 #include <QMessageBox>
 #include <QFileDialog>
 
@@ -20,7 +19,7 @@
 #include "GuiTools.hpp"
 
 namespace QtAda::gui {
-InitDialog::InitDialog(QWidget *parent)
+InitDialog::InitDialog(QWidget *parent) noexcept
     : QDialog(parent)
     , config_{ new QSettings(paths::QTADA_CONFIG, QSettings::IniFormat) }
 {
@@ -89,10 +88,6 @@ InitDialog::InitDialog(QWidget *parent)
     this->resize(prefferedSize);
 }
 
-InitDialog::~InitDialog()
-{
-}
-
 QPushButton *InitDialog::initButton(const QString &text, const QString &iconPath) noexcept
 {
     auto *button = new QPushButton(this);
@@ -156,15 +151,11 @@ void InitDialog::updateRecentModel() noexcept
 
     auto recentProjects = config_->value(paths::CONFIG_RECENT_PROJECTS).toStringList();
     QStringList confirmedProjectPaths;
-    QStringList confirmedProjectNames;
     while (!recentProjects.isEmpty()) {
         const auto projectPath = recentProjects.takeFirst().trimmed();
         if (projectPath.isEmpty() || !checkProjectFilePath(projectPath, true, false)) {
             continue;
         }
-        auto fileName = QFileInfo(projectPath).fileName();
-        fileName = fileName.left(fileName.lastIndexOf('.'));
-        confirmedProjectNames.push_back(std::move(fileName));
         confirmedProjectPaths.push_back(std::move(projectPath));
     }
 
@@ -174,14 +165,12 @@ void InitDialog::updateRecentModel() noexcept
     }
     config_->setValue(paths::CONFIG_RECENT_PROJECTS, confirmedProjectPaths);
 
-    assert(confirmedProjectPaths.size() == confirmedProjectNames.size());
-    for (int i = 0; i < confirmedProjectPaths.size(); i++) {
-        const auto recentPath = confirmedProjectPaths.at(i);
+    for (const auto &path : confirmedProjectPaths) {
         const auto recentInfo
-            = QStringLiteral("%1\n%2").arg(confirmedProjectNames.at(i)).arg(recentPath);
+            = QStringLiteral("%1\n%2").arg(tools::fileNameWithoutSuffix(path)).arg(path);
         auto *recentItem = new QStandardItem(recentInfo);
         recentItem->setIcon(QIcon(":/icons/project.svg"));
-        recentItem->setData(std::move(recentPath), Qt::UserRole);
+        recentItem->setData(std::move(path), Qt::UserRole);
         recentModel_->appendRow(recentItem);
     }
     assert(recentModel_->rowCount() > 0);
@@ -251,7 +240,6 @@ void InitDialog::handleRecentProject(const QModelIndex &index) noexcept
 
 void InitDialog::acceptPath(const QString &path) noexcept
 {
-    assert(!path.isEmpty());
     selectedProjectPath_ = path;
     this->accept();
 }

@@ -15,11 +15,12 @@ namespace QtAda::gui {
 class InitDialog final : public QDialog {
     Q_OBJECT
 public:
-    InitDialog(QWidget *parent = nullptr);
-    ~InitDialog();
+    InitDialog(QWidget *parent = nullptr) noexcept;
+    ~InitDialog() = default;
 
     const QString selectedProjectPath() const noexcept
     {
+        assert(!selectedProjectPath_.isEmpty());
         return selectedProjectPath_;
     }
 

@@ -18,4 +18,14 @@ inline void setVSpacer(QBoxLayout *layout)
     assert(layout != nullptr);
     layout->addSpacerItem(new QSpacerItem(20, 40, QSizePolicy::Minimum, QSizePolicy::Expanding));
 }
+
+inline QString fileNameWithoutSuffix(const QString &path)
+{
+    const auto lastSlashIndex = path.lastIndexOf('/');
+    const auto startIndex = lastSlashIndex != -1 ? lastSlashIndex + 1 : 0;
+    const auto lastDotIndex = path.lastIndexOf('.');
+    const auto result = path.mid(startIndex, lastDotIndex - startIndex).trimmed();
+    assert(!result.isEmpty());
+    return result;
+}
 } // namespace QtAda::gui::tools
