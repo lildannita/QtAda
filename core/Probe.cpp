@@ -12,6 +12,7 @@
 #include <QDialog>
 #include <private/qhooks_p.h>
 
+#include "Paths.hpp"
 #include "ProbeGuard.hpp"
 #include "UserEventFilter.hpp"
 #include "UserVerificationFilter.hpp"
@@ -62,7 +63,7 @@ Probe::Probe(const LaunchType launchType, const std::optional<RecordSettings> &r
     connect(queueTimer_, &QTimer::timeout, this, &Probe::handleObjectsQueue);
 
     inprocessNode_ = new QRemoteObjectNode(this);
-    inprocessNode_->connectToNode(QUrl(REMOTE_OBJECT_PATH));
+    inprocessNode_->connectToNode(QUrl(paths::REMOTE_OBJECT_PATH));
     inprocessController_.reset(inprocessNode_->acquire<InprocessControllerReplica>());
 
     switch (launchType_) {
@@ -104,7 +105,7 @@ Probe::Probe(const LaunchType launchType, const std::optional<RecordSettings> &r
         initSocket_->deleteLater();
         initSocket_ = nullptr;
     });
-    initSocket_->connectToServer(INIT_CONNECTION_SERVER);
+    initSocket_->connectToServer(paths::INIT_CONNECTION_SERVER);
 }
 
 Probe::~Probe() noexcept

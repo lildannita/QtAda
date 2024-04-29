@@ -3,8 +3,9 @@
 #include <QDialog>
 
 QT_BEGIN_NAMESPACE
+class QSettings;
 class QPushButton;
-class QStandardItem;
+class QStandardItemModel;
 class QString;
 QT_END_NAMESPACE
 
@@ -21,7 +22,9 @@ private slots:
     void handleRecentProject() noexcept;
 
 private:
+    QSettings *config_ = nullptr;
+
     QPushButton *initButton(const QString &text, const QString &iconPath) noexcept;
-    QStandardItem *initRecentItem(const QString &text) noexcept;
+    QStandardItemModel *initRecentModel() noexcept;
 };
 } // namespace QtAda::gui

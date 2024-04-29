@@ -5,7 +5,7 @@
 namespace QtAda::inprocess::tools {
 inline QFrame *initSeparator(QWidget *parent, bool isHorizontal = false) noexcept
 {
-    QFrame *separator = new QFrame;
+    QFrame *separator = new QFrame(parent);
     separator->setFrameShape(isHorizontal ? QFrame::HLine : QFrame::VLine);
     separator->setFrameShadow(QFrame::Sunken);
     return separator;

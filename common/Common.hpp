@@ -12,10 +12,6 @@ static constexpr char ENV_UNSET_PRELOAD[] = "QTADA_NEED_TO_UNSET_PRELOAD";
 static constexpr char ENV_LAUNCH_TYPE[] = "QTADA_LAUNCH_TYPE";
 static constexpr char ENV_LAUNCH_SETTINGS[] = "QTADA_LAUNCH_SETTINGS";
 
-static constexpr char REMOTE_OBJECT_PATH[] = "local:QTADA_REMOTE_OBJECT";
-//! TODO: Костыль, см. InprocessController::startInitServer().
-static constexpr char INIT_CONNECTION_SERVER[] = "/tmp/QTADA_INIT_CONNECTION_SERVER";
-
 static constexpr char RESET_COLOR[] = "\033[0m";
 static constexpr char QTADA_ERR_COLOR[] = "\033[37;41m";
 static constexpr char QTADA_OUT_COLOR[] = "\033[30;42m";

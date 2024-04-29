@@ -4,7 +4,7 @@
 #include <QLocalServer>
 #include <QFile>
 
-#include "Common.hpp"
+#include "Paths.hpp"
 
 namespace QtAda::inprocess {
 class InprocessController : public InprocessControllerSource {
@@ -13,7 +13,7 @@ public:
     InprocessController(QObject *parent = nullptr) noexcept
         : InprocessControllerSource{ parent }
     {
-        QFile serverFile(INIT_CONNECTION_SERVER);
+        QFile serverFile(paths::INIT_CONNECTION_SERVER);
         if (serverFile.exists()) {
             serverFile.remove();
         }
@@ -49,7 +49,7 @@ public:
             initServer_.close();
             emit applicationStarted();
         });
-        bool serverStarted = initServer_.listen(INIT_CONNECTION_SERVER);
+        bool serverStarted = initServer_.listen(paths::INIT_CONNECTION_SERVER);
         assert(serverStarted == true);
     }
 

@@ -2,7 +2,7 @@ set(QTADA_COMMON_BASENAME "common")
 
 set(QTADA_COMMON_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR} PARENT_SCOPE)
 
-set(common_HDRS Settings.hpp Common.hpp)
+set(common_HDRS Settings.hpp Common.hpp Paths.hpp)
 set(common_SRCS Settings.cpp)
 
 add_library(common SHARED ${common_SRCS} ${common_HDRS})

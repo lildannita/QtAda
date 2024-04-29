@@ -19,7 +19,7 @@
 namespace QtAda::inprocess {
 InprocessDialog::InprocessDialog(const RecordSettings &settings, QWidget *parent) noexcept
     : QDialog{ parent }
-    , inprocessHost_{ new QRemoteObjectHost(QUrl(REMOTE_OBJECT_PATH), this) }
+    , inprocessHost_{ new QRemoteObjectHost(QUrl(paths::REMOTE_OBJECT_PATH), this) }
     , inprocessController_{ new InprocessController }
     , propertiesWatcher_{ new PropertiesWatcher(inprocessController_, this) }
     , scriptWriter_{ new ScriptWriter(settings, this) }
