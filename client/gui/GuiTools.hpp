@@ -19,6 +19,12 @@ inline void setVSpacer(QBoxLayout *layout)
     layout->addSpacerItem(new QSpacerItem(20, 40, QSizePolicy::Minimum, QSizePolicy::Expanding));
 }
 
+inline void setHSpacer(QBoxLayout *layout)
+{
+    assert(layout != nullptr);
+    layout->addSpacerItem(new QSpacerItem(40, 20, QSizePolicy::Expanding, QSizePolicy::Minimum));
+}
+
 inline QString fileNameWithoutSuffix(const QString &path)
 {
     const auto lastSlashIndex = path.lastIndexOf('/');

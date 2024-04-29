@@ -5,9 +5,11 @@
 namespace QtAda::paths {
 static const auto QTADA_CONFIG = QStringLiteral("%1/.config/qtada.conf").arg(QDir::homePath());
 static constexpr char PROJECT_SUFFIX[] = "qtada";
-static constexpr char PROJECT_TMP_SUFFIX[] = "qtada-tmp";
+static constexpr char PROJECT_TMP_SUFFIX[] = "qtada_tmp";
 
 static constexpr char CONFIG_RECENT_PROJECTS[] = "recentProjects";
+
+static constexpr char PROJECT_APP_PATH[] = "appPath";
 
 static constexpr char REMOTE_OBJECT_PATH[] = "local:QTADA_REMOTE_OBJECT";
 //! TODO: Костыль, см. InprocessController::startInitServer().

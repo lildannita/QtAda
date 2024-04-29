@@ -4,6 +4,9 @@
         <file>open_project.svg</file>
         <file>project.svg</file>
         <file>close.svg</file>
+        <file>search.svg</file>
+        <file>confirm.svg</file>
+        <file>back.svg</file>
         <file>app.png</file>
     </qresource>
 </RCC>

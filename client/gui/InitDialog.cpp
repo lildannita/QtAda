@@ -14,9 +14,13 @@
 #include <QFileInfo>
 #include <QMessageBox>
 #include <QFileDialog>
+#include <QLineEdit>
+#include <QTextEdit>
 
 #include "Paths.hpp"
 #include "GuiTools.hpp"
+#include "ProbeDetector.hpp"
+#include "LauncherUtils.hpp"
 
 namespace QtAda::gui {
 InitDialog::InitDialog(QWidget *parent) noexcept
@@ -46,7 +50,7 @@ InitDialog::InitDialog(QWidget *parent) noexcept
     buttonsWidget->setFixedWidth(buttonsLayout->sizeHint().width());
 
     // Инициализация компонентов для макета под раздел "недавние проекты"
-    QLabel *recentLabel = new QLabel("Recent Projects:", this);
+    auto *recentLabel = new QLabel("Recent Projects:", this);
     // Инициализация ListView с недавними проектами
     recentModel_ = new QStandardItemModel(this);
     updateRecentModel();
@@ -60,7 +64,7 @@ InitDialog::InitDialog(QWidget *parent) noexcept
     recentView_->setVisible(isViewVisible);
     connect(recentView_, &QListView::clicked, this, &InitDialog::handleRecentProject);
     // Инициализация Label с сообщением об отсутсвии недавних проектов
-    QLabel *emptyRecentLabel = new QLabel("No recent projects", this);
+    auto *emptyRecentLabel = new QLabel("No recent projects", this);
     emptyRecentLabel->setStyleSheet("QLabel { color : #F8961E ; }");
     // Инициализация макета под Label с сообщением об отсутсвии недавних проектов
     emptyRecentWidget_ = new QWidget(this);
@@ -75,11 +79,62 @@ InitDialog::InitDialog(QWidget *parent) noexcept
     recentLayout->addWidget(recentView_);
     recentLayout->addWidget(emptyRecentWidget_);
 
+    // Инициализация макета под инициализацию проекта
+    initWidget_ = new QWidget(this);
+    auto *initLayout = new QHBoxLayout(initWidget_);
+    initLayout->addWidget(buttonsWidget);
+    initLayout->addWidget(tools::initSeparator(this));
+    initLayout->addWidget(recentWidget);
+
+    // Инициализация компонентов для выбора пути к исполняемому файлу
+    appPathEdit_ = new QLineEdit(this);
+    auto *searchButton = initButton("Search...", ":/icons/search.svg");
+    connect(searchButton, &QPushButton::clicked, this, &InitDialog::handleSelectAppPath);
+    connect(appPathEdit_, &QLineEdit::textChanged, this, &InitDialog::handleAppPathChanged);
+    // Инициализация макета под выбор пути к исполняемому файлу
+    auto *setPathWidget = new QWidget(this);
+    auto *setPathLayout = new QHBoxLayout(setPathWidget);
+    setPathLayout->addWidget(appPathEdit_);
+    setPathLayout->addWidget(tools::initSeparator(this));
+    setPathLayout->addWidget(searchButton);
+
+    // Инициализация кнопок для подтверждения выбранного пути
+    auto *backButton = initButton("Back", ":/icons/back.svg");
+    confirmButton_ = initButton("Confirm", ":/icons/confirm.svg");
+    confirmButton_->setEnabled(false);
+    connect(backButton, &QPushButton::clicked, this, &InitDialog::handleBackToInit);
+    connect(confirmButton_, &QPushButton::clicked, this, &InitDialog::handleConfirmAppPath);
+    // Инициализация макета под кнопки для подтверждения выбранного пути
+    auto *confirmWidget = new QWidget(this);
+    auto *confirmLayout = new QHBoxLayout(confirmWidget);
+    tools::setHSpacer(confirmLayout);
+    confirmLayout->addWidget(backButton);
+    confirmLayout->addWidget(confirmButton_);
+
+    // Инициализация компонента под информацию о выбранном пути
+    appInfoEdit_ = new QTextEdit(this);
+    appInfoEdit_->setReadOnly(true);
+    appInfoEdit_->setStyleSheet("background-color: transparent;");
+
+    // Установка стандартных значений для текстовых элементов
+    setDefaultInfoForAppPathWidget();
+
+    // Инициализация Label с информацией об обновлении пути
+    pathLabel_ = new QLabel(this);
+
+    // Инициализация макета под настройку пути к исполняемому файлу
+    appPathWidget_ = new QWidget(this);
+    auto *appPathLayout = new QVBoxLayout(appPathWidget_);
+    appPathLayout->addWidget(pathLabel_);
+    appPathLayout->addWidget(setPathWidget);
+    appPathLayout->addWidget(appInfoEdit_);
+    appPathLayout->addWidget(confirmWidget);
+    appPathWidget_->setVisible(false);
+
     // Инициализация основного макета
-    QHBoxLayout *mainLayout = new QHBoxLayout(this);
-    mainLayout->addWidget(buttonsWidget);
-    mainLayout->addWidget(tools::initSeparator(this));
-    mainLayout->addWidget(recentWidget);
+    auto *mainLayout = new QVBoxLayout(this);
+    mainLayout->addWidget(initWidget_);
+    mainLayout->addWidget(appPathWidget_);
 
     // Настройка первоначальных размеров диалога
     const auto screenGeometry = QApplication::screenAt(QCursor::pos())->geometry();
@@ -198,7 +253,11 @@ void InitDialog::handleNewProject() noexcept
         return;
     }
     updateRecentInConfig(projectPath);
-    acceptPath(std::move(projectPath));
+    selectedProjectPath_ = std::move(projectPath);
+
+    pathLabel_->setText("Set the path to the application you are going to test.");
+    initWidget_->setVisible(false);
+    appPathWidget_->setVisible(true);
 }
 
 void InitDialog::handleOpenProject() noexcept
@@ -211,7 +270,7 @@ void InitDialog::handleOpenProject() noexcept
         return;
     }
     updateRecentInConfig(projectPath);
-    acceptPath(std::move(projectPath));
+    tryToAcceptPath(std::move(projectPath));
 }
 
 void InitDialog::handleRecentProject(const QModelIndex &index) noexcept
@@ -235,12 +294,122 @@ void InitDialog::handleRecentProject(const QModelIndex &index) noexcept
         return;
     }
     updateRecentInConfig(projectPath);
-    acceptPath(std::move(projectPath));
+    tryToAcceptPath(std::move(projectPath));
 }
 
-void InitDialog::acceptPath(const QString &path) noexcept
+void InitDialog::tryToAcceptPath(const QString &path) noexcept
 {
     selectedProjectPath_ = path;
+    if (checkProjectFile()) {
+        this->accept();
+    }
+    else {
+        pathLabel_->setText("Update the path to the application you are going to test.");
+        initWidget_->setVisible(false);
+        appPathWidget_->setVisible(true);
+    }
+}
+
+bool InitDialog::checkProjectFile() noexcept
+{
+    assert(!selectedProjectPath_.isEmpty());
+
+    auto project = QSettings(selectedProjectPath_, QSettings::IniFormat);
+
+    const auto appPath = project.value(paths::PROJECT_APP_PATH, "").toString().trimmed();
+    switch (checkProjectAppPath(appPath)) {
+    case AppPathType::NoExecutable: {
+        QMessageBox::warning(
+            this, "QtAda | Project Error",
+            QStringLiteral("Invalid path to the tested application in the specified project file "
+                           "(file does not exist or is not executable)."));
+        return false;
+    }
+    case AppPathType::NoProbe: {
+        QMessageBox::warning(
+            this, "QtAda | Project Error",
+            QStringLiteral(
+                "Can't find Probe ABI for the executable file at the specified path in the "
+                "project file (the tested application should be built with Qt 5.15)."));
+        return false;
+    }
+    case AppPathType::Ok: {
+        return true;
+    }
+    }
+    Q_UNREACHABLE();
+}
+
+InitDialog::AppPathType InitDialog::checkProjectAppPath(const QString &path) noexcept
+{
+    const auto absExeAppPath = launcher::utils::absoluteExecutablePath(path);
+    if (absExeAppPath.isEmpty()) {
+        return AppPathType::NoExecutable;
+    }
+
+    const auto probeAbi = launcher::probe::detectProbeAbiForExecutable(absExeAppPath);
+    if (!probeAbi.isValid()) {
+        return AppPathType::NoProbe;
+    }
+
+    return AppPathType::Ok;
+}
+
+void InitDialog::setDefaultInfoForAppPathWidget() noexcept
+{
+    appPathEdit_->clear();
+    appInfoEdit_->setText("No path specified.");
+}
+
+void InitDialog::updateAppPathInfo(const AppPathType type) noexcept
+{
+    appInfoEdit_->clear();
+    auto isError = type == AppPathType::NoExecutable;
+    appInfoEdit_->setHtml(QStringLiteral("-- Executable: <font color=\"%1\">%2</font>")
+                              .arg(isError ? "#F94144" : "#43AA8B")
+                              .arg(isError ? "ERROR" : "OK"));
+    isError = isError || type == AppPathType::NoProbe;
+    appInfoEdit_->append(QStringLiteral("-- Probe ABI: <font color=\"%1\">%2</font>")
+                             .arg(isError ? "#F94144" : "#43AA8B")
+                             .arg(isError ? "ERROR" : "OK"));
+}
+
+void InitDialog::handleSelectAppPath() noexcept
+{
+    const auto appPath
+        = QFileDialog::getOpenFileName(this, "QtAda | Select executable", QDir::homePath())
+              .trimmed();
+    if (appPath.isEmpty()) {
+        setDefaultInfoForAppPathWidget();
+        return;
+    }
+    appPathEdit_->setText(appPath);
+
+    const auto appPathType = checkProjectAppPath(appPath);
+    updateAppPathInfo(appPathType);
+    confirmButton_->setEnabled(appPathType == AppPathType::Ok);
+}
+
+void InitDialog::handleBackToInit() noexcept
+{
+    selectedProjectPath_.clear();
+    appPathWidget_->setVisible(false);
+    initWidget_->setVisible(true);
+    setDefaultInfoForAppPathWidget();
+}
+
+void InitDialog::handleConfirmAppPath() noexcept
+{
+    auto project = QSettings(selectedProjectPath_, QSettings::IniFormat);
+    project.setValue(paths::PROJECT_APP_PATH, appPathEdit_->text().trimmed());
     this->accept();
+}
+
+void InitDialog::handleAppPathChanged() noexcept
+{
+    const auto appPath = appPathEdit_->text().trimmed();
+    const auto appPathType = checkProjectAppPath(appPath);
+    updateAppPathInfo(appPathType);
+    confirmButton_->setEnabled(appPathType == AppPathType::Ok);
 }
 } // namespace QtAda::gui
