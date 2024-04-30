@@ -1,6 +1,7 @@
 #pragma once
 
 #include <QDialog>
+#include "GuiTools.hpp"
 
 QT_BEGIN_NAMESPACE
 class QSettings;
@@ -37,12 +38,6 @@ private slots:
     void handleAppPathChanged() noexcept;
 
 private:
-    enum class AppPathType {
-        Ok = 0,
-        NoExecutable,
-        NoProbe,
-    };
-
     QString selectedProjectPath_;
 
     QWidget *initWidget_ = nullptr;
@@ -64,10 +59,9 @@ private:
                               bool needToShowMsg = true) noexcept;
     void updateRecentInConfig(const QString &path) noexcept;
     bool checkProjectFile() noexcept;
-    AppPathType checkProjectAppPath(const QString &path) noexcept;
 
     void setDefaultInfoForAppPathWidget() noexcept;
-    void updateAppPathInfo(const AppPathType type) noexcept;
+    void updateAppPathInfo(const AppPathCheck type) noexcept;
 
     void tryToAcceptPath(const QString &path) noexcept;
 };

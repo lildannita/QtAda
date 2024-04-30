@@ -13,6 +13,10 @@
         <file>run_all.svg</file>
         <file>record.svg</file>
         <file>record_update.svg</file>
+        <file>test_app.svg</file>
+        <file>dir.svg</file>
+        <file>source_dir.svg</file>
+        <file>root_dir.svg</file>
         <file>app.png</file>
     </qresource>
 </RCC>

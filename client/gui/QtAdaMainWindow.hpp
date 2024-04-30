@@ -7,6 +7,7 @@
 QT_BEGIN_NAMESPACE
 class QSettings;
 class QString;
+class QStandardItemModel;
 QT_END_NAMESPACE
 
 namespace Ui {
@@ -14,13 +15,20 @@ class QtAdaGui;
 }
 
 namespace QtAda::gui {
-class MainWindow final : public QMainWindow {
+class QtAdaMainWindow final : public QMainWindow {
     Q_OBJECT
 public:
-    MainWindow(const QString &projectPath, QWidget *parent = nullptr);
-    ~MainWindow();
+    QtAdaMainWindow(const QString &projectPath, QWidget *parent = nullptr);
+    ~QtAdaMainWindow();
 
 private:
+    enum Roles {
+        ScriptRole = Qt::UserRole,
+        TestAppRole,
+        DirRole,
+        None,
+    };
+
     Ui::QtAdaGui *ui = nullptr;
 
     QSettings *project_ = nullptr;
@@ -29,5 +37,9 @@ private:
     ExecuteSettings executeSettings_;
 
     void configureProject(const QString &projectPath) noexcept;
+
+    void updateProjectFileView() noexcept;
+    void saveSizesToProjectFile() noexcept;
+    void setSizesFromProjectFile() noexcept;
 };
 } // namespace QtAda::gui

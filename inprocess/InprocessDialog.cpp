@@ -40,7 +40,7 @@ InprocessDialog::InprocessDialog(const RecordSettings &settings, QWidget *parent
     inprocessHost_->enableRemoting(inprocessController_);
 
     // Настройка параметров окна диалога
-    this->setWindowTitle("QtAda | Control Bar");
+    this->setWindowTitle(paths::QTADA_RECORD_CONTROLLER_HEADER);
     this->setWindowFlags(Qt::CustomizeWindowHint | Qt::WindowTitleHint);
     this->setWindowIcon(QIcon(":/icons/app.png"));
     this->setAttribute(Qt::WA_DeleteOnClose);

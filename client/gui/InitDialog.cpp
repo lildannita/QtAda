@@ -18,9 +18,6 @@
 #include <QTextEdit>
 
 #include "Paths.hpp"
-#include "GuiTools.hpp"
-#include "ProbeDetector.hpp"
-#include "LauncherUtils.hpp"
 
 namespace QtAda::gui {
 InitDialog::InitDialog(QWidget *parent) noexcept
@@ -30,7 +27,7 @@ InitDialog::InitDialog(QWidget *parent) noexcept
     assert(config_ != nullptr);
 
     // Инициализация параметров окна
-    this->setWindowTitle("QtAda | Init Project");
+    this->setWindowTitle(paths::QTADA_INIT_PROJECT_HEADER);
     this->setWindowIcon(QIcon(":/icons/app.png"));
 
     // Инициализация основных кнопок
@@ -163,7 +160,7 @@ bool InitDialog::checkProjectFilePath(const QString &path, bool isOpenMode,
 
     if (fileInfo.suffix() != paths::PROJECT_SUFFIX) {
         if (needToShowMsg) {
-            QMessageBox::critical(this, "QtAda | Error",
+            QMessageBox::critical(this, paths::QTADA_ERROR_HEADER,
                                   QStringLiteral("The project file extension must be '%1'.")
                                       .arg(paths::PROJECT_SUFFIX));
         }
@@ -173,14 +170,14 @@ bool InitDialog::checkProjectFilePath(const QString &path, bool isOpenMode,
     if (isOpenMode) {
         if (!fileInfo.exists()) {
             if (needToShowMsg) {
-                QMessageBox::critical(this, "QtAda | Error",
+                QMessageBox::critical(this, paths::QTADA_ERROR_HEADER,
                                       QStringLiteral("The project file doesn't exist."));
             }
             return false;
         }
         if (!(fileInfo.isFile() && fileInfo.isReadable() && fileInfo.isWritable())) {
             if (needToShowMsg) {
-                QMessageBox::critical(this, "QtAda | Error",
+                QMessageBox::critical(this, paths::QTADA_ERROR_HEADER,
                                       QStringLiteral("The project can't be opened."));
             }
             return false;
@@ -189,7 +186,7 @@ bool InitDialog::checkProjectFilePath(const QString &path, bool isOpenMode,
     else {
         auto file = QFile(path);
         if (!file.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
-            QMessageBox::critical(this, "QtAda | Error",
+            QMessageBox::critical(this, paths::QTADA_ERROR_HEADER,
                                   QStringLiteral("The project file can't be created."));
             return false;
         }
@@ -245,7 +242,7 @@ void InitDialog::handleNewProject() noexcept
 {
     const auto projectPath
         = QFileDialog::getSaveFileName(
-              this, "QtAda | New Project",
+              this, paths::QTADA_NEW_PROJECT_HEADER,
               QStringLiteral("%1/untitled.%2").arg(QDir::homePath()).arg(paths::PROJECT_SUFFIX),
               QStringLiteral("QtAda (*.%1)").arg(paths::PROJECT_SUFFIX))
               .trimmed();
@@ -263,7 +260,7 @@ void InitDialog::handleNewProject() noexcept
 void InitDialog::handleOpenProject() noexcept
 {
     const auto projectPath
-        = QFileDialog::getOpenFileName(this, "QtAda | Open Project", QDir::homePath(),
+        = QFileDialog::getOpenFileName(this, paths::QTADA_OPEN_PROJECT_HEADER, QDir::homePath(),
                                        QStringLiteral("QtAda (*.%1)").arg(paths::PROJECT_SUFFIX))
               .trimmed();
     if (projectPath.isEmpty() || !checkProjectFilePath(projectPath, true)) {
@@ -317,42 +314,27 @@ bool InitDialog::checkProjectFile() noexcept
     auto project = QSettings(selectedProjectPath_, QSettings::IniFormat);
 
     const auto appPath = project.value(paths::PROJECT_APP_PATH, "").toString().trimmed();
-    switch (checkProjectAppPath(appPath)) {
-    case AppPathType::NoExecutable: {
+    switch (tools::checkProjectAppPath(appPath)) {
+    case AppPathCheck::NoExecutable: {
         QMessageBox::warning(
-            this, "QtAda | Project Error",
+            this, paths::QTADA_PROJECT_ERROR_HEADER,
             QStringLiteral("Invalid path to the tested application in the specified project file "
                            "(file does not exist or is not executable)."));
         return false;
     }
-    case AppPathType::NoProbe: {
+    case AppPathCheck::NoProbe: {
         QMessageBox::warning(
-            this, "QtAda | Project Error",
+            this, paths::QTADA_PROJECT_ERROR_HEADER,
             QStringLiteral(
                 "Can't find Probe ABI for the executable file at the specified path in the "
                 "project file (the tested application should be built with Qt 5.15)."));
         return false;
     }
-    case AppPathType::Ok: {
+    case AppPathCheck::Ok: {
         return true;
     }
     }
     Q_UNREACHABLE();
-}
-
-InitDialog::AppPathType InitDialog::checkProjectAppPath(const QString &path) noexcept
-{
-    const auto absExeAppPath = launcher::utils::absoluteExecutablePath(path);
-    if (absExeAppPath.isEmpty()) {
-        return AppPathType::NoExecutable;
-    }
-
-    const auto probeAbi = launcher::probe::detectProbeAbiForExecutable(absExeAppPath);
-    if (!probeAbi.isValid()) {
-        return AppPathType::NoProbe;
-    }
-
-    return AppPathType::Ok;
 }
 
 void InitDialog::setDefaultInfoForAppPathWidget() noexcept
@@ -361,14 +343,14 @@ void InitDialog::setDefaultInfoForAppPathWidget() noexcept
     appInfoEdit_->setText("No path specified.");
 }
 
-void InitDialog::updateAppPathInfo(const AppPathType type) noexcept
+void InitDialog::updateAppPathInfo(const AppPathCheck type) noexcept
 {
     appInfoEdit_->clear();
-    auto isError = type == AppPathType::NoExecutable;
+    auto isError = type == AppPathCheck::NoExecutable;
     appInfoEdit_->setHtml(QStringLiteral("-- Executable: <font color=\"%1\">%2</font>")
                               .arg(isError ? "#F94144" : "#43AA8B")
                               .arg(isError ? "ERROR" : "OK"));
-    isError = isError || type == AppPathType::NoProbe;
+    isError = isError || type == AppPathCheck::NoProbe;
     appInfoEdit_->append(QStringLiteral("-- Probe ABI: <font color=\"%1\">%2</font>")
                              .arg(isError ? "#F94144" : "#43AA8B")
                              .arg(isError ? "ERROR" : "OK"));
@@ -377,7 +359,7 @@ void InitDialog::updateAppPathInfo(const AppPathType type) noexcept
 void InitDialog::handleSelectAppPath() noexcept
 {
     const auto appPath
-        = QFileDialog::getOpenFileName(this, "QtAda | Select executable", QDir::homePath())
+        = QFileDialog::getOpenFileName(this, paths::QTADA_SELECT_EXE_HEADER, QDir::homePath())
               .trimmed();
     if (appPath.isEmpty()) {
         setDefaultInfoForAppPathWidget();
@@ -385,9 +367,9 @@ void InitDialog::handleSelectAppPath() noexcept
     }
     appPathEdit_->setText(appPath);
 
-    const auto appPathType = checkProjectAppPath(appPath);
+    const auto appPathType = tools::checkProjectAppPath(appPath);
     updateAppPathInfo(appPathType);
-    confirmButton_->setEnabled(appPathType == AppPathType::Ok);
+    confirmButton_->setEnabled(appPathType == AppPathCheck::Ok);
 }
 
 void InitDialog::handleBackToInit() noexcept
@@ -408,8 +390,8 @@ void InitDialog::handleConfirmAppPath() noexcept
 void InitDialog::handleAppPathChanged() noexcept
 {
     const auto appPath = appPathEdit_->text().trimmed();
-    const auto appPathType = checkProjectAppPath(appPath);
+    const auto appPathType = tools::checkProjectAppPath(appPath);
     updateAppPathInfo(appPathType);
-    confirmButton_->setEnabled(appPathType == AppPathType::Ok);
+    confirmButton_->setEnabled(appPathType == AppPathCheck::Ok);
 }
 } // namespace QtAda::gui
