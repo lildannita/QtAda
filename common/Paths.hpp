@@ -22,6 +22,8 @@ static const auto QTADA_RECORD_CONTROLLER_HEADER
     = QStringLiteral("%1 | Record Controller").arg(QTADA_HEADER);
 
 static constexpr char PROJECT_APP_PATH[] = "appPath";
+static constexpr char PROJECT_SCRIPTS[] = "scripts";
+static constexpr char PROJECT_SOURCE[] = "source";
 static constexpr char PROJECT_SIZES_GROUP[] = "LastUserSizes";
 static constexpr char PROJECT_CONTENT_SIZES[] = "contentSizes";
 static constexpr char PROJECT_MAIN_SIZES[] = "mainSizes";

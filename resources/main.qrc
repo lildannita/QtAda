@@ -17,6 +17,8 @@
         <file>dir.svg</file>
         <file>source_dir.svg</file>
         <file>root_dir.svg</file>
+        <file>script.svg</file>
+        <file>source.svg</file>
         <file>app.png</file>
     </qresource>
 </RCC>

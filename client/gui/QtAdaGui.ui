@@ -60,6 +60,9 @@
          </item>
          <item>
           <widget class="QTreeView" name="projectFilesView">
+           <property name="editTriggers">
+            <set>QAbstractItemView::NoEditTriggers</set>
+           </property>
            <property name="expandsOnDoubleClick">
             <bool>false</bool>
            </property>
