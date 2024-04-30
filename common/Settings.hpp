@@ -27,8 +27,6 @@ enum class ScriptWriteMode {
 struct RecordSettings final {
     QString scriptPath = QString();
 
-    bool inprocessDialog = true;
-
     int indentWidth = DEFAULT_INDENT_WIDTH;
     int blockCommentMinimumCount = -1;
     bool duplicateMouseEvent = false;

@@ -111,7 +111,6 @@ const QByteArray RecordSettings::toJson() const noexcept
 {
     QJsonObject obj;
     obj["scriptPath"] = this->scriptPath;
-    obj["inprocessDialog"] = this->inprocessDialog;
     obj["indentWidth"] = this->indentWidth;
     obj["blockCommentMinimumCount"] = this->blockCommentMinimumCount;
     obj["duplicateMouseEvent"] = this->duplicateMouseEvent;
@@ -131,7 +130,6 @@ const RecordSettings RecordSettings::fromJson(const QByteArray &data) noexcept
     QJsonObject obj = readDoc.object();
     RecordSettings settings;
     settings.scriptPath = obj["scriptPath"].toString();
-    settings.inprocessDialog = obj["inprocessDialog"].toBool();
     settings.indentWidth = obj["indentWidth"].toInt();
     settings.blockCommentMinimumCount = obj["blockCommentMinimumCount"].toInt();
     settings.duplicateMouseEvent = obj["duplicateMouseEvent"].toBool();

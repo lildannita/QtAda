@@ -7,6 +7,12 @@
         <file>search.svg</file>
         <file>confirm.svg</file>
         <file>back.svg</file>
+        <file>new_script.svg</file>
+        <file>add_script.svg</file>
+        <file>run_current.svg</file>
+        <file>run_all.svg</file>
+        <file>record.svg</file>
+        <file>record_update.svg</file>
         <file>app.png</file>
     </qresource>
 </RCC>

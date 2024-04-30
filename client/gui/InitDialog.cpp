@@ -150,7 +150,7 @@ QPushButton *InitDialog::initButton(const QString &text, const QString &iconPath
     button->setIcon(QIcon(iconPath));
     button->setIconSize(QSize(30, 30));
     button->setFocusPolicy(Qt::NoFocus);
-    button->setStyleSheet("text-align:left;");
+    button->setStyleSheet("text-align:left;margin-left: 5px;");
     button->setFlat(true);
     return button;
 }
