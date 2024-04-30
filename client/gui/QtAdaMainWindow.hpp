@@ -51,8 +51,8 @@ private:
                           bool isScriptsTree) noexcept;
     QStringList getAccessiblePaths(const QFileInfo &projectInfo, bool isScripts) noexcept;
 
-    void saveSizesToProjectFile() noexcept;
-    void setSizesFromProjectFile() noexcept;
+    void saveGuiParamsToProjectFile() noexcept;
+    void setGuiParamsFromProjectFile() noexcept;
 
     bool event(QEvent *event) override;
 };

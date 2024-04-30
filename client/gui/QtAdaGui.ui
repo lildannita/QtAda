@@ -693,7 +693,9 @@ margin-left: 5px;</string>
     <bool>false</bool>
    </attribute>
    <addaction name="actionNewScript"/>
+   <addaction name="actionNewSource"/>
    <addaction name="actionAddScript"/>
+   <addaction name="actionAddSource"/>
   </widget>
   <action name="actionNewProject">
    <property name="text">
@@ -784,6 +786,42 @@ margin-left: 5px;</string>
    </property>
    <property name="shortcut">
     <string>Ctrl+Shift+R</string>
+   </property>
+   <property name="menuRole">
+    <enum>QAction::NoRole</enum>
+   </property>
+  </action>
+  <action name="actionNewSource">
+   <property name="icon">
+    <iconset resource="../../resources/main.qrc">
+     <normaloff>:/icons/new_source.svg</normaloff>:/icons/new_source.svg</iconset>
+   </property>
+   <property name="text">
+    <string>New Source</string>
+   </property>
+   <property name="toolTip">
+    <string>Create a new source file (Ctrl+M)</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+M</string>
+   </property>
+   <property name="menuRole">
+    <enum>QAction::NoRole</enum>
+   </property>
+  </action>
+  <action name="actionAddSource">
+   <property name="icon">
+    <iconset resource="../../resources/main.qrc">
+     <normaloff>:/icons/add_source.svg</normaloff>:/icons/add_source.svg</iconset>
+   </property>
+   <property name="text">
+    <string>Add Source</string>
+   </property>
+   <property name="toolTip">
+    <string>Add an existing source file to the test project (Ctrl+Shift+M)</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+Shift+M</string>
    </property>
    <property name="menuRole">
     <enum>QAction::NoRole</enum>

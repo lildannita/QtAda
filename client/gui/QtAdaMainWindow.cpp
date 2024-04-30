@@ -115,7 +115,7 @@ QtAdaMainWindow::QtAdaMainWindow(const QString &projectPath, QWidget *parent)
 QtAdaMainWindow::~QtAdaMainWindow()
 {
     if (project_ != nullptr && saveProjectFileOnExit_) {
-        saveSizesToProjectFile();
+        saveGuiParamsToProjectFile();
         project_->deleteLater();
         project_ = nullptr;
     }
@@ -142,13 +142,13 @@ bool QtAdaMainWindow::event(QEvent *event)
 void QtAdaMainWindow::configureProject(const QString &projectPath) noexcept
 {
     if (project_ != nullptr) {
-        saveSizesToProjectFile();
+        saveGuiParamsToProjectFile();
         project_->deleteLater();
     }
     project_ = new QSettings(projectPath, QSettings::IniFormat);
 
     updateProjectFileView(false);
-    setSizesFromProjectFile();
+    setGuiParamsFromProjectFile();
 }
 
 void QtAdaMainWindow::updateProjectFileView(bool isExternal) noexcept
@@ -191,7 +191,7 @@ void QtAdaMainWindow::updateProjectFileView(bool isExternal) noexcept
         lastSources_ = std::move(currentSources);
     }
 
-    if (!needToUpdateModel) {
+    if (!needToUpdateModel && uiInitialized_) {
         return;
     }
 
@@ -346,11 +346,12 @@ void QtAdaMainWindow::configureSubTree(QStandardItem *rootItem, const QString &p
     }
 }
 
-void QtAdaMainWindow::saveSizesToProjectFile() noexcept
+void QtAdaMainWindow::saveGuiParamsToProjectFile() noexcept
 {
     assert(project_ != nullptr);
 
-    project_->beginGroup(paths::PROJECT_SIZES_GROUP);
+    project_->beginGroup(paths::PROJECT_GUI_GROUP);
+
     QVariantList contentSizes;
     for (const auto &width : ui->contentSplitter->sizes()) {
         contentSizes.append(width);
@@ -364,18 +365,36 @@ void QtAdaMainWindow::saveSizesToProjectFile() noexcept
     }
     assert(mainSizes.size() == 2);
     project_->setValue(paths::PROJECT_MAIN_SIZES, mainSizes);
+
+    project_->setValue(paths::PROJECT_TOOL_BAR_POSITION, this->toolBarArea(ui->toolBar));
+
     project_->endGroup();
     project_->sync();
 }
 
-void QtAdaMainWindow::setSizesFromProjectFile() noexcept
+void QtAdaMainWindow::setGuiParamsFromProjectFile() noexcept
 {
     assert(project_ != nullptr);
 
-    project_->beginGroup(paths::PROJECT_SIZES_GROUP);
+    bool toolBarPosIsOk = false;
+    auto *toolBar = ui->toolBar;
+    assert(toolBar != nullptr);
+
+    project_->beginGroup(paths::PROJECT_GUI_GROUP);
+    const auto toolBarPos
+        = project_->value(paths::PROJECT_TOOL_BAR_POSITION, Qt::ToolBarArea::TopToolBarArea)
+              .toInt(&toolBarPosIsOk);
     const auto contentProjectSizes = project_->value(paths::PROJECT_CONTENT_SIZES, {}).toList();
     const auto mainProjectSizes = project_->value(paths::PROJECT_MAIN_SIZES, {}).toList();
     project_->endGroup();
+
+    if (toolBarPosIsOk && toolBarPos >= Qt::ToolBarArea::LeftToolBarArea
+        && toolBarPos <= Qt::ToolBarArea::BottomToolBarArea) {
+        this->addToolBar(static_cast<Qt::ToolBarArea>(toolBarPos), toolBar);
+    }
+    else {
+        this->addToolBar(Qt::ToolBarArea::TopToolBarArea, toolBar);
+    }
 
     if (contentProjectSizes.isEmpty() || contentProjectSizes.size() != 3) {
         ui->contentSplitter->setSizes({ -1, ui->contentWidget->maximumWidth(), -1 });

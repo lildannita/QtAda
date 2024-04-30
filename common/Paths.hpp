@@ -25,9 +25,10 @@ static const auto QTADA_RECORD_CONTROLLER_HEADER
 static constexpr char PROJECT_APP_PATH[] = "appPath";
 static constexpr char PROJECT_SCRIPTS[] = "scripts";
 static constexpr char PROJECT_SOURCES[] = "sources";
-static constexpr char PROJECT_SIZES_GROUP[] = "LastUserSizes";
+static constexpr char PROJECT_GUI_GROUP[] = "LastGuiParams";
 static constexpr char PROJECT_CONTENT_SIZES[] = "contentSizes";
 static constexpr char PROJECT_MAIN_SIZES[] = "mainSizes";
+static constexpr char PROJECT_TOOL_BAR_POSITION[] = "toolBarPosition";
 
 static constexpr char REMOTE_OBJECT_PATH[] = "local:QTADA_REMOTE_OBJECT";
 //! TODO: Костыль, см. InprocessController::startInitServer().
