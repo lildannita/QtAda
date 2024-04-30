@@ -1,9 +1,28 @@
 #include "GuiTools.hpp"
 
+#include <QAbstractItemView>
+
 #include "ProbeDetector.hpp"
 #include "LauncherUtils.hpp"
 
 namespace QtAda::gui::tools {
+void deleteModels(QAbstractItemView *view) noexcept
+{
+    if (view == nullptr) {
+        return;
+    }
+
+    auto selectionModel = view->selectionModel();
+    if (selectionModel != nullptr) {
+        selectionModel->deleteLater();
+    }
+
+    auto model = view->model();
+    if (model != nullptr) {
+        model->deleteLater();
+    }
+}
+
 AppPathCheck checkProjectAppPath(const QString &path) noexcept
 {
     const auto absExeAppPath = launcher::utils::absoluteExecutablePath(path);

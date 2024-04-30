@@ -11,6 +11,7 @@ static constexpr char CONFIG_RECENT_PROJECTS[] = "recentProjects";
 
 static const auto QTADA_HEADER = QStringLiteral("QtAda");
 static const auto QTADA_ERROR_HEADER = QStringLiteral("%1 | Error").arg(QTADA_HEADER);
+static const auto QTADA_WARNING_HEADER = QStringLiteral("%1 | Warning").arg(QTADA_HEADER);
 static const auto QTADA_PROJECT_ERROR_HEADER
     = QStringLiteral("%1 | Project Error").arg(QTADA_HEADER);
 static const auto QTADA_INIT_PROJECT_HEADER = QStringLiteral("%1 | Init Project").arg(QTADA_HEADER);
@@ -23,7 +24,7 @@ static const auto QTADA_RECORD_CONTROLLER_HEADER
 
 static constexpr char PROJECT_APP_PATH[] = "appPath";
 static constexpr char PROJECT_SCRIPTS[] = "scripts";
-static constexpr char PROJECT_SOURCE[] = "source";
+static constexpr char PROJECT_SOURCES[] = "sources";
 static constexpr char PROJECT_SIZES_GROUP[] = "LastUserSizes";
 static constexpr char PROJECT_CONTENT_SIZES[] = "contentSizes";
 static constexpr char PROJECT_MAIN_SIZES[] = "mainSizes";

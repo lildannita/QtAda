@@ -4,6 +4,10 @@
 #include <QVBoxLayout>
 #include <QSpacerItem>
 
+QT_BEGIN_NAMESPACE
+class QAbstractItemView;
+QT_END_NAMESPACE
+
 namespace QtAda::gui {
 enum class AppPathCheck {
     Ok = 0,
@@ -32,6 +36,8 @@ inline void setHSpacer(QBoxLayout *layout) noexcept
     assert(layout != nullptr);
     layout->addSpacerItem(new QSpacerItem(40, 20, QSizePolicy::Expanding, QSizePolicy::Minimum));
 }
+
+void deleteModels(QAbstractItemView *view) noexcept;
 
 AppPathCheck checkProjectAppPath(const QString &path) noexcept;
 QString fileNameWithoutSuffix(const QString &path) noexcept;

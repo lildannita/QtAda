@@ -6,7 +6,6 @@
 
 QT_BEGIN_NAMESPACE
 class QSettings;
-class QString;
 class QStandardItem;
 class QFileInfo;
 QT_END_NAMESPACE
@@ -33,18 +32,24 @@ public:
 
 private:
     Ui::QtAdaGui *ui = nullptr;
+    bool uiInitialized_ = false;
 
     QSettings *project_ = nullptr;
+    QStringList lastScripts_;
+    QStringList lastSources_;
 
     RecordSettings recordSettings_;
     ExecuteSettings executeSettings_;
 
     void configureProject(const QString &projectPath) noexcept;
-    void updateProjectFileView() noexcept;
-    void configureSubTree(QStandardItem *rootItem, const QFileInfo &projectInfo,
+    void updateProjectFileView(bool isExternal) noexcept;
+    void configureSubTree(QStandardItem *rootItem, const QString &projectDirPath,
                           bool isScriptsTree) noexcept;
+    QStringList getAccessiblePaths(const QFileInfo &projectInfo, bool isScripts) noexcept;
 
     void saveSizesToProjectFile() noexcept;
     void setSizesFromProjectFile() noexcept;
+
+    bool event(QEvent *event) override;
 };
 } // namespace QtAda::gui

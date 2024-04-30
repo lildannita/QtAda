@@ -123,6 +123,22 @@ QtAdaMainWindow::~QtAdaMainWindow()
     delete ui;
 }
 
+bool QtAdaMainWindow::event(QEvent *event)
+{
+    if (event->type() == QEvent::WindowActivate) {
+        if (uiInitialized_) {
+            updateProjectFileView(true);
+        }
+        else {
+            // Сразу после .show() этого делать нельзя, так как
+            // событие WindowActivate может возникнуть позже ->
+            // будет "лишний" вызов функции
+            uiInitialized_ = true;
+        }
+    }
+    return QMainWindow::event(event);
+}
+
 void QtAdaMainWindow::configureProject(const QString &projectPath) noexcept
 {
     if (project_ != nullptr) {
@@ -131,11 +147,11 @@ void QtAdaMainWindow::configureProject(const QString &projectPath) noexcept
     }
     project_ = new QSettings(projectPath, QSettings::IniFormat);
 
-    updateProjectFileView();
+    updateProjectFileView(false);
     setSizesFromProjectFile();
 }
 
-void QtAdaMainWindow::updateProjectFileView() noexcept
+void QtAdaMainWindow::updateProjectFileView(bool isExternal) noexcept
 {
     assert(project_ != nullptr);
 
@@ -161,6 +177,27 @@ void QtAdaMainWindow::updateProjectFileView() noexcept
         return;
     }
 
+    bool needToUpdateModel = false;
+    const auto currentScripts = getAccessiblePaths(projectFileInfo, true);
+    if (currentScripts != lastScripts_) {
+        needToUpdateModel = true;
+        lastScripts_ = std::move(currentScripts);
+    }
+    const auto currentSources = getAccessiblePaths(projectFileInfo, false);
+    if (currentSources != lastSources_) {
+        needToUpdateModel = true;
+        lastSources_ = std::move(currentSources);
+    }
+
+    if (!needToUpdateModel) {
+        return;
+    }
+
+    if (isExternal) {
+        QMessageBox::warning(this, paths::QTADA_WARNING_HEADER,
+                             QStringLiteral("Project resources have been changed externally."));
+    }
+
     auto *projectFilesModel = new QStandardItemModel(this);
 
     const auto projectDir = projectFileInfo.dir();
@@ -173,12 +210,14 @@ void QtAdaMainWindow::updateProjectFileView() noexcept
     projectViewItem->setIcon(QIcon(":/icons/project.svg"));
     rootProjectDir->appendRow(projectViewItem);
 
+    const auto projectDirPath = projectDir.absolutePath();
+
     auto *scriptsDirItem = initDirItem(QString(), QStringLiteral("Scripts"), true);
-    configureSubTree(scriptsDirItem, projectFileInfo, true);
+    configureSubTree(scriptsDirItem, projectDirPath, true);
     rootProjectDir->appendRow(scriptsDirItem);
 
-    auto *sourceDirItem = initDirItem(QString(), QStringLiteral("Source"), true);
-    configureSubTree(sourceDirItem, projectFileInfo, false);
+    auto *sourceDirItem = initDirItem(QString(), QStringLiteral("Sources"), true);
+    configureSubTree(sourceDirItem, projectDirPath, false);
     rootProjectDir->appendRow(sourceDirItem);
 
     const auto appFileInfo = QFileInfo(appPath);
@@ -188,15 +227,10 @@ void QtAdaMainWindow::updateProjectFileView() noexcept
     appItem->setIcon(QIcon(":/icons/test_app.svg"));
     projectFilesModel->appendRow(appItem);
 
-    //! TODO: при перезагрузке нужно проверить, что получившаяся модель отличается
-
-    auto *prevModel = ui->projectFilesView->model();
-    if (prevModel != nullptr) {
-        prevModel->deleteLater();
-    }
+    tools::deleteModels(ui->projectFilesView);
     ui->projectFilesView->setModel(projectFilesModel);
 
-    // Раскрываем: <ProjectDir>, Scripts, Source
+    // Раскрываем: <ProjectDir>, Scripts, Sources
     for (int row = 0; row < projectFilesModel->rowCount(); row++) {
         const auto index = projectFilesModel->index(row, 0);
         ui->projectFilesView->expand(index);
@@ -208,18 +242,17 @@ void QtAdaMainWindow::updateProjectFileView() noexcept
     }
 }
 
-void QtAdaMainWindow::configureSubTree(QStandardItem *rootItem, const QFileInfo &projectInfo,
-                                       bool isScriptsTree) noexcept
+QStringList QtAdaMainWindow::getAccessiblePaths(const QFileInfo &projectInfo,
+                                                bool isScripts) noexcept
 {
-    assert(rootItem != nullptr);
     assert(project_ != nullptr);
 
     // Считываем пути к файлам
     const auto rawFilesPaths
-        = project_->value(isScriptsTree ? paths::PROJECT_SCRIPTS : paths::PROJECT_SOURCE)
+        = project_->value(isScripts ? paths::PROJECT_SCRIPTS : paths::PROJECT_SOURCES)
               .toStringList();
     if (rawFilesPaths.isEmpty()) {
-        return;
+        return QStringList();
     }
 
     // "Засовывая" rawFilesPaths в std::set мы одновременно избавляемся от дубликатов
@@ -234,6 +267,34 @@ void QtAdaMainWindow::configureSubTree(QStandardItem *rootItem, const QFileInfo 
     // не доступны для записи или не являющиеся файлами
     QStringList discardFiles;
 
+    const auto projectDirPath = projectInfo.dir().absolutePath();
+    for (const auto &filePath : filesPaths) {
+        QFileInfo fileInfo(filePath);
+        if (!fileInfo.exists() || !fileInfo.isFile() || !fileInfo.isWritable()
+            || !fileInfo.isReadable() || (isScripts && fileInfo.suffix() != "js")) {
+            discardFiles.append(filePath);
+            continue;
+        }
+        acceptedFiles.append(filePath);
+    }
+
+    project_->setValue(isScripts ? paths::PROJECT_SCRIPTS : paths::PROJECT_SOURCES,
+                       acceptedFiles.isEmpty() ? QStringList("") : acceptedFiles);
+    if (!discardFiles.isEmpty()) {
+        QMessageBox::warning(
+            this, paths::QTADA_WARNING_HEADER,
+            QStringLiteral("These files are not applicable to the project, "
+                           "so they have been removed from the project file:\n-- %1")
+                .arg(discardFiles.join("\n-- ")));
+    }
+
+    return acceptedFiles;
+}
+
+void QtAdaMainWindow::configureSubTree(QStandardItem *rootItem, const QString &projectDirPath,
+                                       bool isScriptsTree) noexcept
+{
+    assert(rootItem != nullptr);
     // Файлы, которые лежат в корневой папке проекта. Выносим их отдельно, чтобы
     // добавить в конце инициализации, после всех подпапок
     QVector<QFileInfo> projectDirFilesInfo;
@@ -243,16 +304,8 @@ void QtAdaMainWindow::configureSubTree(QStandardItem *rootItem, const QFileInfo 
     // {путь к папке} -> {указатель на элемент модели}
     auto projectSubDirs = std::make_unique<QMap<QString, QStandardItem *>>();
 
-    const auto projectDirPath = projectInfo.dir().absolutePath();
-    for (const auto &filePath : filesPaths) {
+    for (const auto &filePath : (isScriptsTree ? lastScripts_ : lastSources_)) {
         QFileInfo fileInfo(filePath);
-
-        if (!fileInfo.exists() || !fileInfo.isFile() || !fileInfo.isWritable()
-            || !fileInfo.isReadable() || (isScriptsTree && fileInfo.suffix() != "js")) {
-            discardFiles.append(filePath);
-            continue;
-        }
-        acceptedFiles.append(filePath);
 
         const auto fileDirPath = fileInfo.dir().absolutePath();
         if (!fileInfo.absoluteFilePath().startsWith(projectDirPath)) {
@@ -288,16 +341,6 @@ void QtAdaMainWindow::configureSubTree(QStandardItem *rootItem, const QFileInfo 
                                  otherPathFileInfo);
         }
         rootItem->appendRow(otherPathsDirItem);
-    }
-
-    project_->setValue(isScriptsTree ? paths::PROJECT_SCRIPTS : paths::PROJECT_SOURCE,
-                       acceptedFiles.isEmpty() ? QStringList("") : acceptedFiles);
-    if (!discardFiles.isEmpty()) {
-        QMessageBox::warning(
-            this, paths::QTADA_ERROR_HEADER,
-            QStringLiteral("These files are not applicable to the project, "
-                           "so they have been removed from the project file:\n-- %1")
-                .arg(discardFiles.join("\n-- ")));
     }
 }
 
