@@ -33,7 +33,11 @@ public:
 private:
     Ui::QtAdaGui *ui = nullptr;
     bool uiInitialized_ = false;
+    bool saveProjectFileOnExit_ = true;
 
+    //! TODO: возможно, лучше не хранить QSettings открытым, так как иногда
+    //! "внешние" изменения могут быть проигнорированы и перезаписаны (например,
+    //! при изменении пути к тестируемому файлу) - и непонятно, хорошо ли это...
     QSettings *project_ = nullptr;
     QStringList lastScripts_;
     QStringList lastSources_;

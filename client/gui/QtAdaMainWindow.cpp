@@ -114,7 +114,7 @@ QtAdaMainWindow::QtAdaMainWindow(const QString &projectPath, QWidget *parent)
 
 QtAdaMainWindow::~QtAdaMainWindow()
 {
-    if (project_ != nullptr) {
+    if (project_ != nullptr && saveProjectFileOnExit_) {
         saveSizesToProjectFile();
         project_->deleteLater();
         project_ = nullptr;
@@ -160,6 +160,7 @@ void QtAdaMainWindow::updateProjectFileView(bool isExternal) noexcept
                            && projectFileInfo.isReadable() && projectFileInfo.isWritable();
 
     if (!projectOk) {
+        saveProjectFileOnExit_ = false;
         QMessageBox::critical(this, paths::QTADA_ERROR_HEADER,
                               QStringLiteral("The project file not accessible."));
         //! TODO: нужно придумать как "филиграннее" обрабатывать эту ситуацию
@@ -170,6 +171,7 @@ void QtAdaMainWindow::updateProjectFileView(bool isExternal) noexcept
     const auto appPath = project_->value(paths::PROJECT_APP_PATH, "").toString().trimmed();
     const auto appPathCheck = tools::checkProjectAppPath(appPath);
     if (appPathCheck != AppPathCheck::Ok) {
+        saveProjectFileOnExit_ = false;
         QMessageBox::critical(this, paths::QTADA_ERROR_HEADER,
                               QStringLiteral("The testing application not accessible."));
         //! TODO: нужно придумать как "филиграннее" обрабатывать эту ситуацию
