@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <ui version="4.0">
- <class>QtAdaGui</class>
- <widget class="QMainWindow" name="QtAdaGui">
+ <class>MainGui</class>
+ <widget class="QMainWindow" name="MainGui">
   <property name="windowModality">
    <enum>Qt::NonModal</enum>
   </property>
@@ -14,7 +14,7 @@
    </rect>
   </property>
   <property name="windowTitle">
-   <string>MainWindow</string>
+   <string>QtAda</string>
   </property>
   <property name="windowIcon">
    <iconset resource="../../resources/main.qrc">

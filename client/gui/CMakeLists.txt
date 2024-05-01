@@ -3,16 +3,16 @@ set(QTADA_GUI_BASENAME "gui")
 set(QTADA_GUI_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR} PARENT_SCOPE)
 
 set(gui_UI
-  QtAdaGui.ui)
+  MainGui.ui)
 set(gui_MOC_HDRS
   InitDialog.hpp
-  QtAdaMainWindow.hpp)
+  MainGui.hpp)
 set(gui_HDRS
   ${gui_MOC_HDRS}
   GuiTools.hpp)
 set(gui_SRCS
   InitDialog.cpp
-  QtAdaMainWindow.cpp
+  MainGui.cpp
   GuiTools.cpp)
 qt5_wrap_cpp(gen_SRCS ${gui_MOC_HDRS})
 qt5_wrap_ui(gen_SRCS ${gui_UI})

@@ -6,7 +6,7 @@
 #include "Common.hpp"
 #include "Launcher.hpp"
 #include "InitDialog.hpp"
-#include "QtAdaMainWindow.hpp"
+#include "MainGui.hpp"
 
 namespace QtAda {
 void shutdown(int sig)
@@ -45,7 +45,7 @@ int guiInitializer(int argc, char *argv[])
 
     InitDialog startDialog;
     if (startDialog.exec() == QDialog::Accepted) {
-        QtAdaMainWindow mainWindow(startDialog.selectedProjectPath());
+        MainGui mainWindow(startDialog.selectedProjectPath());
         mainWindow.showMaximized();
 
         auto exec = app.exec();

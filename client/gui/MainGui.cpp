@@ -1,4 +1,4 @@
-#include "QtAdaMainWindow.hpp"
+#include "MainGui.hpp"
 
 #include <QMessageBox>
 #include <QSettings>
@@ -7,7 +7,7 @@
 #include <set>
 #include <memory>
 
-#include "ui_QtAdaGui.h"
+#include "ui_MainGui.h"
 #include "Paths.hpp"
 #include "GuiTools.hpp"
 
@@ -16,8 +16,7 @@ static QStandardItem *initFileItem(const QString &filePath, const QString &fileN
                                    bool isScript) noexcept
 {
     auto *item = new QStandardItem(fileName);
-    item->setData(filePath, isScript ? QtAdaMainWindow::Roles::ScriptRole
-                                     : QtAdaMainWindow::Roles::SourceRole);
+    item->setData(filePath, isScript ? MainGui::Roles::ScriptRole : MainGui::Roles::SourceRole);
     item->setIcon(isScript ? QIcon(":/icons/script.svg") : QIcon(":/icons/source.svg"));
     return item;
 }
@@ -27,7 +26,7 @@ static QStandardItem *initDirItem(const QString &dirPath, const QString &dirName
 {
     auto *item = new QStandardItem(dirName);
     if (!dirPath.isEmpty() && !isSourceDir) {
-        item->setData(QUrl(dirPath), QtAdaMainWindow::Roles::DirRole);
+        item->setData(QUrl(dirPath), MainGui::Roles::DirRole);
     }
     item->setIcon(isRootDir
                       ? QIcon(":/icons/root_dir.svg")
@@ -88,9 +87,9 @@ static void handleSubDirectories(const QString &projectDirPath, QStandardItem *r
         initFileItem(fileInfo.absoluteFilePath(), fileInfo.fileName(), isScriptsTree));
 }
 
-QtAdaMainWindow::QtAdaMainWindow(const QString &projectPath, QWidget *parent)
+MainGui::MainGui(const QString &projectPath, QWidget *parent)
     : QMainWindow(parent)
-    , ui(new Ui::QtAdaGui)
+    , ui(new Ui::MainGui)
 {
     ui->setupUi(this);
 
@@ -112,7 +111,7 @@ QtAdaMainWindow::QtAdaMainWindow(const QString &projectPath, QWidget *parent)
     configureProject(projectPath);
 }
 
-QtAdaMainWindow::~QtAdaMainWindow()
+MainGui::~MainGui()
 {
     if (project_ != nullptr && saveProjectFileOnExit_) {
         saveGuiParamsToProjectFile();
@@ -123,7 +122,7 @@ QtAdaMainWindow::~QtAdaMainWindow()
     delete ui;
 }
 
-bool QtAdaMainWindow::event(QEvent *event)
+bool MainGui::event(QEvent *event)
 {
     if (event->type() == QEvent::WindowActivate) {
         if (uiInitialized_) {
@@ -139,7 +138,7 @@ bool QtAdaMainWindow::event(QEvent *event)
     return QMainWindow::event(event);
 }
 
-void QtAdaMainWindow::configureProject(const QString &projectPath) noexcept
+void MainGui::configureProject(const QString &projectPath) noexcept
 {
     if (project_ != nullptr) {
         saveGuiParamsToProjectFile();
@@ -151,7 +150,7 @@ void QtAdaMainWindow::configureProject(const QString &projectPath) noexcept
     setGuiParamsFromProjectFile();
 }
 
-void QtAdaMainWindow::updateProjectFileView(bool isExternal) noexcept
+void MainGui::updateProjectFileView(bool isExternal) noexcept
 {
     assert(project_ != nullptr);
 
@@ -244,8 +243,7 @@ void QtAdaMainWindow::updateProjectFileView(bool isExternal) noexcept
     }
 }
 
-QStringList QtAdaMainWindow::getAccessiblePaths(const QFileInfo &projectInfo,
-                                                bool isScripts) noexcept
+QStringList MainGui::getAccessiblePaths(const QFileInfo &projectInfo, bool isScripts) noexcept
 {
     assert(project_ != nullptr);
 
@@ -293,8 +291,8 @@ QStringList QtAdaMainWindow::getAccessiblePaths(const QFileInfo &projectInfo,
     return acceptedFiles;
 }
 
-void QtAdaMainWindow::configureSubTree(QStandardItem *rootItem, const QString &projectDirPath,
-                                       bool isScriptsTree) noexcept
+void MainGui::configureSubTree(QStandardItem *rootItem, const QString &projectDirPath,
+                               bool isScriptsTree) noexcept
 {
     assert(rootItem != nullptr);
     // Файлы, которые лежат в корневой папке проекта. Выносим их отдельно, чтобы
@@ -346,7 +344,7 @@ void QtAdaMainWindow::configureSubTree(QStandardItem *rootItem, const QString &p
     }
 }
 
-void QtAdaMainWindow::saveGuiParamsToProjectFile() noexcept
+void MainGui::saveGuiParamsToProjectFile() noexcept
 {
     assert(project_ != nullptr);
 
@@ -372,7 +370,7 @@ void QtAdaMainWindow::saveGuiParamsToProjectFile() noexcept
     project_->sync();
 }
 
-void QtAdaMainWindow::setGuiParamsFromProjectFile() noexcept
+void MainGui::setGuiParamsFromProjectFile() noexcept
 {
     assert(project_ != nullptr);
 

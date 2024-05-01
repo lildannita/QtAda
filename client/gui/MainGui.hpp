@@ -11,11 +11,11 @@ class QFileInfo;
 QT_END_NAMESPACE
 
 namespace Ui {
-class QtAdaGui;
+class MainGui;
 }
 
 namespace QtAda::gui {
-class QtAdaMainWindow final : public QMainWindow {
+class MainGui final : public QMainWindow {
     Q_OBJECT
 public:
     enum Roles {
@@ -27,11 +27,11 @@ public:
         None,
     };
 
-    QtAdaMainWindow(const QString &projectPath, QWidget *parent = nullptr);
-    ~QtAdaMainWindow();
+    MainGui(const QString &projectPath, QWidget *parent = nullptr);
+    ~MainGui();
 
 private:
-    Ui::QtAdaGui *ui = nullptr;
+    Ui::MainGui *ui = nullptr;
     bool uiInitialized_ = false;
     bool saveProjectFileOnExit_ = true;
 
