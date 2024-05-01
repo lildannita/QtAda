@@ -13,35 +13,69 @@
 #include "GuiTools.hpp"
 
 namespace QtAda::gui {
-static QStandardItem *initFileItem(const QString &filePath, const QString &fileName,
-                                   bool isScript) noexcept
-{
-    auto *item = new QStandardItem(fileName);
-    item->setData(filePath, isScript ? MainGui::Roles::ScriptRole : MainGui::Roles::SourceRole);
-    item->setIcon(isScript ? QIcon(":/icons/script.svg") : QIcon(":/icons/source.svg"));
-    return item;
-}
+class CustomStandardItem : public QStandardItem {
+public:
+    enum Roles {
+        ScriptRole = Qt::UserRole + 1,
+        SourceRole,
+        ProjectRole,
+        TestAppRole,
+        DirRole,
+        None,
+    };
 
-static QStandardItem *initDirItem(const QString &dirPath, const QString &dirName, bool isSourceDir,
-                                  bool isRootDir = false) noexcept
-{
-    auto *item = new QStandardItem(dirName);
-    if (!dirPath.isEmpty() && !isSourceDir) {
-        item->setData(QUrl(dirPath), MainGui::Roles::DirRole);
+    CustomStandardItem(const QString &name, const QIcon &icon, bool isSelectable = true) noexcept
+        : QStandardItem(name)
+    {
+        this->setIcon(icon);
+        this->setSelectable(isSelectable);
     }
-    item->setIcon(isRootDir
-                      ? QIcon(":/icons/root_dir.svg")
-                      : (isSourceDir ? QIcon(":/icons/source_dir.svg") : QIcon(":/icons/dir.svg")));
-    item->setSelectable(false);
-    return item;
+
+    CustomStandardItem(const QString &name, const QVariant &value, const QIcon &icon, int role,
+                       bool isSelectable = true) noexcept
+        : CustomStandardItem(name, icon, isSelectable)
+    {
+        role_ = role;
+        this->setData(value, role_);
+    }
+
+    int role() const noexcept
+    {
+        return role_;
+    }
+
+private:
+    int role_ = Roles::None;
+};
+
+static CustomStandardItem *initFileItem(const QString &fileName, const QString &filePath,
+                                        bool isScript) noexcept
+{
+    return new CustomStandardItem(
+        fileName, filePath, isScript ? QIcon(":/icons/script.svg") : QIcon(":/icons/source.svg"),
+        isScript ? CustomStandardItem::ScriptRole : CustomStandardItem::SourceRole);
 }
 
-static void handleSubDirectories(const QString &projectDirPath, QStandardItem *rootItem,
-                                 bool isScriptsTree, QMap<QString, QStandardItem *> *projectSubDirs,
+static CustomStandardItem *initDirItem(const QString &dirName, const QString &dirPath,
+                                       bool isSourceDir, bool isRootDir = false) noexcept
+{
+    if (!dirPath.isEmpty() && !isSourceDir) {
+        return new CustomStandardItem(
+            dirName, dirPath, isRootDir ? QIcon(":/icons/root_dir.svg") : QIcon(":/icons/dir.svg"),
+            CustomStandardItem::DirRole, false);
+    }
+    else {
+        return new CustomStandardItem(dirName, QIcon(":/icons/source_dir.svg"), false);
+    }
+}
+
+static void handleSubDirectories(const QString &projectDirPath, CustomStandardItem *rootItem,
+                                 bool isScriptsTree,
+                                 QMap<QString, CustomStandardItem *> *projectSubDirs,
                                  const QFileInfo &fileInfo) noexcept
 {
     // Указатель на элемент папки в модели
-    QStandardItem *subDirItem = nullptr;
+    CustomStandardItem *subDirItem = nullptr;
     const auto fileDirPath = fileInfo.dir().absolutePath();
 
     // Проверка существования папки по такому пути
@@ -67,7 +101,7 @@ static void handleSubDirectories(const QString &projectDirPath, QStandardItem *r
                 // Если папка не найдена, то до "конца" dirParts создаем новые папки
                 unknownDirFound = true;
 
-                auto *newDir = initDirItem(relativeDirPath, dirPart, false);
+                auto *newDir = initDirItem(dirPart, relativeDirPath, false);
                 subDirItem->appendRow(newDir);
                 subDirItem = newDir;
                 (*projectSubDirs)[relativeDirPath] = subDirItem;
@@ -85,7 +119,7 @@ static void handleSubDirectories(const QString &projectDirPath, QStandardItem *r
     assert(subDirItem != nullptr);
     // Добавляем к элементу папки новый файл
     subDirItem->appendRow(
-        initFileItem(fileInfo.absoluteFilePath(), fileInfo.fileName(), isScriptsTree));
+        initFileItem(fileInfo.fileName(), fileInfo.absoluteFilePath(), isScriptsTree));
 }
 
 MainGui::MainGui(const QString &projectPath, QWidget *parent)
@@ -119,6 +153,9 @@ MainGui::MainGui(const QString &projectPath, QWidget *parent)
             [this]() { addNewFileToProject(false, true); });
     connect(ui->actionAddSource, &QAction::triggered, this,
             [this]() { addNewFileToProject(false, false); });
+
+    connect(ui->projectFilesView, &QTreeView::customContextMenuRequested, this,
+            &MainGui::showProjectTreeContextMenu);
 }
 
 MainGui::~MainGui()
@@ -210,30 +247,27 @@ void MainGui::updateProjectFileView(bool isExternal) noexcept
 
     const auto projectDir = projectFileInfo.dir();
     auto *rootProjectDir
-        = initDirItem(projectDir.absolutePath(), projectDir.dirName(), false, true);
+        = initDirItem(projectDir.dirName(), projectDir.absolutePath(), false, true);
     projectFilesModel->appendRow(rootProjectDir);
 
-    auto *projectViewItem = new QStandardItem(projectFileInfo.fileName());
-    projectViewItem->setData(projectFileInfo.absoluteFilePath(), Roles::ProjectRole);
-    projectViewItem->setIcon(QIcon(":/icons/project.svg"));
-    rootProjectDir->appendRow(projectViewItem);
+    rootProjectDir->appendRow(
+        new CustomStandardItem(projectFileInfo.fileName(), projectFileInfo.absoluteFilePath(),
+                               QIcon(":/icons/project.svg"), CustomStandardItem::ProjectRole));
 
     const auto projectDirPath = projectDir.absolutePath();
 
-    auto *scriptsDirItem = initDirItem(QString(), QStringLiteral("Scripts"), true);
+    auto *scriptsDirItem = initDirItem(QStringLiteral("Scripts"), QString(), true);
     configureSubTree(scriptsDirItem, projectDirPath, true);
     rootProjectDir->appendRow(scriptsDirItem);
 
-    auto *sourceDirItem = initDirItem(QString(), QStringLiteral("Sources"), true);
+    auto *sourceDirItem = initDirItem(QStringLiteral("Sources"), QString(), true);
     configureSubTree(sourceDirItem, projectDirPath, false);
     rootProjectDir->appendRow(sourceDirItem);
 
     const auto appFileInfo = QFileInfo(appPath);
-    auto *appItem = new QStandardItem(appFileInfo.fileName());
-    appItem->setData(QUrl(appFileInfo.absoluteFilePath()), Roles::TestAppRole);
-    appItem->setSelectable(false);
-    appItem->setIcon(QIcon(":/icons/test_app.svg"));
-    projectFilesModel->appendRow(appItem);
+    projectFilesModel->appendRow(new CustomStandardItem(
+        appFileInfo.fileName(), appFileInfo.absoluteFilePath(), QIcon(":/icons/test_app.svg"),
+        CustomStandardItem::TestAppRole, false));
 
     tools::deleteModels(ui->projectFilesView);
     ui->projectFilesView->setModel(projectFilesModel);
@@ -305,7 +339,7 @@ QStringList MainGui::getAccessiblePaths(const QFileInfo &projectInfo, bool isScr
     return acceptedFiles;
 }
 
-void MainGui::configureSubTree(QStandardItem *rootItem, const QString &projectDirPath,
+void MainGui::configureSubTree(CustomStandardItem *rootItem, const QString &projectDirPath,
                                bool isScriptsTree) noexcept
 {
     assert(rootItem != nullptr);
@@ -316,7 +350,7 @@ void MainGui::configureSubTree(QStandardItem *rootItem, const QString &projectDi
     QVector<QFileInfo> otherPathsInfo;
     // Структура данных для папок корневой директории проекта, где:
     // {путь к папке} -> {указатель на элемент модели}
-    auto projectSubDirs = std::make_unique<QMap<QString, QStandardItem *>>();
+    auto projectSubDirs = std::make_unique<QMap<QString, CustomStandardItem *>>();
 
     for (const auto &filePath : (isScriptsTree ? lastScripts_ : lastSources_)) {
         QFileInfo fileInfo(filePath);
@@ -342,14 +376,14 @@ void MainGui::configureSubTree(QStandardItem *rootItem, const QString &projectDi
     // Добавляем в конец rootItem файлы, лежащие в корневой папке проекта
     for (const auto &fileInfo : projectDirFilesInfo) {
         rootItem->appendRow(
-            initFileItem(fileInfo.absoluteFilePath(), fileInfo.fileName(), isScriptsTree));
+            initFileItem(fileInfo.fileName(), fileInfo.absoluteFilePath(), isScriptsTree));
     }
 
     if (!otherPathsInfo.isEmpty()) {
         // Если были обнаружены файлы, лежащие вне корневой папки проекта, то в конец
         // добавляем папку, в которой будут расположены все "внешние" файлы
         projectSubDirs->clear();
-        auto *otherPathsDirItem = initDirItem(QString(), "<Other paths>", true);
+        auto *otherPathsDirItem = initDirItem("<Other paths>", QString(), true);
         for (const auto &otherPathFileInfo : otherPathsInfo) {
             handleSubDirectories(QString(), otherPathsDirItem, isScriptsTree, projectSubDirs.get(),
                                  otherPathFileInfo);
@@ -505,5 +539,77 @@ void MainGui::addNewFileToProject(bool isNewFileMode, bool isScript) noexcept
     paths.append(newFilePath);
     project_->setValue(isScript ? paths::PROJECT_SCRIPTS : paths::PROJECT_SOURCES, paths);
     updateProjectFileView(false);
+}
+
+void MainGui::showProjectTreeContextMenu(const QPoint &pos) noexcept
+{
+    const auto index = ui->projectFilesView->indexAt(pos);
+    if (!index.isValid()) {
+        return;
+    }
+
+    const auto *model = qobject_cast<const QStandardItemModel *>(ui->projectFilesView->model());
+    assert(model != nullptr);
+
+    const auto *rawItem = model->itemFromIndex(index);
+    const auto *item = static_cast<const CustomStandardItem *>(rawItem);
+    assert(item != nullptr);
+
+    const auto role = item->role();
+
+    if (role == CustomStandardItem::None) {
+        return;
+    }
+
+    const auto path = item->data(role).value<QString>();
+    assert(!path.isEmpty());
+
+    QMenu contextMenu;
+
+    switch (role) {
+    case CustomStandardItem::ScriptRole: {
+        contextMenu.addAction(QStringLiteral("Run Test Script"), this,
+                              [this, path] { runScript(path); });
+        contextMenu.addSeparator();
+    }
+    case CustomStandardItem::SourceRole:
+    case CustomStandardItem::ProjectRole: {
+        contextMenu.addAction(QStringLiteral("Open in Editor"), this,
+                              [this, path] { openInEditor(path); });
+        if (role != CustomStandardItem::ProjectRole) {
+            contextMenu.addAction(QStringLiteral("Remove From Project"), this,
+                                  [this, path] { removeFromProject(path); });
+        }
+        contextMenu.addSeparator();
+        contextMenu.addAction(QStringLiteral("Open Externally"), this,
+                              [this, path] { openExternally(path); });
+        break;
+    }
+    case CustomStandardItem::TestAppRole: {
+        contextMenu.addAction(QStringLiteral("Execute"), this,
+                              [this, path] { executeApplication(path); });
+        contextMenu.addSeparator();
+        break;
+    }
+    case CustomStandardItem::DirRole: {
+        contextMenu.addAction(QStringLiteral("Open Folder"), this,
+                              [this, path] { openFolder(path); });
+        break;
+    }
+    default:
+        Q_UNREACHABLE();
+    }
+
+    if (role != CustomStandardItem::DirRole) {
+        contextMenu.addAction(QStringLiteral("Show in Folder"), this,
+                              [this, path] { showInFolder(path); });
+    }
+    contextMenu.addSeparator();
+    contextMenu.addAction(QStringLiteral("Rename"), this, [this, path] { renameFile(path); });
+    if (role != CustomStandardItem::ProjectRole && role != CustomStandardItem::TestAppRole) {
+        contextMenu.addAction(QStringLiteral("Delete"), this, [this, path] { deleteFile(path); });
+    }
+
+    contextMenu.exec(ui->projectFilesView->viewport()->mapToGlobal(pos));
 }
 } // namespace QtAda::gui

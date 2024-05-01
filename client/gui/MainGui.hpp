@@ -6,7 +6,6 @@
 
 QT_BEGIN_NAMESPACE
 class QSettings;
-class QStandardItem;
 class QFileInfo;
 QT_END_NAMESPACE
 
@@ -15,23 +14,45 @@ class MainGui;
 }
 
 namespace QtAda::gui {
+class CustomStandardItem;
+
 class MainGui final : public QMainWindow {
     Q_OBJECT
 public:
-    enum Roles {
-        ScriptRole = Qt::UserRole,
-        SourceRole,
-        ProjectRole,
-        TestAppRole,
-        DirRole,
-        None,
-    };
-
     MainGui(const QString &projectPath, QWidget *parent = nullptr);
     ~MainGui();
 
 private slots:
     void addNewFileToProject(bool isNewFileMode, bool isScript) noexcept;
+    void showProjectTreeContextMenu(const QPoint &pos) noexcept;
+
+    void runScript(const QString &path) noexcept
+    {
+    }
+    void openInEditor(const QString &path) noexcept
+    {
+    }
+    void removeFromProject(const QString &path) noexcept
+    {
+    }
+    void openExternally(const QString &path) noexcept
+    {
+    }
+    void showInFolder(const QString &path) noexcept
+    {
+    }
+    void openFolder(const QString &path) noexcept
+    {
+    }
+    void renameFile(const QString &path) noexcept
+    {
+    }
+    void deleteFile(const QString &path) noexcept
+    {
+    }
+    void executeApplication(const QString &path) noexcept
+    {
+    }
 
 private:
     Ui::MainGui *ui = nullptr;
@@ -50,7 +71,7 @@ private:
 
     void configureProject(const QString &projectPath) noexcept;
     void updateProjectFileView(bool isExternal) noexcept;
-    void configureSubTree(QStandardItem *rootItem, const QString &projectDirPath,
+    void configureSubTree(CustomStandardItem *rootItem, const QString &projectDirPath,
                           bool isScriptsTree) noexcept;
     QStringList getAccessiblePaths(const QFileInfo &projectInfo, bool isScripts) noexcept;
 

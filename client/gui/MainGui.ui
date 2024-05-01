@@ -60,6 +60,9 @@
          </item>
          <item>
           <widget class="QTreeView" name="projectFilesView">
+           <property name="contextMenuPolicy">
+            <enum>Qt::CustomContextMenu</enum>
+           </property>
            <property name="editTriggers">
             <set>QAbstractItemView::NoEditTriggers</set>
            </property>
