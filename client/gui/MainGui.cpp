@@ -4,6 +4,7 @@
 #include <QSettings>
 #include <QStandardItemModel>
 #include <QString>
+#include <QFileDialog>
 #include <set>
 #include <memory>
 
@@ -109,6 +110,15 @@ MainGui::MainGui(const QString &projectPath, QWidget *parent)
     contentLayout->addWidget(fileNotOpenedLabel);
 
     configureProject(projectPath);
+
+    connect(ui->actionNewScript, &QAction::triggered, this,
+            [this]() { addNewFileToProject(true, true); });
+    connect(ui->actionNewSource, &QAction::triggered, this,
+            [this]() { addNewFileToProject(true, false); });
+    connect(ui->actionAddScript, &QAction::triggered, this,
+            [this]() { addNewFileToProject(false, true); });
+    connect(ui->actionAddSource, &QAction::triggered, this,
+            [this]() { addNewFileToProject(false, false); });
 }
 
 MainGui::~MainGui()
@@ -155,10 +165,7 @@ void MainGui::updateProjectFileView(bool isExternal) noexcept
     assert(project_ != nullptr);
 
     const auto projectFileInfo = QFileInfo(project_->fileName());
-    const auto projectOk = projectFileInfo.exists() && projectFileInfo.isFile()
-                           && projectFileInfo.isReadable() && projectFileInfo.isWritable();
-
-    if (!projectOk) {
+    if (!tools::isExistingFileAccessible(projectFileInfo)) {
         saveProjectFileOnExit_ = false;
         QMessageBox::critical(this, paths::QTADA_ERROR_HEADER,
                               QStringLiteral("The project file not accessible."));
@@ -231,6 +238,8 @@ void MainGui::updateProjectFileView(bool isExternal) noexcept
     tools::deleteModels(ui->projectFilesView);
     ui->projectFilesView->setModel(projectFilesModel);
 
+    //! TODO: позже нужно "не трогать" раскрытие узлов дерева при добавлении
+    //! новых файлов в проект внутри приложения
     // Раскрываем: <ProjectDir>, Scripts, Sources
     for (int row = 0; row < projectFilesModel->rowCount(); row++) {
         const auto index = projectFilesModel->index(row, 0);
@@ -268,10 +277,15 @@ QStringList MainGui::getAccessiblePaths(const QFileInfo &projectInfo, bool isScr
     QStringList discardFiles;
 
     const auto projectDirPath = projectInfo.dir().absolutePath();
-    for (const auto &filePath : filesPaths) {
+    for (auto filePath : filesPaths) {
+        filePath = filePath.trimmed();
+        if (filePath.isEmpty()) {
+            continue;
+        }
+
         QFileInfo fileInfo(filePath);
-        if (!fileInfo.exists() || !fileInfo.isFile() || !fileInfo.isWritable()
-            || !fileInfo.isReadable() || (isScripts && fileInfo.suffix() != "js")) {
+        if (!tools::isExistingFileAccessible(fileInfo)
+            || (isScripts && fileInfo.suffix() != "js")) {
             discardFiles.append(filePath);
             continue;
         }
@@ -427,4 +441,69 @@ void MainGui::setGuiParamsFromProjectFile() noexcept
     }
 }
 
+void MainGui::addNewFileToProject(bool isNewFileMode, bool isScript) noexcept
+{
+    assert(project_ != nullptr);
+    const auto projectInfo = QFileInfo(project_->fileName());
+    const auto projectPath = projectInfo.absoluteFilePath();
+
+    const auto defaultDir = projectInfo.dir().absolutePath();
+    const auto filter
+        = isScript ? QStringLiteral("JavaScript (*.js)") : QStringLiteral("All files (*)");
+    const auto path
+        = (isNewFileMode
+               ? QFileDialog::getSaveFileName(
+                   this, isScript ? paths::QTADA_NEW_SCRIPT_HEADER : paths::QTADA_NEW_SOURCE_HEADER,
+                   defaultDir, filter)
+               : QFileDialog::getOpenFileName(
+                   this, isScript ? paths::QTADA_ADD_SCRIPT_HEADER : paths::QTADA_ADD_SOURCE_HEADER,
+                   defaultDir, filter))
+              .trimmed();
+
+    if (path.isEmpty()) {
+        return;
+    }
+
+    const auto newFileInfo = QFileInfo(path);
+    if (!isNewFileMode && !tools::isExistingFileAccessible(newFileInfo)) {
+        QMessageBox::warning(
+            this, paths::QTADA_WARNING_HEADER,
+            QStringLiteral("The %1 file is not accessible.").arg(isScript ? "script" : "source"));
+        return;
+    }
+
+    if (isScript && newFileInfo.suffix() != "js") {
+        QMessageBox::warning(
+            this, paths::QTADA_WARNING_HEADER,
+            QStringLiteral("The script must be a JavaScript file with a .js extension."));
+        return;
+    }
+
+    const auto newFilePath = newFileInfo.absoluteFilePath();
+    if (projectPath == newFilePath) {
+        QMessageBox::warning(this, paths::QTADA_WARNING_HEADER,
+                             isNewFileMode
+                                 ? QStringLiteral("You can't rewrite current project file.")
+                                 : QStringLiteral("You can't add current project file as source."));
+        return;
+    }
+
+    if (isNewFileMode) {
+        auto newFile = QFile(newFilePath);
+        if (!newFile.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
+            QMessageBox::warning(this, paths::QTADA_WARNING_HEADER,
+                                 QStringLiteral("The %1 file can't be created.")
+                                     .arg(isScript ? "script" : "source"));
+            return;
+        }
+        newFile.close();
+        assert(newFileInfo.exists());
+    }
+
+    auto paths = project_->value(isScript ? paths::PROJECT_SCRIPTS : paths::PROJECT_SOURCES, "")
+                     .toStringList();
+    paths.append(newFilePath);
+    project_->setValue(isScript ? paths::PROJECT_SCRIPTS : paths::PROJECT_SOURCES, paths);
+    updateProjectFileView(false);
+}
 } // namespace QtAda::gui

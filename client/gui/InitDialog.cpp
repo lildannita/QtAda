@@ -175,7 +175,7 @@ bool InitDialog::checkProjectFilePath(const QString &path, bool isOpenMode,
             }
             return false;
         }
-        if (!(fileInfo.isFile() && fileInfo.isReadable() && fileInfo.isWritable())) {
+        if (!tools::isFileAccessible(fileInfo)) {
             if (needToShowMsg) {
                 QMessageBox::critical(this, paths::QTADA_ERROR_HEADER,
                                       QStringLiteral("The project can't be opened."));

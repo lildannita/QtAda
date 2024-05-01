@@ -3,6 +3,7 @@
 #include <QFrame>
 #include <QVBoxLayout>
 #include <QSpacerItem>
+#include <QFileInfo>
 
 QT_BEGIN_NAMESPACE
 class QAbstractItemView;
@@ -35,6 +36,16 @@ inline void setHSpacer(QBoxLayout *layout) noexcept
 {
     assert(layout != nullptr);
     layout->addSpacerItem(new QSpacerItem(40, 20, QSizePolicy::Expanding, QSizePolicy::Minimum));
+}
+
+inline bool isFileAccessible(const QFileInfo &fileInfo) noexcept
+{
+    return fileInfo.isFile() && fileInfo.isReadable() && fileInfo.isWritable();
+}
+
+inline bool isExistingFileAccessible(const QFileInfo &fileInfo) noexcept
+{
+    return fileInfo.exists() && isFileAccessible(fileInfo);
 }
 
 void deleteModels(QAbstractItemView *view) noexcept;

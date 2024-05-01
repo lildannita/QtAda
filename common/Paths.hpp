@@ -17,6 +17,10 @@ static const auto QTADA_PROJECT_ERROR_HEADER
 static const auto QTADA_INIT_PROJECT_HEADER = QStringLiteral("%1 | Init Project").arg(QTADA_HEADER);
 static const auto QTADA_OPEN_PROJECT_HEADER = QStringLiteral("%1 | Open Project").arg(QTADA_HEADER);
 static const auto QTADA_NEW_PROJECT_HEADER = QStringLiteral("%1 | New Project").arg(QTADA_HEADER);
+static const auto QTADA_NEW_SCRIPT_HEADER = QStringLiteral("%1 | New Script").arg(QTADA_HEADER);
+static const auto QTADA_NEW_SOURCE_HEADER = QStringLiteral("%1 | New Source").arg(QTADA_HEADER);
+static const auto QTADA_ADD_SCRIPT_HEADER = QStringLiteral("%1 | Add Script").arg(QTADA_HEADER);
+static const auto QTADA_ADD_SOURCE_HEADER = QStringLiteral("%1 | Add Source").arg(QTADA_HEADER);
 static const auto QTADA_SELECT_EXE_HEADER
     = QStringLiteral("%1 | Select Executable").arg(QTADA_HEADER);
 static const auto QTADA_RECORD_CONTROLLER_HEADER

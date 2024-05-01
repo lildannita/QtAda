@@ -30,6 +30,9 @@ public:
     MainGui(const QString &projectPath, QWidget *parent = nullptr);
     ~MainGui();
 
+private slots:
+    void addNewFileToProject(bool isNewFileMode, bool isScript) noexcept;
+
 private:
     Ui::MainGui *ui = nullptr;
     bool uiInitialized_ = false;
