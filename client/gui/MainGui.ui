@@ -250,7 +250,34 @@ margin-left: 5px;</string>
           </widget>
          </item>
          <item>
+          <layout class="QHBoxLayout" name="horizontalLayout_11">
+           <item>
+            <widget class="QLabel" name="appExeArgsLabel">
+             <property name="text">
+              <string>Application Execute Arguments:</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QLineEdit" name="appExeArgsEdit"/>
+           </item>
+          </layout>
+         </item>
+         <item>
+          <widget class="Line" name="line_7">
+           <property name="orientation">
+            <enum>Qt::Horizontal</enum>
+           </property>
+          </widget>
+         </item>
+         <item>
           <widget class="QTabWidget" name="settingsTabWidget">
+           <property name="sizePolicy">
+            <sizepolicy hsizetype="Expanding" vsizetype="MinimumExpanding">
+             <horstretch>0</horstretch>
+             <verstretch>0</verstretch>
+            </sizepolicy>
+           </property>
            <property name="currentIndex">
             <number>0</number>
            </property>
@@ -261,6 +288,12 @@ margin-left: 5px;</string>
             <layout class="QVBoxLayout" name="verticalLayout_5">
              <item>
               <widget class="QScrollArea" name="scrollArea">
+               <property name="sizePolicy">
+                <sizepolicy hsizetype="Expanding" vsizetype="Ignored">
+                 <horstretch>0</horstretch>
+                 <verstretch>0</verstretch>
+                </sizepolicy>
+               </property>
                <property name="widgetResizable">
                 <bool>true</bool>
                </property>
@@ -269,9 +302,15 @@ margin-left: 5px;</string>
                  <rect>
                   <x>0</x>
                   <y>0</y>
-                  <width>506</width>
-                  <height>277</height>
+                  <width>492</width>
+                  <height>269</height>
                  </rect>
+                </property>
+                <property name="sizePolicy">
+                 <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+                  <horstretch>0</horstretch>
+                  <verstretch>0</verstretch>
+                 </sizepolicy>
                 </property>
                 <layout class="QVBoxLayout" name="verticalLayout_4">
                  <item>
