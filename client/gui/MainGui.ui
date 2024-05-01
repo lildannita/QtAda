@@ -88,6 +88,9 @@
         </property>
        </widget>
        <widget class="QWidget" name="recordAndSettingsWidget" native="true">
+        <property name="enabled">
+         <bool>true</bool>
+        </property>
         <property name="sizePolicy">
          <sizepolicy hsizetype="Minimum" vsizetype="Minimum">
           <horstretch>0</horstretch>
@@ -103,7 +106,7 @@
            <item>
             <widget class="QPushButton" name="recordButton">
              <property name="enabled">
-              <bool>false</bool>
+              <bool>true</bool>
              </property>
              <property name="minimumSize">
               <size>
@@ -167,7 +170,7 @@ margin-left: 5px;</string>
             </widget>
            </item>
            <item>
-            <widget class="QWidget" name="updateLineIndex" native="true">
+            <widget class="QWidget" name="updateLineIndexWidget" native="true">
              <property name="enabled">
               <bool>false</bool>
              </property>
@@ -250,18 +253,23 @@ margin-left: 5px;</string>
           </widget>
          </item>
          <item>
-          <layout class="QHBoxLayout" name="horizontalLayout_11">
-           <item>
-            <widget class="QLabel" name="appExeArgsLabel">
-             <property name="text">
-              <string>Application Execute Arguments:</string>
-             </property>
-            </widget>
-           </item>
-           <item>
-            <widget class="QLineEdit" name="appExeArgsEdit"/>
-           </item>
-          </layout>
+          <widget class="QWidget" name="appExeArgsWidget" native="true">
+           <property name="enabled">
+            <bool>true</bool>
+           </property>
+           <layout class="QHBoxLayout" name="horizontalLayout_11">
+            <item>
+             <widget class="QLabel" name="appExeArgsLabel">
+              <property name="text">
+               <string>Application Execute Arguments:</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QLineEdit" name="appExeArgsEdit"/>
+            </item>
+           </layout>
+          </widget>
          </item>
          <item>
           <widget class="Line" name="line_7">
@@ -644,6 +652,21 @@ margin-left: 5px;</string>
       <widget class="QTabWidget" name="tabWidget">
        <property name="currentIndex">
         <number>0</number>
+       </property>
+       <property name="usesScrollButtons">
+        <bool>false</bool>
+       </property>
+       <property name="documentMode">
+        <bool>false</bool>
+       </property>
+       <property name="tabsClosable">
+        <bool>false</bool>
+       </property>
+       <property name="movable">
+        <bool>false</bool>
+       </property>
+       <property name="tabBarAutoHide">
+        <bool>false</bool>
        </property>
        <widget class="QWidget" name="qtadaLogTab">
         <attribute name="title">

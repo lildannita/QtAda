@@ -7,6 +7,9 @@
 #include <QFileDialog>
 #include <QDesktopServices>
 #include <QProcess>
+#include <QTextStream>
+#include <QShortcut>
+#include <QCloseEvent>
 #include <set>
 #include <memory>
 
@@ -28,7 +31,7 @@ public:
     };
 
     CustomStandardItem(const QString &name, const QIcon &icon, bool isSelectable = true) noexcept
-        : QStandardItem(name)
+        : QStandardItem{ name }
     {
         this->setIcon(icon);
         this->setSelectable(isSelectable);
@@ -36,7 +39,7 @@ public:
 
     CustomStandardItem(const QString &name, const QVariant &value, const QIcon &icon, int role,
                        bool isSelectable = true) noexcept
-        : CustomStandardItem(name, icon, isSelectable)
+        : CustomStandardItem{ name, icon, isSelectable }
     {
         role_ = role;
         this->setData(value, role_);
@@ -125,11 +128,121 @@ static void handleSubDirectories(const QString &projectDirPath, CustomStandardIt
         initFileItem(fileInfo.fileName(), fileInfo.absoluteFilePath(), isScriptsTree));
 }
 
+FileEditor::FileEditor(const QString &filePath, int role, QTabWidget *editorsTabWidget,
+                       QWidget *parent) noexcept
+    : QTextEdit{ parent }
+    , editorsTabWidget_{ editorsTabWidget }
+    , filePath_{ filePath }
+    , role_{ role }
+{
+    assert(!filePath_.isEmpty());
+    assert(editorsTabWidget_ != nullptr);
+
+    auto *shortcut = new QShortcut(QKeySequence("Ctrl+S"), this);
+    connect(shortcut, &QShortcut::activated, this, &FileEditor::saveFile);
+}
+
+void FileEditor::saveFile() noexcept
+{
+    if (!isChanged_) {
+        return;
+    }
+    QFile file(filePath_);
+    assert(file.exists());
+    if (!file.open(QIODevice::WriteOnly | QIODevice::Text | QIODevice::Truncate)) {
+        QMessageBox::warning(this, paths::QTADA_WARNING_HEADER,
+                             QStringLiteral("Can't save file '%1'.").arg(filePath_));
+        return;
+    }
+    QTextStream out(&file);
+    out << this->toPlainText();
+    file.close();
+    isChanged_ = false;
+    updateEditorTabName();
+
+    if (role_ == CustomStandardItem::ProjectRole) {
+        emit projectFileHasChanged();
+    }
+}
+
+void FileEditor::updateFilePath(const QString &filePath) noexcept
+{
+    filePath_ = filePath;
+    updateEditorTabName();
+}
+
+bool FileEditor::readFile() noexcept
+{
+    assert(!fileWasRead_);
+    fileWasRead_ = true;
+
+    //! TODO: нужно разобраться как различать текстовые файлы от бинарных
+
+    QFile file(filePath_);
+    assert(file.exists());
+    if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        QMessageBox::warning(this, paths::QTADA_WARNING_HEADER,
+                             QStringLiteral("Can't read file '%1'.").arg(filePath_));
+        return false;
+    }
+    this->setPlainText(QString::fromUtf8(file.readAll()));
+    file.close();
+
+    connect(this, &QTextEdit::textChanged, this, &FileEditor::handleFileChange);
+    return true;
+}
+
+bool FileEditor::closeFile(bool needToConfirm) noexcept
+{
+    if (!isChanged_ || !needToConfirm) {
+        isChanged_ = false;
+        return true;
+    }
+
+    const auto confirm = QMessageBox::question(
+        this, paths::QTADA_UNSAVED_CHANGES_HEADER,
+        QStringLiteral("You have unsaved changes in file '%1'.\n"
+                       "Do you want to save your changes?")
+            .arg(filePath_),
+        QMessageBox::No | QMessageBox::Yes | QMessageBox::Cancel, QMessageBox::Yes);
+    if (confirm == QMessageBox::Cancel) {
+        return false;
+    }
+    if (confirm == QMessageBox::Yes) {
+        saveFile();
+    }
+    isChanged_ = false;
+    return true;
+}
+
+void FileEditor::handleFileChange() noexcept
+{
+    if (isChanged_) {
+        return;
+    }
+    isChanged_ = true;
+    updateEditorTabName();
+}
+
+void FileEditor::updateEditorTabName() noexcept
+{
+    for (int i = 0; i < editorsTabWidget_->count(); i++) {
+        if (editorsTabWidget_->widget(i) == this) {
+            editorsTabWidget_->setTabText(i, QFileInfo(filePath_).fileName()
+                                                 + (isChanged_ ? " *" : ""));
+            break;
+        }
+    }
+}
+
 MainGui::MainGui(const QString &projectPath, QWidget *parent)
     : QMainWindow(parent)
     , ui(new Ui::MainGui)
 {
     ui->setupUi(this);
+
+    // По-умолчанию прячем все настройки, пока не откроем скрипт
+    ui->recordAndSettingsWidget->setVisible(false);
 
     // Так как в Qt Designer нельзя добавить Spacer в QToolBar, то
     // делаем это вручную
@@ -139,12 +252,21 @@ MainGui::MainGui(const QString &projectPath, QWidget *parent)
     ui->toolBar->addAction(ui->actionRunCurrent);
     ui->toolBar->addAction(ui->actionRunAll);
 
-    auto *fileNotOpenedLabel = new QLabel(this);
-    fileNotOpenedLabel->setAlignment(Qt::AlignCenter);
-    fileNotOpenedLabel->setText(
-        "No files are open.\nSelect the file in the project tree on the left.");
+    // Инициализация плейсхолдера, отображающегося при отсутствии открытых файлов
+    fileNotOpenedLabel_ = new QLabel(this);
+    fileNotOpenedLabel_->setAlignment(Qt::AlignCenter);
+    fileNotOpenedLabel_->setText("No files are open.\n"
+                                 "Select the file in the project tree on the left.");
+    // Инициализация TabWidget, в котором будем отображать открытые файлы
+    editorsTabWidget_ = new QTabWidget(this);
+    editorsTabWidget_->setMovable(true);
+    editorsTabWidget_->setTabsClosable(true);
+    editorsTabWidget_->setDocumentMode(true);
+    editorsTabWidget_->setVisible(false);
+    // Инициализация макета под редактирование файлов
     auto *contentLayout = new QVBoxLayout(ui->contentWidget);
-    contentLayout->addWidget(fileNotOpenedLabel);
+    contentLayout->addWidget(fileNotOpenedLabel_);
+    contentLayout->addWidget(editorsTabWidget_);
 
     configureProject(projectPath);
 
@@ -159,6 +281,10 @@ MainGui::MainGui(const QString &projectPath, QWidget *parent)
 
     connect(ui->projectFilesView, &QTreeView::customContextMenuRequested, this,
             &MainGui::showProjectTreeContextMenu);
+    connect(ui->projectFilesView, &QTreeView::doubleClicked, this, &MainGui::openFileInEditor);
+    connect(editorsTabWidget_, &QTabWidget::tabCloseRequested, this, &MainGui::closeFileInEditor);
+    connect(editorsTabWidget_, &QTabWidget::currentChanged, this,
+            &MainGui::checkIfCurrentTabIsScript);
 }
 
 MainGui::~MainGui()
@@ -186,6 +312,32 @@ bool MainGui::event(QEvent *event)
         }
     }
     return QMainWindow::event(event);
+}
+
+void MainGui::closeEvent(QCloseEvent *event)
+{
+    if (!editorsTabWidget_->isVisible()) {
+        event->accept();
+        return;
+    }
+    for (int i = 0; i < editorsTabWidget_->count(); i++) {
+        auto editor = qobject_cast<FileEditor *>(editorsTabWidget_->widget(i));
+        assert(editor != nullptr);
+        if (editor->isChanged()) {
+            const auto confirm = QMessageBox::question(
+                this, paths::QTADA_UNSAVED_CHANGES_HEADER,
+                "You have unsaved changes. Are you sure you want to exit?\n",
+                QMessageBox::No | QMessageBox::Yes, QMessageBox::No);
+            if (confirm == QMessageBox::Yes) {
+                event->accept();
+            }
+            else {
+                event->ignore();
+            }
+            return;
+        }
+    }
+    event->accept();
 }
 
 void MainGui::configureProject(const QString &projectPath) noexcept
@@ -570,8 +722,8 @@ void MainGui::showProjectTreeContextMenu(const QPoint &pos) noexcept
     assert(!path.isEmpty());
 
     QMenu contextMenu;
-
     const auto isScript = role == CustomStandardItem::ScriptRole;
+
     switch (role) {
     case CustomStandardItem::ScriptRole: {
         contextMenu.addAction(QStringLiteral("Run Test Script"), this,
@@ -581,9 +733,9 @@ void MainGui::showProjectTreeContextMenu(const QPoint &pos) noexcept
     case CustomStandardItem::SourceRole:
     case CustomStandardItem::ProjectRole: {
         contextMenu.addAction(QStringLiteral("Open in Editor"), this,
-                              [this, path] { openInEditor(path); });
+                              [this, index] { openFileInEditor(index); });
         if (role != CustomStandardItem::ProjectRole) {
-            contextMenu.addAction(QStringLiteral("Remove From Project"), this,
+            contextMenu.addAction(QStringLiteral("Remove from Project"), this,
                                   [this, path, isScript] { removeFromProject(path, isScript); });
         }
         contextMenu.addSeparator();
@@ -620,22 +772,75 @@ void MainGui::showProjectTreeContextMenu(const QPoint &pos) noexcept
         contextMenu.addSeparator();
         contextMenu.addAction(QStringLiteral("Rename"), this,
                               [this, model, index] { renameFile(model, index); });
+    }
+    if (role == CustomStandardItem::ScriptRole || role == CustomStandardItem::SourceRole) {
         contextMenu.addAction(QStringLiteral("Delete"), this,
                               [this, path, isScript] { deleteFile(path, isScript); });
     }
 
+    /*
+     * Итого должны получить следующие меню:
+     * 1) Для ScriptRole / SourceRole:
+     *      - Run Test Script (только для ScriptRole)
+     *      ------------------
+     *      - Open in Editor
+     *      - Remove from Project
+     *      ------------------
+     *      - Open Externally
+     *      - Show in Folder
+     *      ------------------
+     *      - Rename
+     *      - Delete
+     *
+     * 2) Для DirRole:
+     *      - Remove from Project
+     *      ------------------
+     *      - Open Folder
+     *      ------------------
+     *      - Rename
+     *      //! TODO: - Delete
+     *
+     * 3) Для ProjectRole:
+     *      - Open in Editor
+     *      ------------------
+     *      - Open Externally
+     *      - Show in Folder
+     *
+     * 4) Для RootDirRole:
+     *      - Open Folder
+     *
+     * 4) Для TestAppRole:
+     *      - Execute
+     *      ------------------
+     *      - Show in Folder
+     */
     contextMenu.exec(ui->projectFilesView->viewport()->mapToGlobal(pos));
 }
 
 void MainGui::removeFromProject(const QString &path, bool isScript) noexcept
 {
+    for (int i = 0; i < editorsTabWidget_->count(); i++) {
+        auto *editor = qobject_cast<FileEditor *>(editorsTabWidget_->widget(i));
+        assert(editor != nullptr);
+        if (path == editor->filePath()) {
+            bool closeResult = editor->closeFile();
+            if (!closeResult) {
+                return;
+            }
+            closeFileInEditor(i);
+            break;
+        }
+    }
+
     assert(project_ != nullptr);
     auto paths = project_->value(isScript ? paths::PROJECT_SCRIPTS : paths::PROJECT_SOURCES, {})
                      .toStringList();
-    const auto size = paths.size();
-    assert(size > 0);
+    assert(paths.contains(path));
     paths.removeAll(path);
-    assert(size > paths.size());
+    if (paths.isEmpty()) {
+        // Чтобы не было INVALID в файле проекта
+        paths.push_back("");
+    }
     project_->setValue(isScript ? paths::PROJECT_SCRIPTS : paths::PROJECT_SOURCES, paths);
     project_->sync();
     updateProjectFileView(false);
@@ -652,14 +857,38 @@ void MainGui::removeDirFromProject(const QString &path) noexcept
     auto remove = [this, dirPath](QStringList &paths) {
         QMutableListIterator<QString> iterator(paths);
         while (iterator.hasNext()) {
-            if (iterator.next().startsWith(dirPath)) {
+            const auto path = iterator.next();
+            if (path.startsWith(dirPath)) {
+                for (int i = 0; i < editorsTabWidget_->count(); i++) {
+                    auto *editor = qobject_cast<FileEditor *>(editorsTabWidget_->widget(i));
+                    assert(editor != nullptr);
+                    if (path == editor->filePath()) {
+                        bool closeResult = editor->closeFile();
+                        if (!closeResult) {
+                            return false;
+                        }
+                        closeFileInEditor(i);
+                        break;
+                    }
+                }
                 iterator.remove();
             }
         }
+        if (paths.isEmpty()) {
+            // Чтобы не было INVALID в файле проекта
+            paths.push_back("");
+        }
+        return true;
     };
 
-    remove(scriptPaths);
-    remove(sourcePaths);
+    bool removeResult = remove(scriptPaths);
+    if (!removeResult) {
+        return;
+    }
+    removeResult = remove(sourcePaths);
+    if (!removeResult) {
+        return;
+    }
 
     project_->setValue(paths::PROJECT_SCRIPTS, scriptPaths);
     project_->setValue(paths::PROJECT_SOURCES, sourcePaths);
@@ -703,8 +932,16 @@ void MainGui::deleteFile(const QString &path, bool isScript) noexcept
         return;
     }
 
-    QVariant t = {};
-    QStringList test = t.toStringList();
+    for (int i = 0; i < editorsTabWidget_->count(); i++) {
+        auto *editor = qobject_cast<FileEditor *>(editorsTabWidget_->widget(i));
+        assert(editor != nullptr);
+        if (editor->filePath() == path) {
+            editor->closeFile(false);
+            closeFileInEditor(i);
+            break;
+        }
+    }
+
     assert(project_ != nullptr);
     auto paths = project_->value(isScript ? paths::PROJECT_SCRIPTS : paths::PROJECT_SOURCES, {})
                      .toStringList();
@@ -742,7 +979,8 @@ void MainGui::executeApplication(const QString &path) noexcept
 {
     QFileInfo fileInfo(path);
     assert(fileInfo.exists());
-    //! TODO: нужно использовать текущие аргументы запуска приложения
+    //! TODO: желательно дополнительно запрашивать у пользователя
+    //! аргументы запуска
     QProcess::startDetached(path, {});
 }
 
@@ -819,6 +1057,15 @@ void MainGui::doRenameFile(QStandardItemModel *model, QStandardItem *rawItem,
                                                                   : paths::PROJECT_SOURCES,
                            filesPaths);
         project_->sync();
+
+        for (int i = 0; i < editorsTabWidget_->count(); i++) {
+            auto *editor = qobject_cast<FileEditor *>(editorsTabWidget_->widget(i));
+            assert(editor != nullptr);
+            if (editor->filePath() == oldPath) {
+                editor->updateFilePath(newPath);
+                break;
+            }
+        }
         break;
     }
     case CustomStandardItem::DirRole: {
@@ -838,7 +1085,17 @@ void MainGui::doRenameFile(QStandardItemModel *model, QStandardItem *rawItem,
         auto renamePaths = [this, oldDirPath, newDirPath](QStringList &filesPaths) {
             for (auto &filePath : filesPaths) {
                 if (filePath.startsWith(oldDirPath)) {
+                    const auto oldFilePath = filePath;
                     filePath.replace(0, oldDirPath.length(), newDirPath);
+
+                    for (int i = 0; i < editorsTabWidget_->count(); i++) {
+                        auto *editor = qobject_cast<FileEditor *>(editorsTabWidget_->widget(i));
+                        assert(editor != nullptr);
+                        if (editor->filePath() == oldFilePath) {
+                            editor->updateFilePath(filePath);
+                            break;
+                        }
+                    }
                 }
             }
         };
@@ -859,5 +1116,97 @@ void MainGui::doRenameFile(QStandardItemModel *model, QStandardItem *rawItem,
         Q_UNREACHABLE();
     }
     updateProjectFileView(false);
+}
+
+void MainGui::openFileInEditor(const QModelIndex &index) noexcept
+{
+    assert(index.isValid());
+
+    const auto *rawModel = ui->projectFilesView->model();
+    const auto *model = qobject_cast<const QStandardItemModel *>(rawModel);
+    assert(model != nullptr);
+
+    const auto *rawItem = model->itemFromIndex(index);
+    const auto *item = static_cast<const CustomStandardItem *>(rawItem);
+    assert(item != nullptr);
+
+    const auto role = item->role();
+    if (role != CustomStandardItem::ProjectRole && role != CustomStandardItem::ScriptRole
+        && role != CustomStandardItem::SourceRole) {
+        return;
+    }
+
+    const auto path = item->data(role).value<QString>();
+    assert(!path.isEmpty());
+
+    for (int i = 0; i < editorsTabWidget_->count(); i++) {
+        const auto tabEditor = qobject_cast<const FileEditor *>(editorsTabWidget_->widget(i));
+        assert(tabEditor != nullptr);
+        if (tabEditor->filePath() == path) {
+            if (editorsTabWidget_->currentIndex() != i) {
+                editorsTabWidget_->setCurrentIndex(i);
+            }
+            return;
+        }
+    }
+
+    const auto tabName = item->data(Qt::DisplayRole).value<QString>();
+    assert(!tabName.isEmpty());
+    const auto tabIcon = item->icon();
+    assert(!tabIcon.isNull());
+
+    auto *fileEditor = new FileEditor(path, role, editorsTabWidget_);
+    const auto isFileReadable = fileEditor->readFile();
+    if (!isFileReadable) {
+        fileEditor->deleteLater();
+        return;
+    }
+
+    if (role == CustomStandardItem::ProjectRole) {
+        //! TODO: не работает, так как у нас всегда открыт QSettings. В следующем
+        //! патче это нужно исправить.
+        connect(fileEditor, &FileEditor::projectFileHasChanged, this,
+                [this] { updateProjectFileView(true); });
+    }
+
+    const auto tabIndex = editorsTabWidget_->addTab(fileEditor, tabIcon, tabName);
+    editorsTabWidget_->setCurrentIndex(tabIndex);
+
+    if (editorsTabWidget_->isVisible()) {
+        return;
+    }
+
+    assert(fileNotOpenedLabel_->isVisible());
+    assert(!ui->recordAndSettingsWidget->isVisible());
+    fileNotOpenedLabel_->setVisible(false);
+    editorsTabWidget_->setVisible(true);
+}
+
+void MainGui::closeFileInEditor(int index) noexcept
+{
+    auto *fileEditor = qobject_cast<FileEditor *>(editorsTabWidget_->widget(index));
+    assert(fileEditor != nullptr);
+    const auto closeResult = fileEditor->closeFile();
+    if (!closeResult) {
+        return;
+    }
+    editorsTabWidget_->removeTab(index);
+    fileEditor->deleteLater();
+
+    if (editorsTabWidget_->count() == 0) {
+        editorsTabWidget_->setVisible(false);
+        ui->recordAndSettingsWidget->setVisible(false);
+        fileNotOpenedLabel_->setVisible(true);
+    }
+}
+
+void MainGui::checkIfCurrentTabIsScript(int index) noexcept
+{
+    if (index == -1) {
+        return;
+    }
+    auto *editor = qobject_cast<FileEditor *>(editorsTabWidget_->widget(index));
+    assert(editor != nullptr);
+    ui->recordAndSettingsWidget->setVisible(editor->role() == CustomStandardItem::ScriptRole);
 }
 } // namespace QtAda::gui
