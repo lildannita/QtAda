@@ -5,6 +5,8 @@
 #include <QStandardItemModel>
 #include <QString>
 #include <QFileDialog>
+#include <QDesktopServices>
+#include <QProcess>
 #include <set>
 #include <memory>
 
@@ -20,6 +22,7 @@ public:
         SourceRole,
         ProjectRole,
         TestAppRole,
+        RootDirRole,
         DirRole,
         None,
     };
@@ -62,7 +65,7 @@ static CustomStandardItem *initDirItem(const QString &dirName, const QString &di
     if (!dirPath.isEmpty() && !isSourceDir) {
         return new CustomStandardItem(
             dirName, dirPath, isRootDir ? QIcon(":/icons/root_dir.svg") : QIcon(":/icons/dir.svg"),
-            CustomStandardItem::DirRole, false);
+            isRootDir ? CustomStandardItem::RootDirRole : CustomStandardItem::DirRole, false);
     }
     else {
         return new CustomStandardItem(dirName, QIcon(":/icons/source_dir.svg"), false);
@@ -292,7 +295,7 @@ QStringList MainGui::getAccessiblePaths(const QFileInfo &projectInfo, bool isScr
 
     // Считываем пути к файлам
     const auto rawFilesPaths
-        = project_->value(isScripts ? paths::PROJECT_SCRIPTS : paths::PROJECT_SOURCES)
+        = project_->value(isScripts ? paths::PROJECT_SCRIPTS : paths::PROJECT_SOURCES, {})
               .toStringList();
     if (rawFilesPaths.isEmpty()) {
         return QStringList();
@@ -328,6 +331,7 @@ QStringList MainGui::getAccessiblePaths(const QFileInfo &projectInfo, bool isScr
 
     project_->setValue(isScripts ? paths::PROJECT_SCRIPTS : paths::PROJECT_SOURCES,
                        acceptedFiles.isEmpty() ? QStringList("") : acceptedFiles);
+    project_->sync();
     if (!discardFiles.isEmpty()) {
         QMessageBox::warning(
             this, paths::QTADA_WARNING_HEADER,
@@ -356,7 +360,7 @@ void MainGui::configureSubTree(CustomStandardItem *rootItem, const QString &proj
         QFileInfo fileInfo(filePath);
 
         const auto fileDirPath = fileInfo.dir().absolutePath();
-        if (!fileInfo.absoluteFilePath().startsWith(projectDirPath)) {
+        if (!fileInfo.absoluteFilePath().startsWith(projectDirPath + QDir::separator())) {
             // Если начало абсолютного пути к папке в которой лежит файл не соответствует
             // пути к корневой папке проекта, то файл лежит вне корневой папки проекта
             otherPathsInfo.push_back(fileInfo);
@@ -534,10 +538,11 @@ void MainGui::addNewFileToProject(bool isNewFileMode, bool isScript) noexcept
         assert(newFileInfo.exists());
     }
 
-    auto paths = project_->value(isScript ? paths::PROJECT_SCRIPTS : paths::PROJECT_SOURCES, "")
+    auto paths = project_->value(isScript ? paths::PROJECT_SCRIPTS : paths::PROJECT_SOURCES, {})
                      .toStringList();
     paths.append(newFilePath);
     project_->setValue(isScript ? paths::PROJECT_SCRIPTS : paths::PROJECT_SOURCES, paths);
+    project_->sync();
     updateProjectFileView(false);
 }
 
@@ -548,11 +553,11 @@ void MainGui::showProjectTreeContextMenu(const QPoint &pos) noexcept
         return;
     }
 
-    const auto *model = qobject_cast<const QStandardItemModel *>(ui->projectFilesView->model());
+    auto *model = qobject_cast<QStandardItemModel *>(ui->projectFilesView->model());
     assert(model != nullptr);
 
-    const auto *rawItem = model->itemFromIndex(index);
-    const auto *item = static_cast<const CustomStandardItem *>(rawItem);
+    auto *rawItem = model->itemFromIndex(index);
+    auto *item = static_cast<CustomStandardItem *>(rawItem);
     assert(item != nullptr);
 
     const auto role = item->role();
@@ -566,6 +571,7 @@ void MainGui::showProjectTreeContextMenu(const QPoint &pos) noexcept
 
     QMenu contextMenu;
 
+    const auto isScript = role == CustomStandardItem::ScriptRole;
     switch (role) {
     case CustomStandardItem::ScriptRole: {
         contextMenu.addAction(QStringLiteral("Run Test Script"), this,
@@ -578,7 +584,7 @@ void MainGui::showProjectTreeContextMenu(const QPoint &pos) noexcept
                               [this, path] { openInEditor(path); });
         if (role != CustomStandardItem::ProjectRole) {
             contextMenu.addAction(QStringLiteral("Remove From Project"), this,
-                                  [this, path] { removeFromProject(path); });
+                                  [this, path, isScript] { removeFromProject(path, isScript); });
         }
         contextMenu.addSeparator();
         contextMenu.addAction(QStringLiteral("Open Externally"), this,
@@ -592,6 +598,11 @@ void MainGui::showProjectTreeContextMenu(const QPoint &pos) noexcept
         break;
     }
     case CustomStandardItem::DirRole: {
+        contextMenu.addAction(QStringLiteral("Remove From Project"), this,
+                              [this, path] { removeDirFromProject(path); });
+        contextMenu.addSeparator();
+    }
+    case CustomStandardItem::RootDirRole: {
         contextMenu.addAction(QStringLiteral("Open Folder"), this,
                               [this, path] { openFolder(path); });
         break;
@@ -600,16 +611,253 @@ void MainGui::showProjectTreeContextMenu(const QPoint &pos) noexcept
         Q_UNREACHABLE();
     }
 
-    if (role != CustomStandardItem::DirRole) {
+    if (role != CustomStandardItem::DirRole && role != CustomStandardItem::RootDirRole) {
         contextMenu.addAction(QStringLiteral("Show in Folder"), this,
                               [this, path] { showInFolder(path); });
     }
-    contextMenu.addSeparator();
-    contextMenu.addAction(QStringLiteral("Rename"), this, [this, path] { renameFile(path); });
-    if (role != CustomStandardItem::ProjectRole && role != CustomStandardItem::TestAppRole) {
-        contextMenu.addAction(QStringLiteral("Delete"), this, [this, path] { deleteFile(path); });
+    if (role != CustomStandardItem::ProjectRole && role != CustomStandardItem::TestAppRole
+        && role != CustomStandardItem::RootDirRole) {
+        contextMenu.addSeparator();
+        contextMenu.addAction(QStringLiteral("Rename"), this,
+                              [this, model, index] { renameFile(model, index); });
+        contextMenu.addAction(QStringLiteral("Delete"), this,
+                              [this, path, isScript] { deleteFile(path, isScript); });
     }
 
     contextMenu.exec(ui->projectFilesView->viewport()->mapToGlobal(pos));
+}
+
+void MainGui::removeFromProject(const QString &path, bool isScript) noexcept
+{
+    assert(project_ != nullptr);
+    auto paths = project_->value(isScript ? paths::PROJECT_SCRIPTS : paths::PROJECT_SOURCES, {})
+                     .toStringList();
+    const auto size = paths.size();
+    assert(size > 0);
+    paths.removeAll(path);
+    assert(size > paths.size());
+    project_->setValue(isScript ? paths::PROJECT_SCRIPTS : paths::PROJECT_SOURCES, paths);
+    project_->sync();
+    updateProjectFileView(false);
+}
+
+void MainGui::removeDirFromProject(const QString &path) noexcept
+{
+    assert(project_ != nullptr);
+    auto scriptPaths = project_->value(paths::PROJECT_SCRIPTS, {}).toStringList();
+    auto sourcePaths = project_->value(paths::PROJECT_SOURCES, {}).toStringList();
+    assert(scriptPaths.size() + sourcePaths.size() > 0);
+
+    const auto dirPath = path + QDir::separator();
+    auto remove = [this, dirPath](QStringList &paths) {
+        QMutableListIterator<QString> iterator(paths);
+        while (iterator.hasNext()) {
+            if (iterator.next().startsWith(dirPath)) {
+                iterator.remove();
+            }
+        }
+    };
+
+    remove(scriptPaths);
+    remove(sourcePaths);
+
+    project_->setValue(paths::PROJECT_SCRIPTS, scriptPaths);
+    project_->setValue(paths::PROJECT_SOURCES, sourcePaths);
+    project_->sync();
+    updateProjectFileView(false);
+}
+
+void MainGui::renameFile(QStandardItemModel *model, const QModelIndex &index) noexcept
+{
+    assert(model != nullptr);
+    assert(index.isValid());
+
+    auto *item = model->itemFromIndex(index);
+    assert(item != nullptr);
+    const auto oldName = item->data(Qt::DisplayRole).value<QString>();
+    assert(!oldName.isEmpty());
+    item->setFlags(item->flags() | Qt::ItemIsEditable);
+
+    auto *delegate = ui->projectFilesView->itemDelegate(index);
+    assert(delegate != nullptr);
+    connect(delegate, &QAbstractItemDelegate::closeEditor, this, [this, model, delegate, item] {
+        disconnect(model, &QStandardItemModel::itemChanged, this, 0);
+        disconnect(delegate, &QAbstractItemDelegate::closeEditor, this, 0);
+        item->setFlags(item->flags() & ~Qt::ItemIsEditable);
+    });
+
+    connect(
+        model, &QStandardItemModel::itemChanged, this,
+        [this, model, oldName](QStandardItem *rawItem) { doRenameFile(model, rawItem, oldName); });
+
+    ui->projectFilesView->edit(index);
+}
+
+void MainGui::deleteFile(const QString &path, bool isScript) noexcept
+{
+    QFile file(path);
+    assert(file.exists());
+    if (!file.remove()) {
+        QMessageBox::critical(this, paths::QTADA_ERROR_HEADER,
+                              QStringLiteral("File '%1' deletion failed.").arg(path));
+        return;
+    }
+
+    QVariant t = {};
+    QStringList test = t.toStringList();
+    assert(project_ != nullptr);
+    auto paths = project_->value(isScript ? paths::PROJECT_SCRIPTS : paths::PROJECT_SOURCES, {})
+                     .toStringList();
+    assert(!paths.isEmpty());
+    assert(paths.contains(path));
+    paths.removeAll(path);
+    project_->setValue(isScript ? paths::PROJECT_SCRIPTS : paths::PROJECT_SOURCES, paths);
+    project_->sync();
+    updateProjectFileView(false);
+}
+
+void MainGui::openExternally(const QString &path) noexcept
+{
+    QFileInfo fileInfo(path);
+    assert(fileInfo.exists());
+    QDesktopServices::openUrl(QUrl::fromLocalFile(path));
+}
+
+void MainGui::showInFolder(const QString &path) noexcept
+{
+    QFileInfo fileInfo(path);
+    assert(fileInfo.exists());
+    //! TODO: нужно подсвечивать файл в директории
+    openFolder(fileInfo.absolutePath());
+}
+
+void MainGui::openFolder(const QString &path) noexcept
+{
+    QFileInfo fileInfo(path);
+    assert(fileInfo.exists());
+    QDesktopServices::openUrl(QUrl::fromLocalFile(path));
+}
+
+void MainGui::executeApplication(const QString &path) noexcept
+{
+    QFileInfo fileInfo(path);
+    assert(fileInfo.exists());
+    //! TODO: нужно использовать текущие аргументы запуска приложения
+    QProcess::startDetached(path, {});
+}
+
+void MainGui::doRenameFile(QStandardItemModel *model, QStandardItem *rawItem,
+                           const QString &oldName) noexcept
+{
+    disconnect(model, &QStandardItemModel::itemChanged, this, 0);
+
+    auto *item = static_cast<CustomStandardItem *>(rawItem);
+    assert(item != nullptr);
+    const auto role = item->role();
+    assert(role == CustomStandardItem::DirRole || role == CustomStandardItem::ScriptRole
+           || role == CustomStandardItem::SourceRole);
+
+    auto rawNewName = item->data(Qt::DisplayRole).value<QString>();
+    const auto newName
+        = rawNewName.right(rawNewName.length() - rawNewName.lastIndexOf(QDir::separator()) - 1);
+    if (newName.isEmpty()) {
+        item->setData(oldName, Qt::DisplayRole);
+        return;
+    }
+    if (newName != rawNewName) {
+        item->setData(newName, Qt::DisplayRole);
+    }
+
+    if (role == CustomStandardItem::ScriptRole
+        && newName.right(newName.length() - newName.lastIndexOf('.') - 1) != "js") {
+        item->setData(oldName, Qt::DisplayRole);
+        QMessageBox::warning(
+            this, paths::QTADA_WARNING_HEADER,
+            QStringLiteral("The script must be a JavaScript file with a .js extension."));
+        return;
+    }
+
+    const auto oldPath = item->data(role).value<QString>();
+    const auto newPath = oldPath.left(oldPath.lastIndexOf(QDir::separator()) + 1) + newName;
+
+    QFileInfo newFileInfo(newPath);
+    if (newFileInfo.exists()) {
+        item->setData(oldName, Qt::DisplayRole);
+        QMessageBox::warning(this, paths::QTADA_WARNING_HEADER,
+                             QStringLiteral("The %1 at '%2' already exists.")
+                                 .arg(role == CustomStandardItem::DirRole ? "directory" : "file")
+                                 .arg(newPath));
+        return;
+    }
+
+    assert(project_ != nullptr);
+    switch (role) {
+    case CustomStandardItem::ScriptRole:
+    case CustomStandardItem::SourceRole: {
+        QFile oldFile(oldPath);
+        assert(oldFile.exists());
+
+        if (!oldFile.rename(newPath)) {
+            item->setData(oldName, Qt::DisplayRole);
+            QMessageBox::critical(
+                this, paths::QTADA_ERROR_HEADER,
+                QStringLiteral("Renaming '%1' -> '&2' failed.").arg(oldPath).arg(newPath));
+            return;
+        }
+
+        auto filesPaths
+            = project_
+                  ->value(role == CustomStandardItem::ScriptRole ? paths::PROJECT_SCRIPTS
+                                                                 : paths::PROJECT_SOURCES,
+                          {})
+                  .toStringList();
+        assert(!filesPaths.isEmpty());
+        assert(filesPaths.contains(oldPath));
+        filesPaths.removeAll(oldPath);
+        filesPaths.append(newPath);
+        project_->setValue(role == CustomStandardItem::ScriptRole ? paths::PROJECT_SCRIPTS
+                                                                  : paths::PROJECT_SOURCES,
+                           filesPaths);
+        project_->sync();
+        break;
+    }
+    case CustomStandardItem::DirRole: {
+        QDir oldDir(oldPath);
+        assert(oldDir.exists());
+
+        if (!oldDir.rename(oldPath, newPath)) {
+            item->setData(oldName, Qt::DisplayRole);
+            QMessageBox::critical(
+                this, paths::QTADA_ERROR_HEADER,
+                QStringLiteral("Renaming '%1' -> '&2' failed.").arg(oldPath).arg(newPath));
+            return;
+        }
+
+        const auto oldDirPath = oldPath + QDir::separator();
+        const auto newDirPath = newPath + QDir::separator();
+        auto renamePaths = [this, oldDirPath, newDirPath](QStringList &filesPaths) {
+            for (auto &filePath : filesPaths) {
+                if (filePath.startsWith(oldDirPath)) {
+                    filePath.replace(0, oldDirPath.length(), newDirPath);
+                }
+            }
+        };
+
+        auto scriptPaths = project_->value(paths::PROJECT_SCRIPTS, {}).toStringList();
+        auto sourcePaths = project_->value(paths::PROJECT_SOURCES, {}).toStringList();
+        assert(scriptPaths.size() + sourcePaths.size() > 0);
+
+        renamePaths(scriptPaths);
+        renamePaths(sourcePaths);
+
+        project_->setValue(paths::PROJECT_SCRIPTS, scriptPaths);
+        project_->setValue(paths::PROJECT_SOURCES, sourcePaths);
+        project_->sync();
+        break;
+    }
+    default:
+        Q_UNREACHABLE();
+    }
+    updateProjectFileView(false);
 }
 } // namespace QtAda::gui

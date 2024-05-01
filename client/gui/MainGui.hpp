@@ -7,6 +7,8 @@
 QT_BEGIN_NAMESPACE
 class QSettings;
 class QFileInfo;
+class QStandardItemModel;
+class QStandardItem;
 QT_END_NAMESPACE
 
 namespace Ui {
@@ -32,27 +34,14 @@ private slots:
     void openInEditor(const QString &path) noexcept
     {
     }
-    void removeFromProject(const QString &path) noexcept
-    {
-    }
-    void openExternally(const QString &path) noexcept
-    {
-    }
-    void showInFolder(const QString &path) noexcept
-    {
-    }
-    void openFolder(const QString &path) noexcept
-    {
-    }
-    void renameFile(const QString &path) noexcept
-    {
-    }
-    void deleteFile(const QString &path) noexcept
-    {
-    }
-    void executeApplication(const QString &path) noexcept
-    {
-    }
+    void removeFromProject(const QString &path, bool isScript) noexcept;
+    void removeDirFromProject(const QString &path) noexcept;
+    void renameFile(QStandardItemModel *model, const QModelIndex &index) noexcept;
+    void deleteFile(const QString &path, bool isScript) noexcept;
+    void openExternally(const QString &path) noexcept;
+    void showInFolder(const QString &path) noexcept;
+    void openFolder(const QString &path) noexcept;
+    void executeApplication(const QString &path) noexcept;
 
 private:
     Ui::MainGui *ui = nullptr;
@@ -74,6 +63,9 @@ private:
     void configureSubTree(CustomStandardItem *rootItem, const QString &projectDirPath,
                           bool isScriptsTree) noexcept;
     QStringList getAccessiblePaths(const QFileInfo &projectInfo, bool isScripts) noexcept;
+
+    void doRenameFile(QStandardItemModel *model, QStandardItem *rawItem,
+                      const QString &oldName) noexcept;
 
     void saveGuiParamsToProjectFile() noexcept;
     void setGuiParamsFromProjectFile() noexcept;
