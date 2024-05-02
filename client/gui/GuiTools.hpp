@@ -15,7 +15,17 @@ enum class AppPathCheck {
     NoExecutable,
     NoProbe,
 };
-}
+
+enum FileRole {
+    ScriptRole = Qt::UserRole + 1,
+    SourceRole,
+    ProjectRole,
+    TestAppRole,
+    RootDirRole,
+    DirRole,
+    None,
+};
+} // namespace QtAda::gui
 
 namespace QtAda::gui::tools {
 inline QFrame *initSeparator(QWidget *parent, bool isHorizontal = false) noexcept

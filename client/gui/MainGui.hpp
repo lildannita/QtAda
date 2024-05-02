@@ -21,48 +21,6 @@ class MainGui;
 namespace QtAda::gui {
 class CustomStandardItem;
 
-class FileEditor : public QTextEdit {
-    Q_OBJECT
-public:
-    FileEditor(const QString &filePath, int role, QTabWidget *editorsTabWidget,
-               QWidget *parent = nullptr) noexcept;
-
-    bool readFile() noexcept;
-    bool closeFile(bool needToConfirm = true) noexcept;
-    void updateFilePath(const QString &filePath) noexcept;
-    QString filePath() const noexcept
-    {
-        return filePath_;
-    }
-    int role() const noexcept
-    {
-        return role_;
-    }
-    bool isChanged() const noexcept
-    {
-        return isChanged_;
-    }
-
-signals:
-    void projectFileHasChanged();
-
-public slots:
-    void saveFile() noexcept;
-
-private slots:
-    void handleFileChange() noexcept;
-
-private:
-    QTabWidget *editorsTabWidget_ = nullptr;
-    QString filePath_;
-    int role_ = -1;
-
-    bool isChanged_ = false;
-    bool fileWasRead_ = false;
-
-    void updateEditorTabName() noexcept;
-};
-
 class MainGui final : public QMainWindow {
     Q_OBJECT
 public:
@@ -73,9 +31,11 @@ private slots:
     void addNewFileToProject(bool isNewFileMode, bool isScript) noexcept;
     void showProjectTreeContextMenu(const QPoint &pos) noexcept;
 
-    void openFileInEditor(const QModelIndex &index) noexcept;
+    void openFile(const QModelIndex &index) noexcept;
     void closeFileInEditor(int index) noexcept;
     void checkIfCurrentTabIsScript(int index) noexcept;
+
+    void handleSettingsChange() noexcept;
 
     void runScript(const QString &path) noexcept
     {
@@ -90,6 +50,9 @@ private slots:
     void executeApplication(const QString &path) noexcept;
 
 private:
+    using Settings = std::pair<RecordSettings, ExecuteSettings>;
+    using ConstSettings = const std::pair<const RecordSettings &, const ExecuteSettings &> &;
+
     Ui::MainGui *ui = nullptr;
     bool uiInitialized_ = false;
     bool saveProjectFileOnExit_ = true;
@@ -104,8 +67,13 @@ private:
     QStringList lastScripts_;
     QStringList lastSources_;
 
-    RecordSettings recordSettings_;
-    ExecuteSettings executeSettings_;
+    bool settingsChangeHandlerBlocked_ = false;
+
+    Settings readCurrentSettings() const noexcept;
+    void saveScriptSettings(const QString &path, ConstSettings settings) noexcept;
+    void updateCurrentSettings(ConstSettings settings) noexcept;
+    void updateScriptPathForSettings(const QString &oldPath,
+                                     const QString &newPath = QString()) noexcept;
 
     void configureProject(const QString &projectPath) noexcept;
     void updateProjectFileView(bool isExternal) noexcept;

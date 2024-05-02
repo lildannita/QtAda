@@ -7,8 +7,6 @@
 #include <QFileDialog>
 #include <QDesktopServices>
 #include <QProcess>
-#include <QTextStream>
-#include <QShortcut>
 #include <QCloseEvent>
 #include <set>
 #include <memory>
@@ -16,20 +14,11 @@
 #include "ui_MainGui.h"
 #include "Paths.hpp"
 #include "GuiTools.hpp"
+#include "FileEditor.hpp"
 
 namespace QtAda::gui {
 class CustomStandardItem : public QStandardItem {
 public:
-    enum Roles {
-        ScriptRole = Qt::UserRole + 1,
-        SourceRole,
-        ProjectRole,
-        TestAppRole,
-        RootDirRole,
-        DirRole,
-        None,
-    };
-
     CustomStandardItem(const QString &name, const QIcon &icon, bool isSelectable = true) noexcept
         : QStandardItem{ name }
     {
@@ -51,7 +40,7 @@ public:
     }
 
 private:
-    int role_ = Roles::None;
+    int role_ = FileRole::None;
 };
 
 static CustomStandardItem *initFileItem(const QString &fileName, const QString &filePath,
@@ -59,7 +48,7 @@ static CustomStandardItem *initFileItem(const QString &fileName, const QString &
 {
     return new CustomStandardItem(
         fileName, filePath, isScript ? QIcon(":/icons/script.svg") : QIcon(":/icons/source.svg"),
-        isScript ? CustomStandardItem::ScriptRole : CustomStandardItem::SourceRole);
+        isScript ? FileRole::ScriptRole : FileRole::SourceRole);
 }
 
 static CustomStandardItem *initDirItem(const QString &dirName, const QString &dirPath,
@@ -68,7 +57,7 @@ static CustomStandardItem *initDirItem(const QString &dirName, const QString &di
     if (!dirPath.isEmpty() && !isSourceDir) {
         return new CustomStandardItem(
             dirName, dirPath, isRootDir ? QIcon(":/icons/root_dir.svg") : QIcon(":/icons/dir.svg"),
-            isRootDir ? CustomStandardItem::RootDirRole : CustomStandardItem::DirRole, false);
+            isRootDir ? FileRole::RootDirRole : FileRole::DirRole, false);
     }
     else {
         return new CustomStandardItem(dirName, QIcon(":/icons/source_dir.svg"), false);
@@ -128,113 +117,6 @@ static void handleSubDirectories(const QString &projectDirPath, CustomStandardIt
         initFileItem(fileInfo.fileName(), fileInfo.absoluteFilePath(), isScriptsTree));
 }
 
-FileEditor::FileEditor(const QString &filePath, int role, QTabWidget *editorsTabWidget,
-                       QWidget *parent) noexcept
-    : QTextEdit{ parent }
-    , editorsTabWidget_{ editorsTabWidget }
-    , filePath_{ filePath }
-    , role_{ role }
-{
-    assert(!filePath_.isEmpty());
-    assert(editorsTabWidget_ != nullptr);
-
-    auto *shortcut = new QShortcut(QKeySequence("Ctrl+S"), this);
-    connect(shortcut, &QShortcut::activated, this, &FileEditor::saveFile);
-}
-
-void FileEditor::saveFile() noexcept
-{
-    if (!isChanged_) {
-        return;
-    }
-    QFile file(filePath_);
-    assert(file.exists());
-    if (!file.open(QIODevice::WriteOnly | QIODevice::Text | QIODevice::Truncate)) {
-        QMessageBox::warning(this, paths::QTADA_WARNING_HEADER,
-                             QStringLiteral("Can't save file '%1'.").arg(filePath_));
-        return;
-    }
-    QTextStream out(&file);
-    out << this->toPlainText();
-    file.close();
-    isChanged_ = false;
-    updateEditorTabName();
-
-    if (role_ == CustomStandardItem::ProjectRole) {
-        emit projectFileHasChanged();
-    }
-}
-
-void FileEditor::updateFilePath(const QString &filePath) noexcept
-{
-    filePath_ = filePath;
-    updateEditorTabName();
-}
-
-bool FileEditor::readFile() noexcept
-{
-    assert(!fileWasRead_);
-    fileWasRead_ = true;
-
-    //! TODO: нужно разобраться как различать текстовые файлы от бинарных
-
-    QFile file(filePath_);
-    assert(file.exists());
-    if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
-        QMessageBox::warning(this, paths::QTADA_WARNING_HEADER,
-                             QStringLiteral("Can't read file '%1'.").arg(filePath_));
-        return false;
-    }
-    this->setPlainText(QString::fromUtf8(file.readAll()));
-    file.close();
-
-    connect(this, &QTextEdit::textChanged, this, &FileEditor::handleFileChange);
-    return true;
-}
-
-bool FileEditor::closeFile(bool needToConfirm) noexcept
-{
-    if (!isChanged_ || !needToConfirm) {
-        isChanged_ = false;
-        return true;
-    }
-
-    const auto confirm = QMessageBox::question(
-        this, paths::QTADA_UNSAVED_CHANGES_HEADER,
-        QStringLiteral("You have unsaved changes in file '%1'.\n"
-                       "Do you want to save your changes?")
-            .arg(filePath_),
-        QMessageBox::No | QMessageBox::Yes | QMessageBox::Cancel, QMessageBox::Yes);
-    if (confirm == QMessageBox::Cancel) {
-        return false;
-    }
-    if (confirm == QMessageBox::Yes) {
-        saveFile();
-    }
-    isChanged_ = false;
-    return true;
-}
-
-void FileEditor::handleFileChange() noexcept
-{
-    if (isChanged_) {
-        return;
-    }
-    isChanged_ = true;
-    updateEditorTabName();
-}
-
-void FileEditor::updateEditorTabName() noexcept
-{
-    for (int i = 0; i < editorsTabWidget_->count(); i++) {
-        if (editorsTabWidget_->widget(i) == this) {
-            editorsTabWidget_->setTabText(i, QFileInfo(filePath_).fileName()
-                                                 + (isChanged_ ? " *" : ""));
-            break;
-        }
-    }
-}
-
 MainGui::MainGui(const QString &projectPath, QWidget *parent)
     : QMainWindow(parent)
     , ui(new Ui::MainGui)
@@ -268,6 +150,14 @@ MainGui::MainGui(const QString &projectPath, QWidget *parent)
     contentLayout->addWidget(fileNotOpenedLabel_);
     contentLayout->addWidget(editorsTabWidget_);
 
+    // Инициализация значений для выбора поведения при обращении к делегатам
+    ui->textIndexBehaviorComboBox->addItem(QStringLiteral("Index"),
+                                           static_cast<int>(TextIndexBehavior::OnlyIndex));
+    ui->textIndexBehaviorComboBox->addItem(QStringLiteral("Text"),
+                                           static_cast<int>(TextIndexBehavior::OnlyText));
+    ui->textIndexBehaviorComboBox->addItem(QStringLiteral("Index & Text"),
+                                           static_cast<int>(TextIndexBehavior::TextIndex));
+
     configureProject(projectPath);
 
     connect(ui->actionNewScript, &QAction::triggered, this,
@@ -281,10 +171,28 @@ MainGui::MainGui(const QString &projectPath, QWidget *parent)
 
     connect(ui->projectFilesView, &QTreeView::customContextMenuRequested, this,
             &MainGui::showProjectTreeContextMenu);
-    connect(ui->projectFilesView, &QTreeView::doubleClicked, this, &MainGui::openFileInEditor);
+    connect(ui->projectFilesView, &QTreeView::doubleClicked, this, &MainGui::openFile);
     connect(editorsTabWidget_, &QTabWidget::tabCloseRequested, this, &MainGui::closeFileInEditor);
     connect(editorsTabWidget_, &QTabWidget::currentChanged, this,
             &MainGui::checkIfCurrentTabIsScript);
+
+    connect(ui->lineIndexSpinBox, &QSpinBox::textChanged, this, &MainGui::handleSettingsChange);
+    connect(ui->indentWidthSpinBox, &QSpinBox::textChanged, this, &MainGui::handleSettingsChange);
+    connect(ui->blockCommentLinesSpinBox, &QSpinBox::textChanged, this,
+            &MainGui::handleSettingsChange);
+    connect(ui->duplicateMouseEventCheckBox, &QCheckBox::stateChanged, this,
+            &MainGui::handleSettingsChange);
+    connect(ui->closeWindowsOnExitCheckBox, &QCheckBox::stateChanged, this,
+            &MainGui::handleSettingsChange);
+    connect(ui->textIndexBehaviorComboBox, &QComboBox::currentTextChanged, this,
+            &MainGui::handleSettingsChange);
+    connect(ui->needToGenerateCycleCheckBox, &QCheckBox::stateChanged, this,
+            &MainGui::handleSettingsChange);
+    connect(ui->cycleMinimumCountSpinBox, &QSpinBox::textChanged, this,
+            &MainGui::handleSettingsChange);
+    connect(ui->recordAppArgsEdit, &QLineEdit::editingFinished, this,
+            &MainGui::handleSettingsChange);
+    connect(ui->runAppArgsEdit, &QLineEdit::editingFinished, this, &MainGui::handleSettingsChange);
 }
 
 MainGui::~MainGui()
@@ -407,7 +315,7 @@ void MainGui::updateProjectFileView(bool isExternal) noexcept
 
     rootProjectDir->appendRow(
         new CustomStandardItem(projectFileInfo.fileName(), projectFileInfo.absoluteFilePath(),
-                               QIcon(":/icons/project.svg"), CustomStandardItem::ProjectRole));
+                               QIcon(":/icons/project.svg"), FileRole::ProjectRole));
 
     const auto projectDirPath = projectDir.absolutePath();
 
@@ -420,9 +328,9 @@ void MainGui::updateProjectFileView(bool isExternal) noexcept
     rootProjectDir->appendRow(sourceDirItem);
 
     const auto appFileInfo = QFileInfo(appPath);
-    projectFilesModel->appendRow(new CustomStandardItem(
-        appFileInfo.fileName(), appFileInfo.absoluteFilePath(), QIcon(":/icons/test_app.svg"),
-        CustomStandardItem::TestAppRole, false));
+    projectFilesModel->appendRow(
+        new CustomStandardItem(appFileInfo.fileName(), appFileInfo.absoluteFilePath(),
+                               QIcon(":/icons/test_app.svg"), FileRole::TestAppRole, false));
 
     tools::deleteModels(ui->projectFilesView);
     ui->projectFilesView->setModel(projectFilesModel);
@@ -715,7 +623,7 @@ void MainGui::showProjectTreeContextMenu(const QPoint &pos) noexcept
 
     const auto role = item->role();
 
-    if (role == CustomStandardItem::None) {
+    if (role == FileRole::None) {
         return;
     }
 
@@ -723,19 +631,19 @@ void MainGui::showProjectTreeContextMenu(const QPoint &pos) noexcept
     assert(!path.isEmpty());
 
     QMenu contextMenu;
-    const auto isScript = role == CustomStandardItem::ScriptRole;
+    const auto isScript = role == FileRole::ScriptRole;
 
     switch (role) {
-    case CustomStandardItem::ScriptRole: {
+    case FileRole::ScriptRole: {
         contextMenu.addAction(QStringLiteral("Run Test Script"), this,
                               [this, path] { runScript(path); });
         contextMenu.addSeparator();
     }
-    case CustomStandardItem::SourceRole:
-    case CustomStandardItem::ProjectRole: {
+    case FileRole::SourceRole:
+    case FileRole::ProjectRole: {
         contextMenu.addAction(QStringLiteral("Open in Editor"), this,
-                              [this, index] { openFileInEditor(index); });
-        if (role != CustomStandardItem::ProjectRole) {
+                              [this, index] { openFile(index); });
+        if (role != FileRole::ProjectRole) {
             contextMenu.addAction(QStringLiteral("Remove from Project"), this,
                                   [this, path, isScript] { removeFromProject(path, isScript); });
         }
@@ -744,18 +652,18 @@ void MainGui::showProjectTreeContextMenu(const QPoint &pos) noexcept
                               [this, path] { openExternally(path); });
         break;
     }
-    case CustomStandardItem::TestAppRole: {
+    case FileRole::TestAppRole: {
         contextMenu.addAction(QStringLiteral("Execute"), this,
                               [this, path] { executeApplication(path); });
         contextMenu.addSeparator();
         break;
     }
-    case CustomStandardItem::DirRole: {
+    case FileRole::DirRole: {
         contextMenu.addAction(QStringLiteral("Remove From Project"), this,
                               [this, path] { removeDirFromProject(path); });
         contextMenu.addSeparator();
     }
-    case CustomStandardItem::RootDirRole: {
+    case FileRole::RootDirRole: {
         contextMenu.addAction(QStringLiteral("Open Folder"), this,
                               [this, path] { openFolder(path); });
         break;
@@ -764,17 +672,17 @@ void MainGui::showProjectTreeContextMenu(const QPoint &pos) noexcept
         Q_UNREACHABLE();
     }
 
-    if (role != CustomStandardItem::DirRole && role != CustomStandardItem::RootDirRole) {
+    if (role != FileRole::DirRole && role != FileRole::RootDirRole) {
         contextMenu.addAction(QStringLiteral("Show in Folder"), this,
                               [this, path] { showInFolder(path); });
     }
-    if (role != CustomStandardItem::ProjectRole && role != CustomStandardItem::TestAppRole
-        && role != CustomStandardItem::RootDirRole) {
+    if (role != FileRole::ProjectRole && role != FileRole::TestAppRole
+        && role != FileRole::RootDirRole) {
         contextMenu.addSeparator();
         contextMenu.addAction(QStringLiteral("Rename"), this,
                               [this, model, index] { renameFile(model, index); });
     }
-    if (role == CustomStandardItem::ScriptRole || role == CustomStandardItem::SourceRole) {
+    if (role == FileRole::ScriptRole || role == FileRole::SourceRole) {
         contextMenu.addAction(QStringLiteral("Delete"), this,
                               [this, path, isScript] { deleteFile(path, isScript); });
     }
@@ -844,6 +752,7 @@ void MainGui::removeFromProject(const QString &path, bool isScript) noexcept
     }
     project_->setValue(isScript ? paths::PROJECT_SCRIPTS : paths::PROJECT_SOURCES, paths);
     project_->sync();
+    updateScriptPathForSettings(path);
     updateProjectFileView(false);
 }
 
@@ -951,6 +860,7 @@ void MainGui::deleteFile(const QString &path, bool isScript) noexcept
     paths.removeAll(path);
     project_->setValue(isScript ? paths::PROJECT_SCRIPTS : paths::PROJECT_SOURCES, paths);
     project_->sync();
+    updateScriptPathForSettings(path);
     updateProjectFileView(false);
 }
 
@@ -993,8 +903,8 @@ void MainGui::doRenameFile(QStandardItemModel *model, QStandardItem *rawItem,
     auto *item = static_cast<CustomStandardItem *>(rawItem);
     assert(item != nullptr);
     const auto role = item->role();
-    assert(role == CustomStandardItem::DirRole || role == CustomStandardItem::ScriptRole
-           || role == CustomStandardItem::SourceRole);
+    assert(role == FileRole::DirRole || role == FileRole::ScriptRole
+           || role == FileRole::SourceRole);
 
     auto rawNewName = item->data(Qt::DisplayRole).value<QString>();
     const auto newName
@@ -1007,7 +917,7 @@ void MainGui::doRenameFile(QStandardItemModel *model, QStandardItem *rawItem,
         item->setData(newName, Qt::DisplayRole);
     }
 
-    if (role == CustomStandardItem::ScriptRole
+    if (role == FileRole::ScriptRole
         && newName.right(newName.length() - newName.lastIndexOf('.') - 1) != "js") {
         item->setData(oldName, Qt::DisplayRole);
         QMessageBox::warning(
@@ -1024,15 +934,15 @@ void MainGui::doRenameFile(QStandardItemModel *model, QStandardItem *rawItem,
         item->setData(oldName, Qt::DisplayRole);
         QMessageBox::warning(this, paths::QTADA_WARNING_HEADER,
                              QStringLiteral("The %1 at '%2' already exists.")
-                                 .arg(role == CustomStandardItem::DirRole ? "directory" : "file")
+                                 .arg(role == FileRole::DirRole ? "directory" : "file")
                                  .arg(newPath));
         return;
     }
 
     assert(project_ != nullptr);
     switch (role) {
-    case CustomStandardItem::ScriptRole:
-    case CustomStandardItem::SourceRole: {
+    case FileRole::ScriptRole:
+    case FileRole::SourceRole: {
         QFile oldFile(oldPath);
         assert(oldFile.exists());
 
@@ -1044,18 +954,17 @@ void MainGui::doRenameFile(QStandardItemModel *model, QStandardItem *rawItem,
             return;
         }
 
-        auto filesPaths
-            = project_
-                  ->value(role == CustomStandardItem::ScriptRole ? paths::PROJECT_SCRIPTS
-                                                                 : paths::PROJECT_SOURCES,
-                          {})
-                  .toStringList();
+        auto filesPaths = project_
+                              ->value(role == FileRole::ScriptRole ? paths::PROJECT_SCRIPTS
+                                                                   : paths::PROJECT_SOURCES,
+                                      {})
+                              .toStringList();
         assert(!filesPaths.isEmpty());
         assert(filesPaths.contains(oldPath));
         filesPaths.removeAll(oldPath);
         filesPaths.append(newPath);
-        project_->setValue(role == CustomStandardItem::ScriptRole ? paths::PROJECT_SCRIPTS
-                                                                  : paths::PROJECT_SOURCES,
+        project_->setValue(role == FileRole::ScriptRole ? paths::PROJECT_SCRIPTS
+                                                        : paths::PROJECT_SOURCES,
                            filesPaths);
         project_->sync();
 
@@ -1067,9 +976,13 @@ void MainGui::doRenameFile(QStandardItemModel *model, QStandardItem *rawItem,
                 break;
             }
         }
+
+        if (role == FileRole::ScriptRole) {
+            updateScriptPathForSettings(oldPath, newPath);
+        }
         break;
     }
-    case CustomStandardItem::DirRole: {
+    case FileRole::DirRole: {
         QDir oldDir(oldPath);
         assert(oldDir.exists());
 
@@ -1094,6 +1007,9 @@ void MainGui::doRenameFile(QStandardItemModel *model, QStandardItem *rawItem,
                         assert(editor != nullptr);
                         if (editor->filePath() == oldFilePath) {
                             editor->updateFilePath(filePath);
+                            if (editor->role() == FileRole::ScriptRole) {
+                                updateScriptPathForSettings(oldFilePath, filePath);
+                            }
                             break;
                         }
                     }
@@ -1119,7 +1035,7 @@ void MainGui::doRenameFile(QStandardItemModel *model, QStandardItem *rawItem,
     updateProjectFileView(false);
 }
 
-void MainGui::openFileInEditor(const QModelIndex &index) noexcept
+void MainGui::openFile(const QModelIndex &index) noexcept
 {
     assert(index.isValid());
 
@@ -1132,13 +1048,18 @@ void MainGui::openFileInEditor(const QModelIndex &index) noexcept
     assert(item != nullptr);
 
     const auto role = item->role();
-    if (role != CustomStandardItem::ProjectRole && role != CustomStandardItem::ScriptRole
-        && role != CustomStandardItem::SourceRole) {
+    const auto path = item->data(role).value<QString>();
+    assert(!path.isEmpty());
+
+    if (role == FileRole::TestAppRole) {
+        executeApplication(std::move(path));
         return;
     }
 
-    const auto path = item->data(role).value<QString>();
-    assert(!path.isEmpty());
+    if (role != FileRole::ProjectRole && role != FileRole::ScriptRole
+        && role != FileRole::SourceRole) {
+        return;
+    }
 
     for (int i = 0; i < editorsTabWidget_->count(); i++) {
         const auto tabEditor = qobject_cast<const FileEditor *>(editorsTabWidget_->widget(i));
@@ -1163,11 +1084,35 @@ void MainGui::openFileInEditor(const QModelIndex &index) noexcept
         return;
     }
 
-    if (role == CustomStandardItem::ProjectRole) {
+    if (role == FileRole::ProjectRole) {
         connect(fileEditor, &FileEditor::projectFileHasChanged, this, [this] {
             project_->sync();
             updateProjectFileView(false);
         });
+    }
+    else if (role == FileRole::ScriptRole) {
+        project_->beginGroup(paths::PROJECT_RECORD_GROUP);
+        const auto recordJson = project_->value(path, QByteArray()).toByteArray();
+        project_->endGroup();
+        project_->beginGroup(paths::PROJECT_EXECUTE_GROUP);
+        const auto executeJson = project_->value(path, QByteArray()).toByteArray();
+        project_->endGroup();
+
+        const auto recordSettings
+            = recordJson.isEmpty() ? RecordSettings() : RecordSettings::fromJson(recordJson, true);
+        const auto executeSettings = recordJson.isEmpty()
+                                         ? ExecuteSettings()
+                                         : ExecuteSettings::fromJson(executeJson, true);
+
+        //! TODO: Очень некрасивое решение. Когда мы загоняем настройки в элементы GUI, то
+        //! благодаря их ограничениям, мы точно получим валидные значения. Но в текущей версии
+        //! получится так, что сначала мы тут установливаем новые значения в настройки, а потом,
+        //! при изменении текущего индекса QTabWidget, функция установки "новых" значений вызовется
+        //! повторно.
+        updateCurrentSettings({ std::move(recordSettings), std::move(executeSettings) });
+        const auto settings = readCurrentSettings();
+        fileEditor->setSettings(settings);
+        saveScriptSettings(path, std::move(settings));
     }
 
     const auto tabIndex = editorsTabWidget_->addTab(fileEditor, tabIcon, tabName);
@@ -1207,6 +1152,115 @@ void MainGui::checkIfCurrentTabIsScript(int index) noexcept
     }
     auto *editor = qobject_cast<FileEditor *>(editorsTabWidget_->widget(index));
     assert(editor != nullptr);
-    ui->recordAndSettingsWidget->setVisible(editor->role() == CustomStandardItem::ScriptRole);
+    const auto isScript = editor->role() == FileRole::ScriptRole;
+    ui->recordAndSettingsWidget->setVisible(isScript);
+    if (isScript) {
+        updateCurrentSettings(editor->getSettings());
+    }
+}
+
+MainGui::Settings MainGui::readCurrentSettings() const noexcept
+{
+    RecordSettings recordSettings;
+    recordSettings.indentWidth = ui->indentWidthSpinBox->value();
+    recordSettings.blockCommentMinimumCount = ui->blockCommentLinesSpinBox->value();
+    recordSettings.duplicateMouseEvent = ui->duplicateMouseEventCheckBox->isChecked();
+    recordSettings.closeWindowsOnExit = ui->closeWindowsOnExitCheckBox->isChecked();
+    recordSettings.textIndexBehavior
+        = static_cast<TextIndexBehavior>(ui->textIndexBehaviorComboBox->currentData().toInt());
+    recordSettings.needToGenerateCycle = ui->needToGenerateCycleCheckBox->isChecked();
+    recordSettings.cycleMinimumCount = ui->cycleMinimumCountSpinBox->value();
+    recordSettings.appendLineIndex = ui->lineIndexSpinBox->value();
+    recordSettings.executeArgs = ui->recordAppArgsEdit->text();
+
+    ExecuteSettings executeSettings;
+    executeSettings.executeArgs = ui->runAppArgsEdit->text();
+
+    return { recordSettings, executeSettings };
+}
+
+void MainGui::saveScriptSettings(const QString &path, ConstSettings settings) noexcept
+{
+    assert(project_ != nullptr);
+    project_->beginGroup(paths::PROJECT_RECORD_GROUP);
+    project_->setValue(path, settings.first.toJson(true));
+    project_->endGroup();
+    project_->beginGroup(paths::PROJECT_EXECUTE_GROUP);
+    project_->setValue(path, settings.second.toJson(true));
+    project_->endGroup();
+    project_->sync();
+}
+
+void MainGui::handleSettingsChange() noexcept
+{
+    ui->updateButton->setEnabled(ui->lineIndexSpinBox->value() >= 0);
+    if (settingsChangeHandlerBlocked_) {
+        return;
+    }
+
+    auto *editor = qobject_cast<FileEditor *>(editorsTabWidget_->currentWidget());
+    assert(editor != nullptr);
+    assert(editor->role() == FileRole::ScriptRole);
+    const auto currentScriptPath = editor->filePath();
+    assert(!currentScriptPath.isEmpty());
+
+    const auto settings = readCurrentSettings();
+    saveScriptSettings(currentScriptPath, settings);
+
+    // Делаем это только для того, чтобы получать и устанавливать настройки
+    // при изменении текущей вкладки удобнее и быстрее, чем чтение из файла проекта.
+    editor->setSettings(std::move(settings));
+}
+
+void MainGui::updateCurrentSettings(ConstSettings settings) noexcept
+{
+    settingsChangeHandlerBlocked_ = true;
+
+    const auto recordSettings = settings.first;
+    const auto executeSettings = settings.second;
+
+    ui->indentWidthSpinBox->setValue(recordSettings.indentWidth);
+    ui->blockCommentLinesSpinBox->setValue(recordSettings.blockCommentMinimumCount);
+    ui->duplicateMouseEventCheckBox->setChecked(recordSettings.duplicateMouseEvent);
+    ui->closeWindowsOnExitCheckBox->setChecked(recordSettings.closeWindowsOnExit);
+    bool foundItem = false;
+    const auto textIndexBehavior = static_cast<int>(recordSettings.textIndexBehavior);
+    for (int i = 0; i < ui->textIndexBehaviorComboBox->count(); i++) {
+        if (ui->textIndexBehaviorComboBox->itemData(i) == textIndexBehavior) {
+            foundItem = true;
+            ui->textIndexBehaviorComboBox->setCurrentIndex(i);
+            break;
+        }
+    }
+    assert(foundItem == true);
+    ui->needToGenerateCycleCheckBox->setChecked(recordSettings.needToGenerateCycle);
+    ui->cycleMinimumCountSpinBox->setValue(recordSettings.cycleMinimumCount);
+    ui->lineIndexSpinBox->setValue(recordSettings.appendLineIndex);
+    ui->recordAppArgsEdit->setText(recordSettings.executeArgs);
+
+    ui->runAppArgsEdit->setText(executeSettings.executeArgs);
+
+    settingsChangeHandlerBlocked_ = false;
+}
+
+void MainGui::updateScriptPathForSettings(const QString &oldPath, const QString &newPath) noexcept
+{
+    assert(!oldPath.isEmpty());
+
+    auto updatePath = [this, oldPath, newPath](bool isRecordMode) {
+        project_->beginGroup(isRecordMode ? paths::PROJECT_RECORD_GROUP
+                                          : paths::PROJECT_EXECUTE_GROUP);
+        if (project_->contains(oldPath)) {
+            const auto settings = project_->value(oldPath, QByteArray()).toByteArray();
+            project_->remove(oldPath);
+            if (!newPath.isEmpty()) {
+                project_->setValue(newPath, settings);
+            }
+        }
+        project_->endGroup();
+    };
+
+    updatePath(true);
+    updatePath(false);
 }
 } // namespace QtAda::gui

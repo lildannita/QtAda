@@ -27,28 +27,32 @@ enum class ScriptWriteMode {
 struct RecordSettings final {
     QString scriptPath = QString();
 
+    ScriptWriteMode scriptWriteMode = ScriptWriteMode::NewScript;
+    int appendLineIndex = -1;
+
+    QString executeArgs = QString();
+
     int indentWidth = DEFAULT_INDENT_WIDTH;
     int blockCommentMinimumCount = -1;
     bool duplicateMouseEvent = false;
     bool closeWindowsOnExit = false;
     TextIndexBehavior textIndexBehavior = TextIndexBehavior::OnlyIndex;
 
-    ScriptWriteMode scriptWriteMode = ScriptWriteMode::NewScript;
-    int appendLineIndex = -1;
-
     bool needToGenerateCycle = false;
     int cycleMinimumCount = MINIMUM_CYCLE_COUNT;
 
     std::optional<std::vector<QString>> isValid() const noexcept;
-    const QByteArray toJson() const noexcept;
-    static const RecordSettings fromJson(const QByteArray &data) noexcept;
+    const QByteArray toJson(bool forGui = false) const noexcept;
+    static const RecordSettings fromJson(const QByteArray &data, bool forGui = false) noexcept;
 };
 
 struct ExecuteSettings final {
     QString scriptPath = QString();
 
+    QString executeArgs = QString();
+
     std::optional<std::vector<QString>> isValid() const noexcept;
-    const QByteArray toJson() const noexcept;
-    static const ExecuteSettings fromJson(const QByteArray &data) noexcept;
+    const QByteArray toJson(bool forGui = false) const noexcept;
+    static const ExecuteSettings fromJson(const QByteArray &data, bool forGui = false) noexcept;
 };
 } // namespace QtAda

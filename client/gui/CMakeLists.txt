@@ -6,12 +6,14 @@ set(gui_UI
   MainGui.ui)
 set(gui_MOC_HDRS
   InitDialog.hpp
+  FileEditor.hpp
   MainGui.hpp)
 set(gui_HDRS
   ${gui_MOC_HDRS}
   GuiTools.hpp)
 set(gui_SRCS
   InitDialog.cpp
+  FileEditor.cpp
   MainGui.cpp
   GuiTools.cpp)
 qt5_wrap_cpp(gen_SRCS ${gui_MOC_HDRS})

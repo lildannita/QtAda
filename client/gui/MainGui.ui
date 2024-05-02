@@ -178,7 +178,7 @@ margin-left: 5px;</string>
            <item>
             <widget class="QWidget" name="updateLineIndexWidget" native="true">
              <property name="enabled">
-              <bool>false</bool>
+              <bool>true</bool>
              </property>
              <layout class="QHBoxLayout" name="horizontalLayout_10">
               <item>
@@ -229,7 +229,7 @@ margin-left: 5px;</string>
               <item>
                <widget class="QPushButton" name="lineIndexFromScriptButton">
                 <property name="enabled">
-                 <bool>false</bool>
+                 <bool>true</bool>
                 </property>
                 <property name="text">
                  <string>Get From Script</string>
@@ -250,32 +250,6 @@ margin-left: 5px;</string>
             </widget>
            </item>
           </layout>
-         </item>
-         <item>
-          <widget class="Line" name="line">
-           <property name="orientation">
-            <enum>Qt::Horizontal</enum>
-           </property>
-          </widget>
-         </item>
-         <item>
-          <widget class="QWidget" name="appExeArgsWidget" native="true">
-           <property name="enabled">
-            <bool>true</bool>
-           </property>
-           <layout class="QHBoxLayout" name="horizontalLayout_11">
-            <item>
-             <widget class="QLabel" name="appExeArgsLabel">
-              <property name="text">
-               <string>Application Execute Arguments:</string>
-              </property>
-             </widget>
-            </item>
-            <item>
-             <widget class="QLineEdit" name="appExeArgsEdit"/>
-            </item>
-           </layout>
-          </widget>
          </item>
          <item>
           <widget class="Line" name="line_7">
@@ -315,9 +289,9 @@ margin-left: 5px;</string>
                 <property name="geometry">
                  <rect>
                   <x>0</x>
-                  <y>0</y>
+                  <y>-151</y>
                   <width>492</width>
-                  <height>269</height>
+                  <height>324</height>
                  </rect>
                 </property>
                 <property name="sizePolicy">
@@ -327,6 +301,27 @@ margin-left: 5px;</string>
                  </sizepolicy>
                 </property>
                 <layout class="QVBoxLayout" name="verticalLayout_4">
+                 <item>
+                  <layout class="QHBoxLayout" name="horizontalLayout_11">
+                   <item>
+                    <widget class="QLabel" name="recordAppArgsLabel">
+                     <property name="text">
+                      <string>Application Execute Arguments:</string>
+                     </property>
+                    </widget>
+                   </item>
+                   <item>
+                    <widget class="QLineEdit" name="recordAppArgsEdit"/>
+                   </item>
+                  </layout>
+                 </item>
+                 <item>
+                  <widget class="Line" name="line">
+                   <property name="orientation">
+                    <enum>Qt::Horizontal</enum>
+                   </property>
+                  </widget>
+                 </item>
                  <item>
                   <layout class="QHBoxLayout" name="horizontalLayout">
                    <item>
@@ -534,23 +529,8 @@ margin-left: 5px;</string>
                       </size>
                      </property>
                      <property name="currentText">
-                      <string>Index</string>
+                      <string/>
                      </property>
-                     <item>
-                      <property name="text">
-                       <string>Index</string>
-                      </property>
-                     </item>
-                     <item>
-                      <property name="text">
-                       <string>Text</string>
-                      </property>
-                     </item>
-                     <item>
-                      <property name="text">
-                       <string>Text &amp; Index</string>
-                      </property>
-                     </item>
                     </widget>
                    </item>
                   </layout>
@@ -639,6 +619,26 @@ margin-left: 5px;</string>
                    </item>
                   </layout>
                  </item>
+                 <item>
+                  <widget class="Line" name="line_8">
+                   <property name="orientation">
+                    <enum>Qt::Horizontal</enum>
+                   </property>
+                  </widget>
+                 </item>
+                 <item>
+                  <spacer name="verticalSpacer_2">
+                   <property name="orientation">
+                    <enum>Qt::Vertical</enum>
+                   </property>
+                   <property name="sizeHint" stdset="0">
+                    <size>
+                     <width>20</width>
+                     <height>40</height>
+                    </size>
+                   </property>
+                  </spacer>
+                 </item>
                 </layout>
                </widget>
               </widget>
@@ -649,6 +649,61 @@ margin-left: 5px;</string>
             <attribute name="title">
              <string>Run Settings</string>
             </attribute>
+            <layout class="QHBoxLayout" name="horizontalLayout_13">
+             <item>
+              <widget class="QScrollArea" name="scrollArea_2">
+               <property name="widgetResizable">
+                <bool>true</bool>
+               </property>
+               <widget class="QWidget" name="scrollAreaWidgetContents_2">
+                <property name="geometry">
+                 <rect>
+                  <x>0</x>
+                  <y>0</y>
+                  <width>506</width>
+                  <height>173</height>
+                 </rect>
+                </property>
+                <layout class="QVBoxLayout" name="verticalLayout_3">
+                 <item>
+                  <layout class="QHBoxLayout" name="horizontalLayout_12">
+                   <item>
+                    <widget class="QLabel" name="runAppArgsLabel">
+                     <property name="text">
+                      <string>Application Execute Arguments:</string>
+                     </property>
+                    </widget>
+                   </item>
+                   <item>
+                    <widget class="QLineEdit" name="runAppArgsEdit"/>
+                   </item>
+                  </layout>
+                 </item>
+                 <item>
+                  <widget class="Line" name="line_9">
+                   <property name="orientation">
+                    <enum>Qt::Horizontal</enum>
+                   </property>
+                  </widget>
+                 </item>
+                 <item>
+                  <spacer name="verticalSpacer">
+                   <property name="orientation">
+                    <enum>Qt::Vertical</enum>
+                   </property>
+                   <property name="sizeHint" stdset="0">
+                    <size>
+                     <width>20</width>
+                     <height>40</height>
+                    </size>
+                   </property>
+                  </spacer>
+                 </item>
+                </layout>
+               </widget>
+              </widget>
+             </item>
+            </layout>
            </widget>
           </widget>
          </item>

@@ -107,36 +107,46 @@ std::optional<std::vector<QString>> RecordSettings::isValid() const noexcept
     return errors.empty() ? std::nullopt : std::make_optional(errors);
 }
 
-const QByteArray RecordSettings::toJson() const noexcept
+const QByteArray RecordSettings::toJson(bool forGui) const noexcept
 {
     QJsonObject obj;
-    obj["scriptPath"] = this->scriptPath;
+    if (forGui) {
+        obj["executeArgs"] = this->executeArgs;
+    }
+    else {
+        obj["scriptPath"] = this->scriptPath;
+        obj["scriptWriteMode"] = static_cast<int>(this->scriptWriteMode);
+    }
+    obj["appendLineIndex"] = this->appendLineIndex;
     obj["indentWidth"] = this->indentWidth;
     obj["blockCommentMinimumCount"] = this->blockCommentMinimumCount;
     obj["duplicateMouseEvent"] = this->duplicateMouseEvent;
     obj["closeWindowsOnExit"] = this->closeWindowsOnExit;
     obj["textIndexBehavior"] = static_cast<int>(this->textIndexBehavior);
-    obj["scriptWriteMode"] = static_cast<int>(this->scriptWriteMode);
-    obj["appendLineIndex"] = this->appendLineIndex;
     obj["needToGenerateCycle"] = this->needToGenerateCycle;
     obj["cycleMinimumCount"] = this->cycleMinimumCount;
     const auto document = QJsonDocument(obj);
     return document.toJson(QJsonDocument::Indented);
 }
 
-const RecordSettings RecordSettings::fromJson(const QByteArray &data) noexcept
+const RecordSettings RecordSettings::fromJson(const QByteArray &data, bool forGui) noexcept
 {
     QJsonDocument readDoc = QJsonDocument::fromJson(data);
     QJsonObject obj = readDoc.object();
     RecordSettings settings;
-    settings.scriptPath = obj["scriptPath"].toString();
+    if (forGui) {
+        settings.executeArgs = obj["executeArgs"].toString();
+    }
+    else {
+        settings.scriptPath = obj["scriptPath"].toString();
+        settings.scriptWriteMode = static_cast<ScriptWriteMode>(obj["scriptWriteMode"].toInt());
+    }
+    settings.appendLineIndex = obj["appendLineIndex"].toInt();
     settings.indentWidth = obj["indentWidth"].toInt();
     settings.blockCommentMinimumCount = obj["blockCommentMinimumCount"].toInt();
     settings.duplicateMouseEvent = obj["duplicateMouseEvent"].toBool();
     settings.closeWindowsOnExit = obj["closeWindowsOnExit"].toBool();
     settings.textIndexBehavior = static_cast<TextIndexBehavior>(obj["textIndexBehavior"].toInt());
-    settings.scriptWriteMode = static_cast<ScriptWriteMode>(obj["scriptWriteMode"].toInt());
-    settings.appendLineIndex = obj["appendLineIndex"].toInt();
     settings.needToGenerateCycle = obj["needToGenerateCycle"].toBool();
     settings.cycleMinimumCount = obj["cycleMinimumCount"].toInt();
     return settings;
@@ -168,20 +178,30 @@ std::optional<std::vector<QString>> ExecuteSettings::isValid() const noexcept
     return errors.empty() ? std::nullopt : std::make_optional(errors);
 }
 
-const QByteArray ExecuteSettings::toJson() const noexcept
+const QByteArray ExecuteSettings::toJson(bool forGui) const noexcept
 {
     QJsonObject obj;
-    obj["scriptPath"] = this->scriptPath;
+    if (forGui) {
+        obj["executeArgs"] = this->executeArgs;
+    }
+    else {
+        obj["scriptPath"] = this->scriptPath;
+    }
     const auto document = QJsonDocument(obj);
     return document.toJson(QJsonDocument::Indented);
 }
 
-const ExecuteSettings ExecuteSettings::fromJson(const QByteArray &data) noexcept
+const ExecuteSettings ExecuteSettings::fromJson(const QByteArray &data, bool forGui) noexcept
 {
     QJsonDocument readDoc = QJsonDocument::fromJson(data);
     QJsonObject obj = readDoc.object();
     ExecuteSettings settings;
-    settings.scriptPath = obj["scriptPath"].toString();
+    if (forGui) {
+        settings.executeArgs = obj["executeArgs"].toString();
+    }
+    else {
+        settings.scriptPath = obj["scriptPath"].toString();
+    }
     return settings;
 }
 
