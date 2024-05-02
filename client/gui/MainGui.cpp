@@ -599,7 +599,8 @@ void MainGui::setGuiParamsFromProjectFile() noexcept
     }
 
     if (contentProjectSizes.isEmpty() || contentProjectSizes.size() != 3) {
-        ui->contentSplitter->setSizes({ -1, ui->contentWidget->maximumWidth(), -1 });
+        ui->contentSplitter->setSizes({ ui->projectFilesWidget->minimumSizeHint().width(), -1,
+                                        ui->recordAndSettingsWidget->minimumSizeHint().width() });
     }
     else {
         QList<int> contentSizes;
@@ -1163,10 +1164,10 @@ void MainGui::openFileInEditor(const QModelIndex &index) noexcept
     }
 
     if (role == CustomStandardItem::ProjectRole) {
-        //! TODO: не работает, так как у нас всегда открыт QSettings. В следующем
-        //! патче это нужно исправить.
-        connect(fileEditor, &FileEditor::projectFileHasChanged, this,
-                [this] { updateProjectFileView(true); });
+        connect(fileEditor, &FileEditor::projectFileHasChanged, this, [this] {
+            project_->sync();
+            updateProjectFileView(false);
+        });
     }
 
     const auto tabIndex = editorsTabWidget_->addTab(fileEditor, tabIcon, tabName);
@@ -1177,7 +1178,6 @@ void MainGui::openFileInEditor(const QModelIndex &index) noexcept
     }
 
     assert(fileNotOpenedLabel_->isVisible());
-    assert(!ui->recordAndSettingsWidget->isVisible());
     fileNotOpenedLabel_->setVisible(false);
     editorsTabWidget_->setVisible(true);
 }

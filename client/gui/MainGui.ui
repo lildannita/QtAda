@@ -114,6 +114,9 @@
                <height>35</height>
               </size>
              </property>
+             <property name="focusPolicy">
+              <enum>Qt::NoFocus</enum>
+             </property>
              <property name="styleSheet">
               <string notr="true">text-align:left;
 margin-left: 5px;</string>
@@ -146,6 +149,9 @@ margin-left: 5px;</string>
                <width>0</width>
                <height>35</height>
               </size>
+             </property>
+             <property name="focusPolicy">
+              <enum>Qt::NoFocus</enum>
              </property>
              <property name="styleSheet">
               <string notr="true">text-align:left;
