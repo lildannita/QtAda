@@ -172,9 +172,6 @@ void FileEditor::updateFilePath(const QString &filePath) noexcept
 
 bool FileEditor::readFile() noexcept
 {
-    assert(!fileWasRead_);
-    fileWasRead_ = true;
-
     //! TODO: нужно разобраться как различать текстовые файлы от бинарных
 
     QFile file(filePath_);
@@ -189,6 +186,15 @@ bool FileEditor::readFile() noexcept
 
     connect(this, &QPlainTextEdit::textChanged, this, &FileEditor::handleFileChange);
     return true;
+}
+
+bool FileEditor::reReadProjectFile() noexcept
+{
+    assert(role_ == FileRole::ProjectRole);
+    isChanged_ = false;
+    disconnect(this, &QPlainTextEdit::textChanged, this, 0);
+    updateEditorTabName();
+    return readFile();
 }
 
 bool FileEditor::closeFile(bool needToConfirm) noexcept

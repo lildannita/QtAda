@@ -73,6 +73,7 @@ public:
                QAction *lineWrapAction, QWidget *parent = nullptr) noexcept;
 
     bool readFile() noexcept;
+    bool reReadProjectFile() noexcept;
     bool closeFile(bool needToConfirm = true) noexcept;
     void updateFilePath(const QString &filePath) noexcept;
 
@@ -126,7 +127,6 @@ private:
     ExecuteSettings executeSettings_;
 
     bool isChanged_ = false;
-    bool fileWasRead_ = false;
 
     void updateEditorTabName() noexcept;
 };

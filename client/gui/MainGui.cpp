@@ -398,7 +398,7 @@ QStringList MainGui::getAccessiblePaths(const QFileInfo &projectInfo, bool isScr
 
     project_->setValue(isScripts ? paths::PROJECT_SCRIPTS : paths::PROJECT_SOURCES,
                        acceptedFiles.isEmpty() ? QStringList("") : acceptedFiles);
-    project_->sync();
+    flushProjectFile();
     if (!discardFiles.isEmpty()) {
         QMessageBox::warning(
             this, paths::QTADA_WARNING_HEADER,
@@ -487,7 +487,7 @@ void MainGui::saveGuiParamsToProjectFile() noexcept
     project_->setValue(paths::PROJECT_LINE_WRAP_MODE, ui->actionLineWrap->isChecked());
 
     project_->endGroup();
-    project_->sync();
+    flushProjectFile();
 }
 
 void MainGui::setGuiParamsFromProjectFile() noexcept
@@ -614,7 +614,7 @@ void MainGui::addNewFileToProject(bool isNewFileMode, bool isScript) noexcept
                      .toStringList();
     paths.append(newFilePath);
     project_->setValue(isScript ? paths::PROJECT_SCRIPTS : paths::PROJECT_SOURCES, paths);
-    project_->sync();
+    flushProjectFile();
     updateProjectFileView(false);
 }
 
@@ -762,7 +762,7 @@ void MainGui::removeFromProject(const QString &path, bool isScript) noexcept
         paths.push_back("");
     }
     project_->setValue(isScript ? paths::PROJECT_SCRIPTS : paths::PROJECT_SOURCES, paths);
-    project_->sync();
+    flushProjectFile();
     updateScriptPathForSettings(path);
     updateProjectFileView(false);
 }
@@ -813,7 +813,7 @@ void MainGui::removeDirFromProject(const QString &path) noexcept
 
     project_->setValue(paths::PROJECT_SCRIPTS, scriptPaths);
     project_->setValue(paths::PROJECT_SOURCES, sourcePaths);
-    project_->sync();
+    flushProjectFile();
     updateProjectFileView(false);
 }
 
@@ -870,7 +870,7 @@ void MainGui::deleteFile(const QString &path, bool isScript) noexcept
     assert(paths.contains(path));
     paths.removeAll(path);
     project_->setValue(isScript ? paths::PROJECT_SCRIPTS : paths::PROJECT_SOURCES, paths);
-    project_->sync();
+    flushProjectFile();
     updateScriptPathForSettings(path);
     updateProjectFileView(false);
 }
@@ -977,7 +977,7 @@ void MainGui::doRenameFile(QStandardItemModel *model, QStandardItem *rawItem,
         project_->setValue(role == FileRole::ScriptRole ? paths::PROJECT_SCRIPTS
                                                         : paths::PROJECT_SOURCES,
                            filesPaths);
-        project_->sync();
+        flushProjectFile();
 
         for (int i = 0; i < editorsTabWidget_->count(); i++) {
             auto *editor = qobject_cast<FileEditor *>(editorsTabWidget_->widget(i));
@@ -1037,7 +1037,7 @@ void MainGui::doRenameFile(QStandardItemModel *model, QStandardItem *rawItem,
 
         project_->setValue(paths::PROJECT_SCRIPTS, scriptPaths);
         project_->setValue(paths::PROJECT_SOURCES, sourcePaths);
-        project_->sync();
+        flushProjectFile();
         break;
     }
     default:
@@ -1099,6 +1099,13 @@ void MainGui::openFile(const QModelIndex &index) noexcept
         connect(fileEditor, &FileEditor::projectFileHasChanged, this, [this] {
             project_->sync();
             updateProjectFileView(false);
+        });
+        connect(this, &MainGui::projectFileHasChanged, fileEditor, [this, fileEditor] {
+            const auto readResult = fileEditor->reReadProjectFile();
+            if (!readResult) {
+                disconnect(this, &MainGui::projectFileHasChanged, fileEditor, 0);
+                closeFileInEditor(editorsTabWidget_->indexOf(fileEditor));
+            }
         });
     }
     else if (role == FileRole::ScriptRole) {
@@ -1215,7 +1222,7 @@ void MainGui::saveScriptSettings(const QString &path, ConstSettings settings) no
     project_->beginGroup(paths::PROJECT_EXECUTE_GROUP);
     project_->setValue(path, settings.second.toJson(true));
     project_->endGroup();
-    project_->sync();
+    flushProjectFile();
 }
 
 void MainGui::handleSettingsChange() noexcept
@@ -1289,5 +1296,13 @@ void MainGui::updateScriptPathForSettings(const QString &oldPath, const QString 
 
     updatePath(true);
     updatePath(false);
+    flushProjectFile();
+}
+
+void MainGui::flushProjectFile() noexcept
+{
+    assert(project_ != nullptr);
+    project_->sync();
+    emit projectFileHasChanged();
 }
 } // namespace QtAda::gui
