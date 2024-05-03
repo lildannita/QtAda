@@ -354,6 +354,14 @@ void MainGui::updateProjectFileView(bool isExternal) noexcept
             ui->projectFilesView->expand(projectFilesModel->index(subRow, 0, index));
         }
     }
+
+    //! TODO: нужно ли реагировать на "ручное" изменение настроек (RecordSettings, ExecuteSettings)
+    //! в файле проекта? По идее мы "постоянно" храним этим параметры внутри GUI в валидном виде,
+    //! а если реагировать на "ручное" изменение, то на текущий момент это было бы очень ресурсо-
+    //! затратно, так как каждый набор параметров нужно было бы проверять на валидность.
+    //!
+    //! Поэтому пока что все-таки было решено игнорировать такие изменения (также, как и игнорируем
+    //! изменение настроек GUI).
 }
 
 QStringList MainGui::getAccessiblePaths(const QFileInfo &projectInfo, bool isScripts) noexcept
