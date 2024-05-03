@@ -1,6 +1,6 @@
 #pragma once
 
-#include <QTextEdit>
+#include <QPlainTextEdit>
 
 #include "Settings.hpp"
 #include "GuiTools.hpp"
@@ -10,7 +10,7 @@ class QTabWidget;
 QT_END_NAMESPACE
 
 namespace QtAda::gui {
-class FileEditor : public QTextEdit {
+class FileEditor : public QPlainTextEdit {
     Q_OBJECT
 public:
     FileEditor(const QString &filePath, int role, QTabWidget *editorsTabWidget,
@@ -33,6 +33,11 @@ public:
         return isChanged_;
     }
 
+    int lineCount() const noexcept
+    {
+        return this->blockCount();
+    }
+
     void setSettings(const std::pair<RecordSettings, ExecuteSettings> &settings) noexcept
     {
         assert(role_ == FileRole::ScriptRole);
@@ -47,6 +52,7 @@ public:
 
 signals:
     void projectFileHasChanged();
+    void lineCountChanged(int lineCount);
 
 public slots:
     void saveFile() noexcept;

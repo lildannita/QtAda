@@ -1154,9 +1154,22 @@ void MainGui::checkIfCurrentTabIsScript(int index) noexcept
     assert(editor != nullptr);
     const auto isScript = editor->role() == FileRole::ScriptRole;
     ui->recordAndSettingsWidget->setVisible(isScript);
-    if (isScript) {
-        updateCurrentSettings(editor->getSettings());
+
+    if (lastScriptEditor_ != nullptr) {
+        disconnect(lastScriptEditor_, &FileEditor::lineCountChanged, this, 0);
+        lastScriptEditor_ = nullptr;
     }
+
+    if (!isScript) {
+        return;
+    }
+
+    updateCurrentSettings(editor->getSettings());
+    ui->lineIndexSpinBox->setMaximum(editor->lineCount());
+
+    lastScriptEditor_ = editor;
+    connect(lastScriptEditor_, &FileEditor::lineCountChanged, this,
+            [this](int lineCount) { ui->lineIndexSpinBox->setMaximum(lineCount); });
 }
 
 MainGui::Settings MainGui::readCurrentSettings() const noexcept
@@ -1193,7 +1206,7 @@ void MainGui::saveScriptSettings(const QString &path, ConstSettings settings) no
 
 void MainGui::handleSettingsChange() noexcept
 {
-    ui->updateButton->setEnabled(ui->lineIndexSpinBox->value() >= 0);
+    ui->updateButton->setEnabled(ui->lineIndexSpinBox->value() > 0);
     if (settingsChangeHandlerBlocked_) {
         return;
     }

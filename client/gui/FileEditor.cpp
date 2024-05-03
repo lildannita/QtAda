@@ -11,7 +11,7 @@
 namespace QtAda::gui {
 FileEditor::FileEditor(const QString &filePath, int role, QTabWidget *editorsTabWidget,
                        QWidget *parent) noexcept
-    : QTextEdit{ parent }
+    : QPlainTextEdit{ parent }
     , editorsTabWidget_{ editorsTabWidget }
     , filePath_{ filePath }
     , role_{ role }
@@ -41,8 +41,15 @@ void FileEditor::saveFile() noexcept
     isChanged_ = false;
     updateEditorTabName();
 
-    if (role_ == FileRole::ScriptRole) {
+    switch (role_) {
+    case FileRole::ProjectRole:
         emit projectFileHasChanged();
+        break;
+    case FileRole::ScriptRole:
+        emit lineCountChanged(this->blockCount());
+        break;
+    default:
+        break;
     }
 }
 
@@ -69,7 +76,7 @@ bool FileEditor::readFile() noexcept
     this->setPlainText(QString::fromUtf8(file.readAll()));
     file.close();
 
-    connect(this, &QTextEdit::textChanged, this, &FileEditor::handleFileChange);
+    connect(this, &QPlainTextEdit::textChanged, this, &FileEditor::handleFileChange);
     return true;
 }
 

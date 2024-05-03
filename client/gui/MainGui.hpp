@@ -20,6 +20,7 @@ class MainGui;
 
 namespace QtAda::gui {
 class CustomStandardItem;
+class FileEditor;
 
 class MainGui final : public QMainWindow {
     Q_OBJECT
@@ -59,6 +60,7 @@ private:
 
     QLabel *fileNotOpenedLabel_ = nullptr;
     QTabWidget *editorsTabWidget_ = nullptr;
+    FileEditor *lastScriptEditor_ = nullptr;
 
     //! TODO: возможно, лучше не хранить QSettings открытым, так как иногда
     //! "внешние" изменения могут быть проигнорированы и перезаписаны (например,
