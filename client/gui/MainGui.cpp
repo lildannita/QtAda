@@ -193,6 +193,13 @@ MainGui::MainGui(const QString &projectPath, QWidget *parent)
     connect(ui->recordAppArgsEdit, &QLineEdit::editingFinished, this,
             &MainGui::handleSettingsChange);
     connect(ui->runAppArgsEdit, &QLineEdit::editingFinished, this, &MainGui::handleSettingsChange);
+
+    connect(ui->lineIndexFromScriptButton, &QPushButton::clicked, this, [this] {
+        assert(lastScriptEditor_ != nullptr);
+        const auto lineNumber = lastScriptEditor_->lastHighlitedLine();
+        assert(lineNumber <= ui->lineIndexSpinBox->maximum());
+        ui->lineIndexSpinBox->setValue(lineNumber);
+    });
 }
 
 MainGui::~MainGui()
@@ -477,6 +484,7 @@ void MainGui::saveGuiParamsToProjectFile() noexcept
     project_->setValue(paths::PROJECT_MAIN_SIZES, mainSizes);
 
     project_->setValue(paths::PROJECT_TOOL_BAR_POSITION, this->toolBarArea(ui->toolBar));
+    project_->setValue(paths::PROJECT_LINE_WRAP_MODE, ui->actionLineWrap->isChecked());
 
     project_->endGroup();
     project_->sync();
@@ -494,6 +502,7 @@ void MainGui::setGuiParamsFromProjectFile() noexcept
     const auto toolBarPos
         = project_->value(paths::PROJECT_TOOL_BAR_POSITION, Qt::ToolBarArea::TopToolBarArea)
               .toInt(&toolBarPosIsOk);
+    const auto lineWrapMode = project_->value(paths::PROJECT_LINE_WRAP_MODE, false).toBool();
     const auto contentProjectSizes = project_->value(paths::PROJECT_CONTENT_SIZES, {}).toList();
     const auto mainProjectSizes = project_->value(paths::PROJECT_MAIN_SIZES, {}).toList();
     project_->endGroup();
@@ -505,6 +514,8 @@ void MainGui::setGuiParamsFromProjectFile() noexcept
     else {
         this->addToolBar(Qt::ToolBarArea::TopToolBarArea, toolBar);
     }
+
+    ui->actionLineWrap->setChecked(lineWrapMode);
 
     if (contentProjectSizes.isEmpty() || contentProjectSizes.size() != 3) {
         ui->contentSplitter->setSizes({ ui->projectFilesWidget->minimumSizeHint().width(), -1,
@@ -1077,7 +1088,7 @@ void MainGui::openFile(const QModelIndex &index) noexcept
     const auto tabIcon = item->icon();
     assert(!tabIcon.isNull());
 
-    auto *fileEditor = new FileEditor(path, role, editorsTabWidget_);
+    auto *fileEditor = new FileEditor(path, role, editorsTabWidget_, ui->actionLineWrap);
     const auto isFileReadable = fileEditor->readFile();
     if (!isFileReadable) {
         fileEditor->deleteLater();
@@ -1136,6 +1147,9 @@ void MainGui::closeFileInEditor(int index) noexcept
         return;
     }
     editorsTabWidget_->removeTab(index);
+    if (fileEditor == lastScriptEditor_) {
+        lastScriptEditor_ = nullptr;
+    }
     fileEditor->deleteLater();
 
     if (editorsTabWidget_->count() == 0) {

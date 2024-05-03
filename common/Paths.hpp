@@ -35,6 +35,7 @@ static constexpr char PROJECT_GUI_GROUP[] = "LastGuiParams";
 static constexpr char PROJECT_CONTENT_SIZES[] = "contentSizes";
 static constexpr char PROJECT_MAIN_SIZES[] = "mainSizes";
 static constexpr char PROJECT_TOOL_BAR_POSITION[] = "toolBarPosition";
+static constexpr char PROJECT_LINE_WRAP_MODE[] = "lineWrapMode";
 static constexpr char PROJECT_RECORD_GROUP[] = "SettingsForRecord";
 static constexpr char PROJECT_EXECUTE_GROUP[] = "SettingsForExecute";
 

@@ -5,13 +5,124 @@
 #include <QFile>
 #include <QMessageBox>
 #include <QTabWidget>
+#include <QPainter>
+#include <QTextBlock>
+#include <QAction>
 
 #include "Paths.hpp"
 
 namespace QtAda::gui {
+Editor::Editor(QAction *lineWrapAction, QWidget *parent) noexcept
+    : QPlainTextEdit(parent)
+    , lineWrapAction_{ lineWrapAction }
+{
+    assert(lineWrapAction_ != nullptr);
+    updateWrapMode();
+    connect(lineWrapAction_, &QAction::triggered, this, &Editor::updateWrapMode);
+
+    lineNumberArea_ = new LineNumberArea(this);
+
+    connect(this, &Editor::blockCountChanged, this, &Editor::updateLineNumberAreaWidth);
+    connect(this, &Editor::updateRequest, this, &Editor::updateLineNumberArea);
+    connect(this, &Editor::cursorPositionChanged, this, &Editor::highlightCurrentLine);
+
+    updateLineNumberAreaWidth();
+    highlightCurrentLine();
+}
+
+int Editor::lineNumberAreaWidth() const noexcept
+{
+    int digits = 1;
+    int max = qMax(1, this->blockCount());
+    while (max >= 10) {
+        max /= 10;
+        ++digits;
+    }
+    const auto space = fontMetrics().horizontalAdvance(QLatin1Char('9')) * qMax(digits, 3) + 5;
+    return space;
+}
+
+void Editor::updateLineNumberAreaWidth() noexcept
+{
+    setViewportMargins(lineNumberAreaWidth(), 0, 0, 0);
+}
+
+void Editor::updateLineNumberArea(const QRect &rect, int dy) noexcept
+{
+    if (dy != 0) {
+        lineNumberArea_->scroll(0, dy);
+    }
+    else {
+        lineNumberArea_->update(0, rect.y(), lineNumberArea_->width(), rect.height());
+    }
+
+    if (rect.contains(viewport()->rect())) {
+        updateLineNumberAreaWidth();
+    }
+}
+
+void Editor::updateWrapMode() noexcept
+{
+    this->setLineWrapMode(lineWrapAction_->isChecked() ? LineWrapMode::WidgetWidth
+                                                       : LineWrapMode::NoWrap);
+}
+
+void Editor::resizeEvent(QResizeEvent *event) noexcept
+{
+    QPlainTextEdit::resizeEvent(event);
+
+    const auto cr = contentsRect();
+    lineNumberArea_->setGeometry(QRect(cr.left(), cr.top(), lineNumberAreaWidth(), cr.height()));
+}
+
+void Editor::highlightCurrentLine() noexcept
+{
+    QList<QTextEdit::ExtraSelection> extraSelections;
+    if (!isReadOnly()) {
+        QTextEdit::ExtraSelection selection;
+        QColor lineColor = QColor(255, 219, 139, 20);
+        selection.format.setBackground(lineColor);
+        selection.format.setProperty(QTextFormat::FullWidthSelection, true);
+        auto textCursor = this->textCursor();
+        lastHighlitedLine_ = textCursor.blockNumber() + 1;
+        selection.cursor = textCursor;
+        selection.cursor.clearSelection();
+        extraSelections.append(selection);
+    }
+    this->setExtraSelections(extraSelections);
+}
+
+void Editor::lineNumberAreaPaintEvent(QPaintEvent *event) noexcept
+{
+    // Делаем текущие цвета на 20% темнее
+    const auto baseColor = this->palette().base().color().darker(125);
+    const auto textColor = this->palette().color(QPalette::Text).darker(125);
+
+    QPainter painter(lineNumberArea_);
+    painter.fillRect(event->rect(), baseColor);
+
+    QTextBlock block = firstVisibleBlock();
+    int blockNumber = block.blockNumber();
+    int top = qRound(blockBoundingGeometry(block).translated(contentOffset()).top());
+    int bottom = top + qRound(blockBoundingRect(block).height());
+
+    while (block.isValid() && top <= event->rect().bottom()) {
+        if (block.isVisible() && bottom >= event->rect().top()) {
+            QString number = QString::number(blockNumber + 1);
+            painter.setPen(textColor);
+            painter.drawText(-2, top, lineNumberArea_->width(), fontMetrics().height(),
+                             Qt::AlignRight, number);
+        }
+        block = block.next();
+        top = bottom;
+        bottom = top + qRound(blockBoundingRect(block).height());
+        ++blockNumber;
+    }
+}
+
 FileEditor::FileEditor(const QString &filePath, int role, QTabWidget *editorsTabWidget,
-                       QWidget *parent) noexcept
-    : QPlainTextEdit{ parent }
+                       QAction *lineWrapAction, QWidget *parent) noexcept
+    : Editor{ lineWrapAction, parent }
     , editorsTabWidget_{ editorsTabWidget }
     , filePath_{ filePath }
     , role_{ role }
