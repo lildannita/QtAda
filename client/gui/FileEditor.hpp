@@ -42,7 +42,7 @@ private:
     int lastHighlitedLine_ = -1;
 };
 
-class LineNumberArea : public QWidget {
+class LineNumberArea final : public QWidget {
 public:
     LineNumberArea(Editor *editor) noexcept
         : QWidget(editor)
@@ -66,7 +66,7 @@ private:
     Editor *editor_ = nullptr;
 };
 
-class FileEditor : public Editor {
+class FileEditor final : public Editor {
     Q_OBJECT
 public:
     FileEditor(const QString &filePath, int role, QTabWidget *editorsTabWidget,

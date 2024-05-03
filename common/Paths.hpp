@@ -38,6 +38,9 @@ static constexpr char PROJECT_TOOL_BAR_POSITION[] = "toolBarPosition";
 static constexpr char PROJECT_LINE_WRAP_MODE[] = "lineWrapMode";
 static constexpr char PROJECT_RECORD_GROUP[] = "SettingsForRecord";
 static constexpr char PROJECT_EXECUTE_GROUP[] = "SettingsForExecute";
+static constexpr char PROJECT_LAUNCH_GROUP[] = "SettingsForLaunch";
+static constexpr char PROJECT_WORKING_DIR[] = "workingDirectory";
+static constexpr char PROJECT_TIMEOUT[] = "timeout";
 
 static constexpr char REMOTE_OBJECT_PATH[] = "local:QTADA_REMOTE_OBJECT";
 //! TODO: Костыль, см. InprocessController::startInitServer().

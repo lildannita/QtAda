@@ -194,6 +194,10 @@ MainGui::MainGui(const QString &projectPath, QWidget *parent)
             &MainGui::handleSettingsChange);
     connect(ui->runAppArgsEdit, &QLineEdit::editingFinished, this, &MainGui::handleSettingsChange);
 
+    connect(ui->workingDirectoryEdit, &QLineEdit::textChanged, this,
+            &MainGui::handleLaunchSettingsChange);
+    connect(ui->timeoutSpinBox, &QSpinBox::textChanged, this, &MainGui::handleLaunchSettingsChange);
+
     connect(ui->lineIndexFromScriptButton, &QPushButton::clicked, this, [this] {
         assert(lastScriptEditor_ != nullptr);
         const auto lineNumber = lastScriptEditor_->lastHighlitedLine();
@@ -265,6 +269,14 @@ void MainGui::configureProject(const QString &projectPath) noexcept
 
     updateProjectFileView(false);
     setGuiParamsFromProjectFile();
+
+    project_->beginGroup(paths::PROJECT_LAUNCH_GROUP);
+    LaunchSettings launchSettings;
+    launchSettings.workingDirectory = project_->value(paths::PROJECT_WORKING_DIR, "").toString();
+    launchSettings.timeoutValue
+        = project_->value(paths::PROJECT_WORKING_DIR, MINIMUM_CYCLE_COUNT).toInt();
+    project_->endGroup();
+    updateCurrentLaunchSettings(std::move(launchSettings));
 }
 
 void MainGui::updateProjectFileView(bool isExternal) noexcept
@@ -1236,6 +1248,7 @@ void MainGui::saveScriptSettings(const QString &path, ConstSettings settings) no
 void MainGui::handleSettingsChange() noexcept
 {
     ui->updateButton->setEnabled(ui->lineIndexSpinBox->value() > 0);
+    ui->cycleMinimumCountWidget->setEnabled(ui->needToGenerateCycleCheckBox->isChecked());
     if (settingsChangeHandlerBlocked_) {
         return;
     }
@@ -1252,6 +1265,19 @@ void MainGui::handleSettingsChange() noexcept
     // Делаем это только для того, чтобы получать и устанавливать настройки
     // при изменении текущей вкладки удобнее и быстрее, чем чтение из файла проекта.
     editor->setSettings(std::move(settings));
+}
+
+void MainGui::handleLaunchSettingsChange() noexcept
+{
+    if (launchSettingsChangeHandlerBlocked_) {
+        return;
+    }
+    assert(project_ != nullptr);
+    project_->beginGroup(paths::PROJECT_LAUNCH_GROUP);
+    project_->setValue(paths::PROJECT_WORKING_DIR, ui->workingDirectoryEdit->text());
+    project_->setValue(paths::PROJECT_TIMEOUT, ui->timeoutSpinBox->value());
+    project_->endGroup();
+    flushProjectFile();
 }
 
 void MainGui::updateCurrentSettings(ConstSettings settings) noexcept
@@ -1283,6 +1309,14 @@ void MainGui::updateCurrentSettings(ConstSettings settings) noexcept
     ui->runAppArgsEdit->setText(executeSettings.executeArgs);
 
     settingsChangeHandlerBlocked_ = false;
+}
+
+void MainGui::updateCurrentLaunchSettings(const LaunchSettings &settings) noexcept
+{
+    launchSettingsChangeHandlerBlocked_ = true;
+    ui->workingDirectoryEdit->setText(settings.workingDirectory);
+    ui->timeoutSpinBox->setValue(settings.timeoutValue);
+    launchSettingsChangeHandlerBlocked_ = false;
 }
 
 void MainGui::updateScriptPathForSettings(const QString &oldPath, const QString &newPath) noexcept

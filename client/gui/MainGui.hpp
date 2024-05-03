@@ -40,6 +40,7 @@ private slots:
     void checkIfCurrentTabIsScript(int index) noexcept;
 
     void handleSettingsChange() noexcept;
+    void handleLaunchSettingsChange() noexcept;
 
     void runScript(const QString &path) noexcept
     {
@@ -57,6 +58,11 @@ private:
     using Settings = std::pair<RecordSettings, ExecuteSettings>;
     using ConstSettings = const std::pair<const RecordSettings &, const ExecuteSettings &> &;
 
+    struct LaunchSettings final {
+        QString workingDirectory;
+        int timeoutValue;
+    };
+
     Ui::MainGui *ui = nullptr;
     bool uiInitialized_ = false;
     bool saveProjectFileOnExit_ = true;
@@ -73,10 +79,12 @@ private:
     QStringList lastSources_;
 
     bool settingsChangeHandlerBlocked_ = false;
+    bool launchSettingsChangeHandlerBlocked_ = false;
 
     Settings readCurrentSettings() const noexcept;
     void saveScriptSettings(const QString &path, ConstSettings settings) noexcept;
     void updateCurrentSettings(ConstSettings settings) noexcept;
+    void updateCurrentLaunchSettings(const LaunchSettings &settings) noexcept;
     void updateScriptPathForSettings(const QString &oldPath,
                                      const QString &newPath = QString()) noexcept;
 
