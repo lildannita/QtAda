@@ -12,6 +12,7 @@
 #include <memory>
 
 #include "ui_MainGui.h"
+#include "InitDialog.hpp"
 #include "Paths.hpp"
 #include "GuiTools.hpp"
 #include "FileEditor.hpp"
@@ -204,6 +205,14 @@ MainGui::MainGui(const QString &projectPath, QWidget *parent)
         assert(lineNumber <= ui->lineIndexSpinBox->maximum());
         ui->lineIndexSpinBox->setValue(lineNumber);
     });
+
+    connect(ui->actionCloseApplication, &QAction::triggered, qApp, &QApplication::exit);
+    connect(ui->actionNewProject, &QAction::triggered, this, [this] {
+        InitDialog startDialog;
+        if (startDialog.exec() == QDialog::Accepted) {
+            configureProject(startDialog.selectedProjectPath());
+        }
+    });
 }
 
 MainGui::~MainGui()
@@ -261,8 +270,16 @@ void MainGui::closeEvent(QCloseEvent *event)
 
 void MainGui::configureProject(const QString &projectPath) noexcept
 {
+    // Если открываем новый прооект
     if (project_ != nullptr) {
+        if (projectPath == project_->fileName()) {
+            return;
+        }
+
         saveGuiParamsToProjectFile();
+        for (int i = 0; i < editorsTabWidget_->count(); i++) {
+            closeFileInEditor(i);
+        }
         project_->deleteLater();
     }
     project_ = new QSettings(projectPath, QSettings::IniFormat);
@@ -1079,6 +1096,10 @@ void MainGui::openFile(const QModelIndex &index) noexcept
     assert(item != nullptr);
 
     const auto role = item->role();
+    if (role == FileRole::None) {
+        return;
+    }
+
     const auto path = item->data(role).value<QString>();
     assert(!path.isEmpty());
 

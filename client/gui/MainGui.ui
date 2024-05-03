@@ -903,12 +903,6 @@ margin-left: 5px;</string>
     <addaction name="separator"/>
     <addaction name="actionCloseApplication"/>
    </widget>
-   <widget class="QMenu" name="menuInfo">
-    <property name="title">
-     <string>Info</string>
-    </property>
-    <addaction name="actionVisitProjectWebsite"/>
-   </widget>
    <widget class="QMenu" name="menuView">
     <property name="title">
      <string>View</string>
@@ -917,7 +911,6 @@ margin-left: 5px;</string>
    </widget>
    <addaction name="menuFile"/>
    <addaction name="menuView"/>
-   <addaction name="menuInfo"/>
   </widget>
   <widget class="QToolBar" name="toolBar">
    <property name="windowTitle">
@@ -940,11 +933,6 @@ margin-left: 5px;</string>
   <action name="actionNewProject">
    <property name="text">
     <string>New project</string>
-   </property>
-  </action>
-  <action name="actionVisitProjectWebsite">
-   <property name="text">
-    <string>Visit project website</string>
    </property>
   </action>
   <action name="actionCloseApplication">
