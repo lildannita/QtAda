@@ -15,6 +15,7 @@
 #include "InprocessTools.hpp"
 #include "ScriptWriter.hpp"
 #include "PropertiesWatcher.hpp"
+#include "Paths.hpp"
 
 namespace QtAda::inprocess {
 InprocessDialog::InprocessDialog(const RecordSettings &settings, QWidget *parent) noexcept
@@ -28,8 +29,8 @@ InprocessDialog::InprocessDialog(const RecordSettings &settings, QWidget *parent
     , commentTextEdit_{ new QTextEdit(this) }
     , logTextArea_{ new QTextEdit(this) }
 {
-    connect(inprocessController_, &InprocessController::applicationStarted, this,
-            &InprocessDialog::showDialog);
+    connect(inprocessController_, &InprocessController::applicationRunningChanged, this,
+            &InprocessDialog::handleApplicationStateChanged);
     connect(inprocessController_, &InprocessController::newScriptLine, scriptWriter_,
             &ScriptWriter::handleNewLine);
     connect(propertiesWatcher_, &PropertiesWatcher::newMetaPropertyVerification, scriptWriter_,
@@ -134,9 +135,6 @@ InprocessDialog::InprocessDialog(const RecordSettings &settings, QWidget *parent
 
     this->adjustSize();
     this->layout()->setSizeConstraint(QLayout::SetFixedSize);
-
-    //! TODO: Костыль, см. InprocessController::startInitServer().
-    inprocessController_->startInitServer();
 }
 
 InprocessDialog::~InprocessDialog() noexcept
@@ -162,16 +160,22 @@ QToolButton *InprocessDialog::initButton(const QString &text, const QString &ico
     return button;
 }
 
-void InprocessDialog::showDialog() noexcept
+void InprocessDialog::handleApplicationStateChanged(bool isAppRunning) noexcept
 {
-    const auto screenGeometry = QApplication::screenAt(QCursor::pos())->geometry();
-    this->move(screenGeometry.left() + screenGeometry.width() - this->width(),
-               screenGeometry.top());
-    this->show();
-    this->raise();
+    if (isAppRunning) {
+        const auto screenGeometry = QApplication::screenAt(QCursor::pos())->geometry();
+        this->move(screenGeometry.left() + screenGeometry.width() - this->width(),
+                   screenGeometry.top());
+        this->show();
+        this->raise();
 
-    started_ = true;
-    emit applicationStarted();
+        started_ = true;
+        emit applicationStarted();
+    }
+    else {
+        emit inprocessClosed();
+        this->close();
+    }
 }
 
 void InprocessDialog::handleVerificationToggle(bool isChecked) noexcept
@@ -293,14 +297,25 @@ void InprocessDialog::setLabelTextColor(const QString &color) noexcept
 
 void InprocessDialog::completeScript() noexcept
 {
-    emit inprocessClosed();
-    this->close();
+    if (applicationClosedExternally_) {
+        emit inprocessClosed();
+        this->close();
+    }
+    else {
+        emit inprocessController_->scriptCompleted();
+    }
 }
 
 void InprocessDialog::cancelScript() noexcept
 {
     scriptWriter_->handleCancelledScript();
-    completeScript();
+    if (applicationClosedExternally_) {
+        emit inprocessClosed();
+        this->close();
+    }
+    else {
+        emit inprocessController_->scriptCancelled();
+    }
 }
 
 void InprocessDialog::appendLogMessage(const QString &line) noexcept

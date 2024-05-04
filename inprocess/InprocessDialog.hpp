@@ -23,6 +23,11 @@ public:
     ~InprocessDialog() noexcept;
 
     void setTextToScriptLabel(const QString &text) noexcept;
+    void setApplicationClosedExternally() noexcept
+    {
+        assert(applicationClosedExternally_ == false);
+        applicationClosedExternally_ = true;
+    }
     bool isStarted() const noexcept
     {
         return started_;
@@ -36,7 +41,7 @@ signals:
     void inprocessClosed();
 
 private slots:
-    void showDialog() noexcept;
+    void handleApplicationStateChanged(bool isAppRunning) noexcept;
 
     void completeScript() noexcept;
     void cancelScript() noexcept;
@@ -54,6 +59,7 @@ private slots:
 
 private:
     bool started_ = false;
+    bool applicationClosedExternally_ = false;
 
     QRemoteObjectHost *inprocessHost_ = nullptr;
     InprocessController *inprocessController_ = nullptr;

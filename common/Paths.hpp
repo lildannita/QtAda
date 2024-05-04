@@ -43,7 +43,4 @@ static constexpr char PROJECT_WORKING_DIR[] = "workingDirectory";
 static constexpr char PROJECT_TIMEOUT[] = "timeout";
 
 static constexpr char REMOTE_OBJECT_PATH[] = "local:QTADA_REMOTE_OBJECT";
-//! TODO: Костыль, см. InprocessController::startInitServer().
-static const auto INIT_CONNECTION_SERVER
-    = QStringLiteral("%1/QTADA_INIT_CONNECTION_SERVER").arg(QDir::tempPath());
 } // namespace QtAda::paths

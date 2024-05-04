@@ -8,6 +8,8 @@ class InprocessController
     // поэтому объявляем слоты, которые реализуем в InprocessController.hpp, и
     // цель которых - просто вызвать соответствующие сигналы внутри себя.
 
+    PROP(bool applicationRunning = false)
+
     // UserEventFilter -> InprocessDialog slots:
     SLOT(sendNewScriptLine(const QString &line))
 

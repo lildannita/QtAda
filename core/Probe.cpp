@@ -47,6 +47,17 @@ struct LilProbe {
 };
 Q_GLOBAL_STATIC(LilProbe, s_lilProbe)
 
+class AsyncCloseEvent : public QEvent {
+public:
+    static const QEvent::Type AsyncClose;
+    AsyncCloseEvent()
+        : QEvent(AsyncClose)
+    {
+    }
+};
+const QEvent::Type AsyncCloseEvent::AsyncClose
+    = static_cast<QEvent::Type>(QEvent::registerEventType());
+
 Probe::Probe(const LaunchType launchType, const std::optional<RecordSettings> &recordSettings,
              const std::optional<ExecuteSettings> &executeSettings, QObject *parent) noexcept
     : QObject{ parent }
@@ -65,6 +76,10 @@ Probe::Probe(const LaunchType launchType, const std::optional<RecordSettings> &r
     inprocessNode_ = new QRemoteObjectNode(this);
     inprocessNode_->connectToNode(QUrl(paths::REMOTE_OBJECT_PATH));
     inprocessController_.reset(inprocessNode_->acquire<InprocessControllerReplica>());
+    connect(inprocessController_.get(), &QRemoteObjectReplica::notified, this, [this] {
+        assert(inprocessController_->applicationRunning() == false);
+        inprocessController_->pushApplicationRunning(true);
+    });
 
     switch (launchType_) {
     case LaunchType::Record: {
@@ -99,13 +114,6 @@ Probe::Probe(const LaunchType launchType, const std::optional<RecordSettings> &r
     default:
         Q_UNREACHABLE();
     }
-
-    //! TODO: Костыль, см. InprocessController::startInitServer().
-    connect(initSocket_, &QLocalSocket::disconnected, this, [this] {
-        initSocket_->deleteLater();
-        initSocket_ = nullptr;
-    });
-    initSocket_->connectToServer(paths::INIT_CONNECTION_SERVER);
 }
 
 Probe::~Probe() noexcept
@@ -213,18 +221,25 @@ void Probe::handleScriptCompleted() noexcept
             }
         }
     }
-    QCoreApplication::quit();
+    inprocessController_->pushApplicationRunning(false);
+    QCoreApplication::postEvent(QCoreApplication::instance(), new AsyncCloseEvent());
 }
 
 void Probe::handleScriptCancelled() noexcept
 {
-    QCoreApplication::quit();
+    inprocessController_->pushApplicationRunning(false);
+    QCoreApplication::postEvent(QCoreApplication::instance(), new AsyncCloseEvent());
 }
 
 bool Probe::eventFilter(QObject *reciever, QEvent *event)
 {
     if (ProbeGuard::locked() && reciever->thread() == QThread::currentThread()) {
         return QObject::eventFilter(reciever, event);
+    }
+
+    if (event->type() == AsyncCloseEvent::AsyncClose) {
+        QCoreApplication::exit();
+        return true;
     }
 
     if (event->type() == QEvent::ChildAdded || event->type() == QEvent::ChildRemoved) {
