@@ -73,7 +73,7 @@ public:
                QAction *lineWrapAction, QWidget *parent = nullptr) noexcept;
 
     bool readFile() noexcept;
-    bool reReadProjectFile() noexcept;
+    bool reReadFile() noexcept;
     bool closeFile(bool needToConfirm = true) noexcept;
     void updateFilePath(const QString &filePath) noexcept;
 
@@ -105,6 +105,16 @@ public:
     {
         assert(role_ == FileRole::ScriptRole);
         return { recordSettings_, executeSettings_ };
+    }
+    RecordSettings getRecordSettings() const noexcept
+    {
+        assert(role_ == FileRole::ScriptRole);
+        return recordSettings_;
+    }
+    ExecuteSettings getExecuteSettings() const noexcept
+    {
+        assert(role_ == FileRole::ScriptRole);
+        return executeSettings_;
     }
 
 signals:

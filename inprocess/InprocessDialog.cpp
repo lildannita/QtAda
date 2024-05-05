@@ -117,9 +117,10 @@ InprocessDialog::InprocessDialog(const RecordSettings &settings, QWidget *parent
     commentLayout->addWidget(commentButtons);
     commentWidget_->setVisible(false);
 
+    // Инициализация компонента для отображения логов тестируемого приложения
     logTextArea_->setFontPointSize(logTextArea_->fontPointSize() * 0.8);
-    logTextArea_->setWordWrapMode(QTextOption::WordWrap);
-    logTextArea_->setFixedHeight(commentHeightHint);
+    logTextArea_->setWordWrapMode(QTextOption::NoWrap);
+    logTextArea_->setFixedHeight(commentHeightHint * 1.5);
     logTextArea_->setPlaceholderText(
         "Log messages from the application under test will be displayed here");
     logTextArea_->setReadOnly(true);
@@ -173,7 +174,9 @@ void InprocessDialog::handleApplicationStateChanged(bool isAppRunning) noexcept
         emit applicationStarted();
     }
     else {
+        started_ = false;
         emit inprocessClosed();
+
         this->close();
     }
 }
@@ -297,6 +300,7 @@ void InprocessDialog::setLabelTextColor(const QString &color) noexcept
 
 void InprocessDialog::completeScript() noexcept
 {
+    scriptWriter_->finishScript(false);
     if (applicationClosedExternally_) {
         emit inprocessClosed();
         this->close();
@@ -308,7 +312,7 @@ void InprocessDialog::completeScript() noexcept
 
 void InprocessDialog::cancelScript() noexcept
 {
-    scriptWriter_->handleCancelledScript();
+    scriptWriter_->finishScript(true);
     if (applicationClosedExternally_) {
         emit inprocessClosed();
         this->close();

@@ -188,9 +188,9 @@ bool FileEditor::readFile() noexcept
     return true;
 }
 
-bool FileEditor::reReadProjectFile() noexcept
+bool FileEditor::reReadFile() noexcept
 {
-    assert(role_ == FileRole::ProjectRole);
+    assert(role_ == FileRole::ProjectRole || role_ == FileRole::ScriptRole);
     isChanged_ = false;
     disconnect(this, &QPlainTextEdit::textChanged, this, 0);
     updateEditorTabName();

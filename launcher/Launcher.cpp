@@ -149,12 +149,12 @@ void Launcher::checkIfLauncherIsFinished() noexcept
 {
     if (options_.state == LauncherState::InjectorFinished) {
         if (inprocessDialog_ != nullptr && inprocessDialog_->isStarted()) {
+            connect(inprocessDialog_, &inprocess::InprocessDialog::inprocessClosed, this,
+                    &Launcher::launcherFinished);
             inprocessDialog_->setApplicationClosedExternally();
             inprocessDialog_->setTextToScriptLabel(
                 QStringLiteral("The application under test has been closed. Please complete the "
                                "script generation in the dialog."));
-            connect(inprocessDialog_, &inprocess::InprocessDialog::inprocessClosed, this,
-                    &Launcher::launcherFinished);
         }
         else {
             emit launcherFinished();

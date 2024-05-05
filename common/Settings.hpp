@@ -33,7 +33,7 @@ struct RecordSettings final {
     QString executeArgs = QString();
 
     int indentWidth = DEFAULT_INDENT_WIDTH;
-    int blockCommentMinimumCount = -1;
+    int blockCommentMinimumCount = 0;
     bool duplicateMouseEvent = false;
     bool closeWindowsOnExit = false;
     TextIndexBehavior textIndexBehavior = TextIndexBehavior::OnlyIndex;

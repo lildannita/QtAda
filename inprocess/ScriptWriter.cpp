@@ -58,9 +58,12 @@ ScriptWriter::ScriptWriter(const RecordSettings &settings, QObject *parent) noex
     assert(scriptDir.exists() && scriptDir.isReadable());
     assert(scriptInfo.suffix() == "js");
 
+    const auto tmpScriptPath
+        = QStringLiteral("%1.%2").arg(recordSettings_.scriptPath).arg(paths::PROJECT_TMP_SUFFIX);
+
     switch (settings.scriptWriteMode) {
     case ScriptWriteMode::NewScript: {
-        script_.setFileName(recordSettings_.scriptPath);
+        script_.setFileName(tmpScriptPath);
         bool isOpen = script_.open(QIODevice::WriteOnly | QIODevice::Truncate);
         assert(isOpen == true);
         scriptStream_.setDevice(&script_);
@@ -79,8 +82,7 @@ ScriptWriter::ScriptWriter(const RecordSettings &settings, QObject *parent) noex
         }
         originalScript.close();
 
-        script_.setFileName(
-            QStringLiteral("%1.%2").arg(recordSettings_.scriptPath).arg(paths::PROJECT_TMP_SUFFIX));
+        script_.setFileName(tmpScriptPath);
         isOpen = script_.open(QIODevice::WriteOnly | QIODevice::Truncate);
         assert(isOpen == true);
         scriptStream_.setDevice(&script_);
@@ -91,7 +93,7 @@ ScriptWriter::ScriptWriter(const RecordSettings &settings, QObject *parent) noex
         assert(fromZeroIndex < savedLines_.size());
         const auto start = savedLines_.begin();
         const auto end = start + fromZeroIndex;
-        std::for_each(start, end, [this](const QString &line) { flushScriptLine(line); });
+        std::for_each(start, end, [this](const QString &line) { flushScriptLine(line, 0, false); });
         savedLines_.erase(start, end);
         break;
     }
@@ -102,7 +104,21 @@ ScriptWriter::ScriptWriter(const RecordSettings &settings, QObject *parent) noex
 
 ScriptWriter::~ScriptWriter() noexcept
 {
-    if (scriptCancelled_) {
+    if (!scriptFinished_) {
+        finishScript(true);
+    }
+}
+
+void ScriptWriter::finishScript(bool isCancelled) noexcept
+{
+    if (scriptFinished_) {
+        // Может быть такое, что пользователь успеет два раза
+        // нажать на кнопку завершения скрипта
+        return;
+    }
+    scriptFinished_ = true;
+
+    if (isCancelled) {
         script_.close();
         if (script_.exists()) {
             script_.remove();
@@ -114,25 +130,24 @@ ScriptWriter::~ScriptWriter() noexcept
     switch (recordSettings_.scriptWriteMode) {
     case ScriptWriteMode::NewScript: {
         flushScriptLine("}", 0);
-        script_.close();
         break;
     }
     case ScriptWriteMode::UpdateScript: {
         for (const auto &line : savedLines_) {
-            flushScriptLine(line);
+            flushScriptLine(line, 0, false);
         }
-        script_.close();
-
-        const auto &originalScriptPath = recordSettings_.scriptPath;
-        if (QFile::exists(originalScriptPath)) {
-            QFile::remove(originalScriptPath);
-        }
-        script_.rename(originalScriptPath);
         break;
     }
     default:
         Q_UNREACHABLE();
     }
+
+    script_.close();
+    const auto &originalScriptPath = recordSettings_.scriptPath;
+    if (QFile::exists(originalScriptPath)) {
+        QFile::remove(originalScriptPath);
+    }
+    script_.rename(originalScriptPath);
 }
 
 void ScriptWriter::handleNewLine(const QString &scriptLine) noexcept
@@ -159,7 +174,8 @@ void ScriptWriter::handleNewComment(const QString &comment) noexcept
     flushSavedLines();
 
     const auto commentLines = comment.trimmed().split('\n');
-    const auto blockComment = commentLines.size() >= recordSettings_.blockCommentMinimumCount;
+    const auto blockComment = recordSettings_.blockCommentMinimumCount > 0
+                              && commentLines.size() >= recordSettings_.blockCommentMinimumCount;
 
     if (blockComment) {
         flushScriptLine("/*");
@@ -208,7 +224,8 @@ void ScriptWriter::flushSavedLines() noexcept
     linesHandler_.clear();
 }
 
-void ScriptWriter::flushScriptLine(const QString &scriptLine, int indentMultiplier) noexcept
+void ScriptWriter::flushScriptLine(const QString &scriptLine, int indentMultiplier,
+                                   bool trimNeed) noexcept
 {
     assert(scriptStream_.device() != nullptr && scriptStream_.status() == QTextStream::Ok);
     if (scriptLine.isEmpty()) {
@@ -216,7 +233,7 @@ void ScriptWriter::flushScriptLine(const QString &scriptLine, int indentMultipli
     }
     else {
         scriptStream_ << QString(recordSettings_.indentWidth * indentMultiplier, ' ')
-                      << scriptLine.trimmed() << Qt::endl;
+                      << (trimNeed ? scriptLine.trimmed() : scriptLine) << Qt::endl;
     }
     scriptStream_.flush();
 }

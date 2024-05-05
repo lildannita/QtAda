@@ -15,6 +15,9 @@ static constexpr char ENV_LAUNCH_SETTINGS[] = "QTADA_LAUNCH_SETTINGS";
 static constexpr char RESET_COLOR[] = "\033[0m";
 static constexpr char QTADA_ERR_COLOR[] = "\033[37;41m";
 static constexpr char QTADA_OUT_COLOR[] = "\033[30;42m";
+static constexpr char GUI_INACTIVE_LOG_COLOR[] = "#7F7F80";
+static constexpr char GUI_SERVICE_LOG_COLOR[] = "#008785";
+static constexpr char GUI_ERROR_LOG_COLOR[] = "#FF6666";
 
 inline void printUsage(const char *appPath)
 {

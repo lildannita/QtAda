@@ -25,6 +25,8 @@ static const auto QTADA_SELECT_EXE_HEADER
     = QStringLiteral("%1 | Select Executable").arg(QTADA_HEADER);
 static const auto QTADA_UNSAVED_CHANGES_HEADER
     = QStringLiteral("%1 | Unsaved Changes").arg(QTADA_HEADER);
+static const auto QTADA_OVERWRITE_SCRIPT_HEADER
+    = QStringLiteral("%1 | Overwrite confirm").arg(QTADA_HEADER);
 static const auto QTADA_RECORD_CONTROLLER_HEADER
     = QStringLiteral("%1 | Record Controller").arg(QTADA_HEADER);
 

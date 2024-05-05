@@ -8,6 +8,7 @@
 #include <QDesktopServices>
 #include <QProcess>
 #include <QCloseEvent>
+#include <QTime>
 #include <set>
 #include <memory>
 
@@ -16,6 +17,7 @@
 #include "Paths.hpp"
 #include "GuiTools.hpp"
 #include "FileEditor.hpp"
+#include "Launcher.hpp"
 
 namespace QtAda::gui {
 class CustomStandardItem : public QStandardItem {
@@ -213,6 +215,11 @@ MainGui::MainGui(const QString &projectPath, QWidget *parent)
             configureProject(startDialog.selectedProjectPath());
         }
     });
+
+    connect(ui->recordButton, &QPushButton::clicked, this,
+            [this] { startupScriptWriterLauncher(false); });
+    connect(ui->updateButton, &QPushButton::clicked, this,
+            [this] { startupScriptWriterLauncher(true); });
 }
 
 MainGui::~MainGui()
@@ -1142,7 +1149,7 @@ void MainGui::openFile(const QModelIndex &index) noexcept
             updateProjectFileView(false);
         });
         connect(this, &MainGui::projectFileHasChanged, fileEditor, [this, fileEditor] {
-            const auto readResult = fileEditor->reReadProjectFile();
+            const auto readResult = fileEditor->reReadFile();
             if (!readResult) {
                 disconnect(this, &MainGui::projectFileHasChanged, fileEditor, 0);
                 closeFileInEditor(editorsTabWidget_->indexOf(fileEditor));
@@ -1367,5 +1374,177 @@ void MainGui::flushProjectFile() noexcept
     assert(project_ != nullptr);
     project_->sync();
     emit projectFileHasChanged();
+}
+
+launcher::UserLaunchOptions MainGui::getUserOptionsForLauncher(const QString &appPath,
+                                                               const QString &scriptPath,
+                                                               bool isRecordScript,
+                                                               bool isUpdateMode) const noexcept
+{
+    assert(project_ != nullptr);
+    assert(lastScriptEditor_ != nullptr);
+
+    launcher::UserLaunchOptions options;
+    options.type = isRecordScript ? LaunchType::Record : LaunchType::Execute;
+    options.timeoutValue = ui->timeoutSpinBox->value();
+
+    const auto workingDirectory = ui->workingDirectoryEdit->text().trimmed();
+    if (workingDirectory.isEmpty()) {
+        const auto projectDirPath = QFileInfo(project_->fileName()).absolutePath();
+        assert(!projectDirPath.isEmpty());
+        options.workingDirectory = std::move(projectDirPath);
+    }
+    else {
+        options.workingDirectory = std::move(workingDirectory);
+    }
+
+    QString executeArgs;
+    if (isRecordScript) {
+        auto recordSettings = lastScriptEditor_->getRecordSettings();
+        recordSettings.scriptPath = scriptPath;
+        recordSettings.scriptWriteMode
+            = isUpdateMode ? ScriptWriteMode::UpdateScript : ScriptWriteMode::NewScript;
+        options.recordSettings = recordSettings;
+
+        executeArgs = recordSettings.executeArgs;
+    }
+    else {
+        auto executeSettings = lastScriptEditor_->getExecuteSettings();
+        executeSettings.scriptPath = scriptPath;
+        options.executeSettings = executeSettings;
+
+        executeArgs = executeSettings.executeArgs;
+    }
+
+    auto launchAppArguments = executeArgs.split(QRegExp("\\s+"), Qt::SkipEmptyParts);
+    launchAppArguments.push_front(std::move(appPath));
+    options.launchAppArguments = std::move(launchAppArguments);
+
+    return options;
+}
+
+void MainGui::startupScriptWriterLauncher(bool isUpdateMode) noexcept
+{
+    using namespace launcher;
+    assert(launcher_ == nullptr);
+    assert(lastScriptEditor_ != nullptr);
+
+    if (!isUpdateMode && !lastScriptEditor_->toPlainText().isEmpty()) {
+        const auto confirm = QMessageBox::question(
+            this, paths::QTADA_OVERWRITE_SCRIPT_HEADER,
+            QStringLiteral("It seems that the current script is not empty. The selected mode will "
+                           "completely overwrite the current script and you will lose your current "
+                           "data.\nAre you sure you want to continue?"),
+            QMessageBox::No | QMessageBox::Yes, QMessageBox::No);
+        if (confirm == QMessageBox::No) {
+            return;
+        }
+    }
+
+    //! TODO: вообще, у нас путь к тестируемому приложению хранится в дереве проекта,
+    //! и может все-таки лучше этот путь доставать оттуда? Причем мы точно знаем индекс
+    //! этого элемента в дереве: (1, 0)
+    const auto appPath = project_->value(paths::PROJECT_APP_PATH, "").toString();
+    const auto scriptPath = lastScriptEditor_->filePath();
+    assert(!appPath.isEmpty());
+    prepareLogTextEdits(appPath, scriptPath, true);
+
+    launcher_
+        = new Launcher(getUserOptionsForLauncher(appPath, scriptPath, true, isUpdateMode), true);
+    connect(launcher_, &Launcher::launcherErrMessage, this, &MainGui::writeQtAdaErrMessage);
+    connect(launcher_, &Launcher::launcherOutMessage, this, &MainGui::writeQtAdaOutMessage);
+    connect(launcher_, &Launcher::stdMessage, this, &MainGui::writeAppOutMessage);
+
+    if (launcher_->launch()) {
+        lastScriptEditor_->saveFile();
+        QObject::connect(launcher_, &Launcher::launcherFinished, this, [this, appPath, scriptPath] {
+            prepareLogTextEdits(appPath, scriptPath, false, false, launcher_->exitCode());
+
+            const auto readResult = lastScriptEditor_->reReadFile();
+            if (!readResult) {
+                const auto editorIndex = editorsTabWidget_->indexOf(lastScriptEditor_);
+                assert(editorIndex >= 0);
+                closeFileInEditor(editorIndex);
+            }
+            launcher_->deleteLater();
+            launcher_ = nullptr;
+
+            this->setEnabled(true);
+            this->showMaximized();
+        });
+        this->setEnabled(false);
+        this->showMinimized();
+    }
+    else {
+        prepareLogTextEdits(appPath, scriptPath, true, true);
+        launcher_->deleteLater();
+        launcher_ = nullptr;
+        QMessageBox::critical(this, paths::QTADA_ERROR_HEADER,
+                              QStringLiteral("An error occurred while launching the application. "
+                                             "For more information view log messages."));
+    }
+}
+
+void MainGui::prepareLogTextEdits(const QString &appPath, const QString &scriptPath,
+                                  bool isStarting, bool isFailedOnStart, int exitCode) noexcept
+{
+    const auto currentTime = QTime::currentTime().toString("hh:mm:ss");
+    if (isStarting) {
+        const auto appLogText
+            = ui->appLogTextEdit->toPlainText().trimmed().toHtmlEscaped().replace("\n", "<br>");
+        if (!appLogText.isEmpty()) {
+            ui->appLogTextEdit->setHtml(QStringLiteral("<font color=\"%1\">%2</font><br>")
+                                            .arg(GUI_INACTIVE_LOG_COLOR)
+                                            .arg(appLogText));
+        }
+        ui->appLogTextEdit->append(QStringLiteral("<font color=\"%1\">%2: Starting %3...</font>")
+                                       .arg(GUI_SERVICE_LOG_COLOR)
+                                       .arg(currentTime)
+                                       .arg(appPath));
+
+        const auto qtadaLogText
+            = ui->qtadaLogTextEdit->toPlainText().trimmed().toHtmlEscaped().replace("\n", "<br>");
+        if (!qtadaLogText.isEmpty()) {
+            ui->qtadaLogTextEdit->setHtml(QStringLiteral("<font color=\"%1\">%2</font><br>")
+                                              .arg(GUI_INACTIVE_LOG_COLOR)
+                                              .arg(qtadaLogText));
+        }
+        ui->qtadaLogTextEdit->append(
+            QStringLiteral("<font color=\"%1\">%2: Starting recording %3...</font>")
+                .arg(GUI_SERVICE_LOG_COLOR)
+                .arg(currentTime)
+                .arg(scriptPath));
+    }
+    else {
+        ui->appLogTextEdit->append(
+            QStringLiteral("<font color=\"%1\">%2: %3</font>")
+                .arg(GUI_SERVICE_LOG_COLOR)
+                .arg(currentTime)
+                .arg(isFailedOnStart
+                         ? QStringLiteral("Error occurred during launch %1").arg(appPath)
+                         : QStringLiteral("%1 exited with code %2").arg(appPath).arg(exitCode)));
+        ui->qtadaLogTextEdit->append(
+            QStringLiteral("<font color=\"%1\">%2: %3 %4</font>")
+                .arg(GUI_SERVICE_LOG_COLOR)
+                .arg(currentTime)
+                .arg(scriptPath)
+                .arg(isFailedOnStart ? "wasn't written due to an error" : "recorded successfully"));
+    }
+}
+
+void MainGui::writeQtAdaErrMessage(const QString &msg) noexcept
+{
+    ui->qtadaLogTextEdit->append(
+        QStringLiteral("<font color=\"%1\">%2</font>").arg(GUI_ERROR_LOG_COLOR).arg(msg));
+}
+
+void MainGui::writeQtAdaOutMessage(const QString &msg) noexcept
+{
+    ui->qtadaLogTextEdit->append(msg);
+}
+
+void MainGui::writeAppOutMessage(const QString &msg) noexcept
+{
+    ui->appLogTextEdit->append(msg.trimmed());
 }
 } // namespace QtAda::gui

@@ -16,6 +16,8 @@ public:
     explicit ScriptWriter(const RecordSettings &settings, QObject *parent = nullptr) noexcept;
     ~ScriptWriter() noexcept;
 
+    void finishScript(bool isCancelled) noexcept;
+
 signals:
     void newScriptCommandDetected(const QString &command);
 
@@ -25,10 +27,6 @@ public slots:
     void handleNewMetaPropertyVerification(
         const QString &objectPath,
         const std::vector<std::pair<QString, QString>> &verifications) noexcept;
-    void handleCancelledScript() noexcept
-    {
-        scriptCancelled_ = true;
-    }
 
 private:
     struct LinesHandler final {
@@ -68,9 +66,10 @@ private:
     QFile script_;
     QTextStream scriptStream_;
     std::vector<QString> savedLines_;
-    bool scriptCancelled_ = false;
+    bool scriptFinished_ = false;
 
     void flushSavedLines() noexcept;
-    void flushScriptLine(const QString &line, int indentMultiplier = 1) noexcept;
+    void flushScriptLine(const QString &line, int indentMultiplier = 1,
+                         bool trimNeed = true) noexcept;
 };
 } // namespace QtAda::inprocess

@@ -5,6 +5,7 @@
 #include <QTextEdit>
 
 #include "Settings.hpp"
+#include "LaunchOptions.hpp"
 
 QT_BEGIN_NAMESPACE
 class QSettings;
@@ -16,6 +17,10 @@ QT_END_NAMESPACE
 
 namespace Ui {
 class MainGui;
+}
+
+namespace QtAda::launcher {
+class Launcher;
 }
 
 namespace QtAda::gui {
@@ -54,6 +59,12 @@ private slots:
     void openFolder(const QString &path) noexcept;
     void executeApplication(const QString &path) noexcept;
 
+    void startupScriptWriterLauncher(bool isUpdateMode) noexcept;
+
+    void writeQtAdaErrMessage(const QString &msg) noexcept;
+    void writeQtAdaOutMessage(const QString &msg) noexcept;
+    void writeAppOutMessage(const QString &msg) noexcept;
+
 private:
     using Settings = std::pair<RecordSettings, ExecuteSettings>;
     using ConstSettings = const std::pair<const RecordSettings &, const ExecuteSettings &> &;
@@ -64,6 +75,7 @@ private:
     };
 
     Ui::MainGui *ui = nullptr;
+    launcher::Launcher *launcher_ = nullptr;
     bool uiInitialized_ = false;
     bool saveProjectFileOnExit_ = true;
 
@@ -104,5 +116,12 @@ private:
     void closeEvent(QCloseEvent *event) override;
 
     void flushProjectFile() noexcept;
+
+    launcher::UserLaunchOptions getUserOptionsForLauncher(const QString &appPath,
+                                                          const QString &scriptPath,
+                                                          bool isRecordScript,
+                                                          bool isUpdateMode = false) const noexcept;
+    void prepareLogTextEdits(const QString &appPath, const QString &scriptPath, bool isStarting,
+                             bool isFailedOnStart = false, int exitCode = 0) noexcept;
 };
 } // namespace QtAda::gui

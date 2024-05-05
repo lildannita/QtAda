@@ -347,11 +347,11 @@ void InitDialog::updateAppPathInfo(const AppPathCheck type) noexcept
 {
     appInfoEdit_->clear();
     auto isError = type == AppPathCheck::NoExecutable;
-    appInfoEdit_->setHtml(QStringLiteral("-- Executable: <font color=\"%1\">%2</font>")
+    appInfoEdit_->setHtml(QStringLiteral("Executable: <font color=\"%1\">%2</font>")
                               .arg(isError ? "#F94144" : "#43AA8B")
                               .arg(isError ? "ERROR" : "OK"));
     isError = isError || type == AppPathCheck::NoProbe;
-    appInfoEdit_->append(QStringLiteral("-- Probe ABI: <font color=\"%1\">%2</font>")
+    appInfoEdit_->append(QStringLiteral("Probe ABI: <font color=\"%1\">%2</font>")
                              .arg(isError ? "#F94144" : "#43AA8B")
                              .arg(isError ? "ERROR" : "OK"));
 }
