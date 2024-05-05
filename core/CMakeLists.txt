@@ -56,6 +56,5 @@ target_link_libraries(core PRIVATE common
                                    Qt5::CorePrivate
                                    Qt5::Quick
                                    Qt5::Widgets
-                                   Qt5::Network
                                    Qt5::RemoteObjects)
 target_include_directories(core PRIVATE ${QTADA_COMMON_INCLUDE_DIR})

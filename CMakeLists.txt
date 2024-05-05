@@ -20,7 +20,6 @@ find_package(
   COMPONENTS Core
              Quick
              Widgets
-             Network
              RemoteObjects
   REQUIRED)
 
