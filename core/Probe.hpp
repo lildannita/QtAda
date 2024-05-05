@@ -9,7 +9,6 @@
 
 QT_BEGIN_NAMESPACE
 class QTimer;
-class QLocalSocket;
 class QRemoteObjectNode;
 class InprocessControllerReplica;
 QT_END_NAMESPACE
@@ -58,7 +57,6 @@ private slots:
 private:
     static QAtomicPointer<Probe> s_probeInstance;
     QTimer *queueTimer_ = nullptr;
-    QLocalSocket *initSocket_ = nullptr;
 
     QRemoteObjectNode *inprocessNode_ = nullptr;
     std::shared_ptr<InprocessControllerReplica> inprocessController_ = nullptr;

@@ -4,12 +4,10 @@
 #include <QGuiApplication>
 #include <QApplication>
 #include <QRemoteObjectNode>
-#include <QLocalSocket>
 #include <QTimer>
 #include <QThread>
 #include <QRecursiveMutex>
 #include <QWindow>
-#include <QDialog>
 #include <private/qhooks_p.h>
 
 #include "Paths.hpp"
@@ -62,7 +60,6 @@ Probe::Probe(const LaunchType launchType, const std::optional<RecordSettings> &r
              const std::optional<ExecuteSettings> &executeSettings, QObject *parent) noexcept
     : QObject{ parent }
     , queueTimer_{ new QTimer(this) }
-    , initSocket_{ new QLocalSocket(this) }
     , launchType_{ launchType }
     , recordSettings_{ recordSettings }
     , executeSettings_{ executeSettings }
@@ -569,12 +566,6 @@ void Probe::explicitObjectCreation(QObject *obj) noexcept
         bool successErase = knownObjects_.erase(obj);
         assert(successErase == true);
         return;
-    }
-
-    //! TODO: Временное решение борьбы с "блокировкой" диалогом. Позволяет
-    //! общаться с нашим ControlDialog даже когда запущен любой диалог.
-    if (auto *dialog = qobject_cast<QDialog *>(obj)) {
-        dialog->setWindowModality(Qt::NonModal);
     }
 
     for (QObject *parent = obj->parent(); parent != nullptr; parent = parent->parent()) {
