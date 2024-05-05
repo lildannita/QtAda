@@ -121,7 +121,6 @@ const QByteArray RecordSettings::toJson(bool forGui) const noexcept
     obj["indentWidth"] = this->indentWidth;
     obj["blockCommentMinimumCount"] = this->blockCommentMinimumCount;
     obj["duplicateMouseEvent"] = this->duplicateMouseEvent;
-    obj["closeWindowsOnExit"] = this->closeWindowsOnExit;
     obj["textIndexBehavior"] = static_cast<int>(this->textIndexBehavior);
     obj["needToGenerateCycle"] = this->needToGenerateCycle;
     obj["cycleMinimumCount"] = this->cycleMinimumCount;
@@ -145,7 +144,6 @@ const RecordSettings RecordSettings::fromJson(const QByteArray &data, bool forGu
     settings.indentWidth = obj["indentWidth"].toInt();
     settings.blockCommentMinimumCount = obj["blockCommentMinimumCount"].toInt();
     settings.duplicateMouseEvent = obj["duplicateMouseEvent"].toBool();
-    settings.closeWindowsOnExit = obj["closeWindowsOnExit"].toBool();
     settings.textIndexBehavior = static_cast<TextIndexBehavior>(obj["textIndexBehavior"].toInt());
     settings.needToGenerateCycle = obj["needToGenerateCycle"].toBool();
     settings.cycleMinimumCount = obj["cycleMinimumCount"].toInt();

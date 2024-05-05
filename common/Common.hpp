@@ -41,7 +41,6 @@ Options:
  --indent-width  <integer value>        sets the indent width in the recorded script (default: %3)
  --block-comment <integer value>        sets the minimum number of lines to create a comment block (default: disabled)
  --duplicate-mouse-event                enables duplication of the mouse action as a comment (default: disabled)
- --close-windows-on-exit                enables auto closing of all windows when recording is completed (default: disabled)
 
  --generate-cycles                      enables automatic generation of a `for` loop for repetitive actions (default: disabled)
  --cycle-min-count                      sets the minimum number of repetitive lines to generate `for` loop (minimum: %4)

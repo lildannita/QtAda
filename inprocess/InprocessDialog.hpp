@@ -43,14 +43,12 @@ signals:
 private slots:
     void handleApplicationStateChanged(bool isAppRunning) noexcept;
 
-    void completeScript() noexcept;
-    void cancelScript() noexcept;
-
     void handleVerificationToggle(bool isChecked) noexcept;
     void handleCommentToggle(bool isChecked) noexcept;
     void handleLogToggle(bool isChecked) noexcept;
     void play() noexcept;
     void pause() noexcept;
+    void finishScript(bool isCancelled) noexcept;
 
     void acceptComment() noexcept;
     void clearComment() noexcept;

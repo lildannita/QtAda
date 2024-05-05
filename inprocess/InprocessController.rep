@@ -18,10 +18,9 @@ class InprocessController
     SLOT(sendNewMetaPropertyData(const QList<QVariantMap> &metaData))
 
     // InprocessDialog -> UserEventFilter signals:
-    SIGNAL(scriptCompleted())
+    SIGNAL(scriptFinished())
     SIGNAL(verificationModeChanged(bool isVerificationMode))
     SIGNAL(applicationPaused(bool isPaused))
-    SIGNAL(scriptCancelled())
 
     // PropertiesWatcher -> UserVerificationFilter signals:
     SIGNAL(requestFramedObjectChange(const QList<int> &rowPath))

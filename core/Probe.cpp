@@ -96,10 +96,8 @@ Probe::Probe(const LaunchType launchType, const std::optional<RecordSettings> &r
                 inprocessController_.get(), &InprocessControllerReplica::sendNewMetaPropertyData);
         connect(inprocessController_.get(), &InprocessControllerReplica::applicationPaused, this,
                 &Probe::handleApplicationPaused);
-        connect(inprocessController_.get(), &InprocessControllerReplica::scriptCompleted, this,
-                &Probe::handleScriptCompleted);
-        connect(inprocessController_.get(), &InprocessControllerReplica::scriptCancelled, this,
-                &Probe::handleScriptCancelled);
+        connect(inprocessController_.get(), &InprocessControllerReplica::scriptFinished, this,
+                &Probe::handleScriptFinished);
         connect(inprocessController_.get(), &InprocessControllerReplica::verificationModeChanged,
                 this, &Probe::handleVerificationMode);
         connect(inprocessController_.get(), &InprocessControllerReplica::requestFramedObjectChange,
@@ -207,25 +205,7 @@ void Probe::handleVerificationMode(bool isMode) noexcept
     verificationMode_ = isMode;
 }
 
-void Probe::handleScriptCompleted() noexcept
-{
-    handleVerificationMode(false);
-    if (recordSettings_->closeWindowsOnExit) {
-        if (canShowWidgets()) {
-            QApplication::closeAllWindows();
-        }
-        else {
-            const auto windows = QGuiApplication::allWindows();
-            for (auto *window : windows) {
-                window->close();
-            }
-        }
-    }
-    inprocessController_->pushApplicationRunning(false);
-    QCoreApplication::postEvent(QCoreApplication::instance(), new AsyncCloseEvent());
-}
-
-void Probe::handleScriptCancelled() noexcept
+void Probe::handleScriptFinished() noexcept
 {
     inprocessController_->pushApplicationRunning(false);
     QCoreApplication::postEvent(QCoreApplication::instance(), new AsyncCloseEvent());

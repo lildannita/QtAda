@@ -62,14 +62,14 @@ InprocessDialog::InprocessDialog(const RecordSettings &settings, QWidget *parent
     playButton_ = initButton("Play", ":/icons/play.svg", minimumButtonSize);
     playButton_->setVisible(false);
     // Подключение слотов к основным кнопкам
-    connect(completeButton, &QToolButton::clicked, this, &InprocessDialog::completeScript);
+    connect(completeButton, &QToolButton::clicked, this, [this] { finishScript(false); });
     connect(verificationButton_, &QToolButton::toggled, this,
             &InprocessDialog::handleVerificationToggle);
     connect(commentButton, &QToolButton::toggled, this, &InprocessDialog::handleCommentToggle);
     connect(logButton, &QToolButton::toggled, this, &InprocessDialog::handleLogToggle);
     connect(pauseButton_, &QToolButton::clicked, this, &InprocessDialog::pause);
     connect(playButton_, &QToolButton::clicked, this, &InprocessDialog::play);
-    connect(cancelButton, &QToolButton::clicked, this, &InprocessDialog::cancelScript);
+    connect(cancelButton, &QToolButton::clicked, this, [this] { finishScript(true); });
     // Инициализация макета с кнопками
     auto *buttons = new QWidget(this);
     auto *buttonLayout = new QHBoxLayout(buttons);
@@ -298,27 +298,15 @@ void InprocessDialog::setLabelTextColor(const QString &color) noexcept
     }
 }
 
-void InprocessDialog::completeScript() noexcept
+void InprocessDialog::finishScript(bool isCancelled) noexcept
 {
-    scriptWriter_->finishScript(false);
+    scriptWriter_->finishScript(isCancelled);
     if (applicationClosedExternally_) {
         emit inprocessClosed();
         this->close();
     }
     else {
-        emit inprocessController_->scriptCompleted();
-    }
-}
-
-void InprocessDialog::cancelScript() noexcept
-{
-    scriptWriter_->finishScript(true);
-    if (applicationClosedExternally_) {
-        emit inprocessClosed();
-        this->close();
-    }
-    else {
-        emit inprocessController_->scriptCancelled();
+        emit inprocessController_->scriptFinished();
     }
 }
 

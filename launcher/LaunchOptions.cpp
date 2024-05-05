@@ -80,9 +80,6 @@ std::optional<int> UserLaunchOptions::initFromArgs(const char *appPath, QStringL
         else if (arg == QLatin1String("--duplicate-mouse-event")) {
             recordSettings.duplicateMouseEvent = true;
         }
-        else if (arg == QLatin1String("--close-windows-on-exit")) {
-            recordSettings.duplicateMouseEvent = true;
-        }
         else if (arg == QLatin1String("--only-index")) {
             recordSettings.textIndexBehavior = TextIndexBehavior::OnlyIndex;
         }

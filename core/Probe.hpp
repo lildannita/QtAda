@@ -53,8 +53,7 @@ private slots:
 
     void handleApplicationPaused(bool isPaused) noexcept;
     void handleVerificationMode(bool isMode) noexcept;
-    void handleScriptCompleted() noexcept;
-    void handleScriptCancelled() noexcept;
+    void handleScriptFinished() noexcept;
 
 private:
     static QAtomicPointer<Probe> s_probeInstance;

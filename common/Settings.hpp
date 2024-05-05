@@ -35,7 +35,6 @@ struct RecordSettings final {
     int indentWidth = DEFAULT_INDENT_WIDTH;
     int blockCommentMinimumCount = 0;
     bool duplicateMouseEvent = false;
-    bool closeWindowsOnExit = false;
     TextIndexBehavior textIndexBehavior = TextIndexBehavior::OnlyIndex;
 
     bool needToGenerateCycle = false;

@@ -185,8 +185,6 @@ MainGui::MainGui(const QString &projectPath, QWidget *parent)
             &MainGui::handleSettingsChange);
     connect(ui->duplicateMouseEventCheckBox, &QCheckBox::stateChanged, this,
             &MainGui::handleSettingsChange);
-    connect(ui->closeWindowsOnExitCheckBox, &QCheckBox::stateChanged, this,
-            &MainGui::handleSettingsChange);
     connect(ui->textIndexBehaviorComboBox, &QComboBox::currentTextChanged, this,
             &MainGui::handleSettingsChange);
     connect(ui->needToGenerateCycleCheckBox, &QCheckBox::stateChanged, this,
@@ -1247,7 +1245,6 @@ MainGui::Settings MainGui::readCurrentSettings() const noexcept
     recordSettings.indentWidth = ui->indentWidthSpinBox->value();
     recordSettings.blockCommentMinimumCount = ui->blockCommentLinesSpinBox->value();
     recordSettings.duplicateMouseEvent = ui->duplicateMouseEventCheckBox->isChecked();
-    recordSettings.closeWindowsOnExit = ui->closeWindowsOnExitCheckBox->isChecked();
     recordSettings.textIndexBehavior
         = static_cast<TextIndexBehavior>(ui->textIndexBehaviorComboBox->currentData().toInt());
     recordSettings.needToGenerateCycle = ui->needToGenerateCycleCheckBox->isChecked();
@@ -1318,7 +1315,6 @@ void MainGui::updateCurrentSettings(ConstSettings settings) noexcept
     ui->indentWidthSpinBox->setValue(recordSettings.indentWidth);
     ui->blockCommentLinesSpinBox->setValue(recordSettings.blockCommentMinimumCount);
     ui->duplicateMouseEventCheckBox->setChecked(recordSettings.duplicateMouseEvent);
-    ui->closeWindowsOnExitCheckBox->setChecked(recordSettings.closeWindowsOnExit);
     bool foundItem = false;
     const auto textIndexBehavior = static_cast<int>(recordSettings.textIndexBehavior);
     for (int i = 0; i < ui->textIndexBehaviorComboBox->count(); i++) {
