@@ -6,6 +6,7 @@ set(gui_UI
   MainGui.ui)
 set(gui_MOC_HDRS
   InitDialog.hpp
+  Highlighter.hpp
   FileEditor.hpp
   MainGui.hpp)
 set(gui_HDRS
@@ -13,6 +14,7 @@ set(gui_HDRS
   GuiTools.hpp)
 set(gui_SRCS
   InitDialog.cpp
+  Highlighter.cpp
   FileEditor.cpp
   MainGui.cpp
   GuiTools.cpp)

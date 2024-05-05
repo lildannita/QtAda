@@ -1,5 +1,8 @@
 #include "FileEditor.hpp"
 
+#include <QApplication>
+#include <QFontDatabase>
+#include <QFont>
 #include <QShortcut>
 #include <QTextStream>
 #include <QFile>
@@ -10,6 +13,7 @@
 #include <QAction>
 
 #include "Paths.hpp"
+#include "Highlighter.hpp"
 
 namespace QtAda::gui {
 Editor::Editor(QAction *lineWrapAction, QWidget *parent) noexcept
@@ -19,6 +23,13 @@ Editor::Editor(QAction *lineWrapAction, QWidget *parent) noexcept
     assert(lineWrapAction_ != nullptr);
     updateWrapMode();
     connect(lineWrapAction_, &QAction::triggered, this, &Editor::updateWrapMode);
+
+    QFontDatabase fontDatabase;
+    auto font = QApplication::font();
+    if (fontDatabase.hasFamily("Hack")) {
+        font.setFamily("Hack");
+    }
+    this->setFont(font);
 
     lineNumberArea_ = new LineNumberArea(this);
 
@@ -120,6 +131,25 @@ void Editor::lineNumberAreaPaintEvent(QPaintEvent *event) noexcept
     }
 }
 
+void Editor::wheelEvent(QWheelEvent *event) noexcept
+{
+    if (event->modifiers() != Qt::ControlModifier) {
+        QPlainTextEdit::wheelEvent(event);
+        return;
+    }
+
+    auto font = this->font();
+    const auto currentFontSize = font.pointSize();
+    if (event->angleDelta().y() > 0) {
+        font.setPointSize(currentFontSize + 1);
+    }
+    else if (event->angleDelta().y() < 0) {
+        font.setPointSize(currentFontSize - 1);
+    }
+    this->setFont(font);
+    this->update();
+}
+
 FileEditor::FileEditor(const QString &filePath, int role, QTabWidget *editorsTabWidget,
                        QAction *lineWrapAction, QWidget *parent) noexcept
     : Editor{ lineWrapAction, parent }
@@ -129,6 +159,10 @@ FileEditor::FileEditor(const QString &filePath, int role, QTabWidget *editorsTab
 {
     assert(!filePath_.isEmpty());
     assert(editorsTabWidget_ != nullptr);
+
+    if (role_ == FileRole::ScriptRole) {
+        highlighter_ = new Highlighter(this->document());
+    }
 
     auto *shortcut = new QShortcut(QKeySequence("Ctrl+S"), this);
     connect(shortcut, &QShortcut::activated, this, &FileEditor::saveFile);

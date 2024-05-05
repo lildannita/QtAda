@@ -27,6 +27,7 @@ public:
 
 protected:
     void resizeEvent(QResizeEvent *event) noexcept override;
+    void wheelEvent(QWheelEvent *event) noexcept override;
 
 private slots:
     void updateLineNumberAreaWidth() noexcept;
@@ -65,6 +66,8 @@ protected:
 private:
     Editor *editor_ = nullptr;
 };
+
+class Highlighter;
 
 class FileEditor final : public Editor {
     Q_OBJECT
@@ -131,6 +134,7 @@ private:
     QString filePath_;
     const int role_ = -1;
 
+    Highlighter *highlighter_ = nullptr;
     QTabWidget *editorsTabWidget_ = nullptr;
 
     RecordSettings recordSettings_;
