@@ -113,7 +113,7 @@ static QString qButtonsFilter(const QQuickItem *item, const QMouseEvent *event,
                 .arg(isChecked ? "true" : "false")
                 .arg(buttonText.isEmpty()
                          ? ""
-                         : QStringLiteral(" // Button text: '%1'").arg(buttonText));
+                         : QStringLiteral(" // Button text: '%1'").arg(buttonText.simplified()));
         };
 
         if (event->type() == QEvent::MouseButtonDblClick) {
@@ -127,7 +127,9 @@ static QString qButtonsFilter(const QQuickItem *item, const QMouseEvent *event,
     return QStringLiteral("button%1('%2');%3")
         .arg(clickType())
         .arg(utils::objectPath(currentItem))
-        .arg(buttonText.isEmpty() ? "" : QStringLiteral(" // Button text: '%1'").arg(buttonText));
+        .arg(buttonText.isEmpty()
+                 ? ""
+                 : QStringLiteral(" // Button text: '%1'").arg(buttonText.simplified()));
 }
 
 static QString qDelayButtonFilter(const QQuickItem *item, const QMouseEvent *event,

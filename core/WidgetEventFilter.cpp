@@ -153,7 +153,7 @@ static QString qButtonsFilter(const QWidget *widget, const QMouseEvent *event,
                 .arg(isChecked ? "true" : "false")
                 .arg(buttonText.isEmpty()
                          ? ""
-                         : QStringLiteral(" // Button text: '%1'").arg(buttonText));
+                         : QStringLiteral(" // Button text: '%1'").arg(buttonText.simplified()));
         };
 
         if (event->type() == QEvent::MouseButtonDblClick) {
@@ -167,7 +167,9 @@ static QString qButtonsFilter(const QWidget *widget, const QMouseEvent *event,
     return QStringLiteral("button%1('%2');%3")
         .arg(clickType())
         .arg(utils::objectPath(currentWidget))
-        .arg(buttonText.isEmpty() ? "" : QStringLiteral(" // Button text: '%1'").arg(buttonText));
+        .arg(buttonText.isEmpty()
+                 ? ""
+                 : QStringLiteral(" // Button text: '%1'").arg(buttonText.simplified()));
 }
 
 static QString qComboBoxFilter(const QWidget *widget, const QMouseEvent *event,
@@ -433,7 +435,7 @@ static QString qTreeViewFilter(const QWidget *widget, const QMouseEvent *event,
         .arg(utils::objectPath(widget))
         .arg(currentItemText.isEmpty()
                  ? ""
-                 : QStringLiteral(" // Delegate text: '%1'").arg(currentItemText));
+                 : QStringLiteral(" // Delegate text: '%1'").arg(currentItemText.simplified()));
 }
 
 static QString qUndoViewFilter(const QWidget *widget, const QMouseEvent *event,
@@ -465,9 +467,9 @@ static QString qUndoViewFilter(const QWidget *widget, const QMouseEvent *event,
         result += QStringLiteral("undoCommand('%1', %2);%3")
                       .arg(utils::objectPath(widget))
                       .arg(index)
-                      .arg(currentItemText.isEmpty()
-                               ? ""
-                               : QStringLiteral(" // Delegate text: '%1'").arg(currentItemText));
+                      .arg(currentItemText.isEmpty() ? ""
+                                                     : QStringLiteral(" // Delegate text: '%1'")
+                                                           .arg(currentItemText.simplified()));
     }
     assert(!result.isEmpty());
     return result;
@@ -499,7 +501,7 @@ static QString qItemViewClickFilter(const QAbstractItemView *view,
             .arg(currentIndex.column())
             .arg(currentItemText.isEmpty()
                      ? ""
-                     : QStringLiteral(" // Delegate text: '%1'").arg(currentItemText));
+                     : QStringLiteral(" // Delegate text: '%1'").arg(currentItemText.simplified()));
     }
 
     return QString();
@@ -643,7 +645,9 @@ static QString qMenuBarFilter(const QWidget *widget, const QMouseEvent *event,
         auto *menuWidget = qobject_cast<const QWidget *>(menu);
         return QStringLiteral("activateMenu('%1');%2")
             .arg(utils::objectPath(menuWidget))
-            .arg(menuText.isEmpty() ? "" : QStringLiteral(" // Menu title: '%1'").arg(menuText));
+            .arg(menuText.isEmpty()
+                     ? ""
+                     : QStringLiteral(" // Menu title: '%1'").arg(menuText.simplified()));
     }
 }
 
@@ -669,7 +673,9 @@ static QString qMenuFilter(const QWidget *widget, const QMouseEvent *event,
         const auto menuText = menu->title();
         return QStringLiteral("activateMenu('%1');%2")
             .arg(utils::objectPath(widget))
-            .arg(menuText.isEmpty() ? "" : QStringLiteral(" // Menu title: '%1'").arg(menuText));
+            .arg(menuText.isEmpty()
+                     ? ""
+                     : QStringLiteral(" // Menu title: '%1'").arg(menuText.simplified()));
     }
     else {
         return QStringLiteral("%1activateMenuAction('%2', %3%4);")
