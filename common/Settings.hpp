@@ -50,6 +50,9 @@ struct RunSettings final {
 
     QString executeArgs = QString();
 
+    int attempsNumber = DEFAULT_ATTEMPS_NUMBER;
+    int retryInterval = DEFAULT_RETRY_INTERVAL;
+
     std::optional<std::vector<QString>> isValid() const noexcept;
     const QByteArray toJson(bool forGui = false) const noexcept;
     static const RunSettings fromJson(const QByteArray &data, bool forGui = false) noexcept;

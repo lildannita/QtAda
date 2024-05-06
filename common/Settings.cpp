@@ -173,6 +173,20 @@ std::optional<std::vector<QString>> RunSettings::isValid() const noexcept
                 QStringLiteral("The script must be a JavaScript file with a .js extension."));
         }
     }
+
+    if (attempsNumber < MINIMUM_ATTEMPS_NUMBER) {
+        errors.push_back(
+            QStringLiteral(
+                "The number of attemps to retrive object is less than the required minimum of %1.")
+                .arg(MINIMUM_ATTEMPS_NUMBER));
+    }
+    if (retryInterval < MINIMUM_RETRY_INTERVAL) {
+        errors.push_back(
+            QStringLiteral(
+                "The retry interval before next attempt is less than the required minimum of %1.")
+                .arg(MINIMUM_RETRY_INTERVAL));
+    }
+
     return errors.empty() ? std::nullopt : std::make_optional(errors);
 }
 
@@ -185,6 +199,8 @@ const QByteArray RunSettings::toJson(bool forGui) const noexcept
     else {
         obj["scriptPath"] = this->scriptPath;
     }
+    obj["attempsNumber"] = this->attempsNumber;
+    obj["retryInterval"] = this->retryInterval;
     const auto document = QJsonDocument(obj);
     return document.toJson(QJsonDocument::Indented);
 }
@@ -200,6 +216,8 @@ const RunSettings RunSettings::fromJson(const QByteArray &data, bool forGui) noe
     else {
         settings.scriptPath = obj["scriptPath"].toString();
     }
+    settings.attempsNumber = obj["attempsNumber"].toInt();
+    settings.retryInterval = obj["executeArgs"].toInt();
     return settings;
 }
 

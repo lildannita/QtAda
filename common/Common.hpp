@@ -7,6 +7,10 @@ namespace QtAda {
 static constexpr int DEFAULT_WAITING_TIMER_VALUE = 60;
 static constexpr int DEFAULT_INDENT_WIDTH = 4;
 static constexpr int MINIMUM_CYCLE_COUNT = 3;
+static constexpr int MINIMUM_ATTEMPS_NUMBER = 1;
+static constexpr int DEFAULT_ATTEMPS_NUMBER = 10;
+static constexpr int MINIMUM_RETRY_INTERVAL = 100;
+static constexpr int DEFAULT_RETRY_INTERVAL = 500;
 
 static constexpr char ENV_UNSET_PRELOAD[] = "QTADA_NEED_TO_UNSET_PRELOAD";
 static constexpr char ENV_LAUNCH_TYPE[] = "QTADA_LAUNCH_TYPE";
@@ -38,7 +42,7 @@ Options:
  --update-script <line index>           the original script will be appended with new lines from specified line index
                                         (numbering begins with 1)
 
- --indent-width  <integer value>        sets the indent width in the recorded script (default: %3)
+ --indent-width <integer value>         sets the indent width in the recorded script (default: %3)
  --block-comment <integer value>        sets the minimum number of lines to create a comment block (default: disabled)
  --duplicate-mouse-event                enables duplication of the mouse action as a comment (default: disabled)
 
@@ -48,11 +52,19 @@ Options:
  --only-index                           for actions on model delegates, only its index will be specified (default)
  --only-text                            for actions on model delegates, only its text (if possible) will be specified
  --text-index                           for actions on model delegates, its index and text (if possible) will be specified
+
+(Run options):
+ --attemps-number <integer value>       sets the attemps number to retrive object by specified path (minimum: %5, default: %6)
+ --retry-interval <integer value>       sets the interval (in milliseconds) before next attempt (minimum: %7, default: %8)
 )")
                            .arg(appPath)
                            .arg(DEFAULT_WAITING_TIMER_VALUE)
                            .arg(DEFAULT_INDENT_WIDTH)
-                           .arg(MINIMUM_CYCLE_COUNT);
+                           .arg(MINIMUM_CYCLE_COUNT)
+                           .arg(MINIMUM_ATTEMPS_NUMBER)
+                           .arg(DEFAULT_ATTEMPS_NUMBER)
+                           .arg(MINIMUM_RETRY_INTERVAL)
+                           .arg(DEFAULT_RETRY_INTERVAL);
     std::cout << qPrintable(usage) << std::endl << std::flush;
 }
 

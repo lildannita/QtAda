@@ -106,6 +106,16 @@ std::optional<int> UserLaunchOptions::initFromArgs(const char *appPath, QStringL
                 return 1;
             }
         }
+        else if (arg == QLatin1String("--attemps-number")) {
+            if (!argToInt(runSettings.attempsNumber, args.takeFirst(), arg)) {
+                return 1;
+            }
+        }
+        else if (arg == QLatin1String("--retry-interval")) {
+            if (!argToInt(runSettings.retryInterval, args.takeFirst(), arg)) {
+                return 1;
+            }
+        }
         else {
             printQtAdaErrMessage(QStringLiteral("Unknown parameter: %1.").arg(arg));
             return 1;

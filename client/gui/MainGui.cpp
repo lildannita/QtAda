@@ -331,10 +331,12 @@ void MainGui::updateProjectFileView(bool isExternal) noexcept
 
     bool needToUpdateModel = false;
     const auto currentScripts = getAccessiblePaths(projectFileInfo, true);
+    ui->actionRunAll->setEnabled(!currentScripts.isEmpty());
     if (currentScripts != lastScripts_) {
         needToUpdateModel = true;
         lastScripts_ = std::move(currentScripts);
     }
+
     const auto currentSources = getAccessiblePaths(projectFileInfo, false);
     if (currentSources != lastSources_) {
         needToUpdateModel = true;
@@ -1229,6 +1231,7 @@ void MainGui::checkIfCurrentTabIsScript(int index) noexcept
         lastScriptEditor_ = nullptr;
     }
 
+    ui->actionRunCurrent->setEnabled(isScript);
     if (!isScript) {
         return;
     }
@@ -1256,6 +1259,8 @@ MainGui::Settings MainGui::readCurrentSettings() const noexcept
 
     RunSettings runSettings;
     runSettings.executeArgs = ui->runAppArgsEdit->text();
+    runSettings.attempsNumber = ui->attempsNumberSpinBox->value();
+    runSettings.retryInterval = ui->retryIntervalSpinBox->value();
 
     return { recordSettings, runSettings };
 }
@@ -1333,6 +1338,8 @@ void MainGui::updateCurrentSettings(ConstSettings settings) noexcept
     ui->recordAppArgsEdit->setText(recordSettings.executeArgs);
 
     ui->runAppArgsEdit->setText(runSettings.executeArgs);
+    ui->attempsNumberSpinBox->setValue(runSettings.attempsNumber);
+    ui->retryIntervalSpinBox->setValue(runSettings.retryInterval);
 
     settingsChangeHandlerBlocked_ = false;
 }
