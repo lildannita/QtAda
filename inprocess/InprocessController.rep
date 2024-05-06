@@ -17,6 +17,10 @@ class InprocessController
     SLOT(sendNewFramedRootObjectData(const QVariantMap &model, const QList<QVariantMap> &rootMetaData))
     SLOT(sendNewMetaPropertyData(const QList<QVariantMap> &metaData))
 
+    // ScriptRunner -> InprocessRunner
+    SLOT(sendScriptRunError(const QString &msg))
+    SLOT(sendScriptRunLog(const QString &msg))
+
     // InprocessDialog -> UserEventFilter signals:
     SIGNAL(scriptFinished())
     SIGNAL(verificationModeChanged(bool isVerificationMode))

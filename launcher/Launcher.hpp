@@ -12,7 +12,8 @@ class AbstractInjector;
 
 namespace QtAda::inprocess {
 class InprocessDialog;
-}
+class InprocessRunner;
+} // namespace QtAda::inprocess
 
 namespace QtAda::launcher {
 class Launcher final : public QObject {
@@ -30,13 +31,18 @@ public:
 
 signals:
     void launcherFinished();
+
     void stdMessage(const QString &msg);
     void launcherOutMessage(const QString &msg);
     void launcherErrMessage(const QString &msg);
 
+    void scriptRunError(const QString &msg);
+    void scriptRunLog(const QString &msg);
+
 private slots:
     void restartTimer() noexcept;
     void timeout() noexcept;
+    void applicationStarted() noexcept;
     void injectorFinished() noexcept;
 
 private:
@@ -44,6 +50,7 @@ private:
     std::unique_ptr<injector::AbstractInjector> injector_;
 
     inprocess::InprocessDialog *inprocessDialog_ = nullptr;
+    inprocess::InprocessRunner *inprocessRunner_ = nullptr;
 
     QTimer waitingTimer_;
 

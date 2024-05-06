@@ -17,7 +17,7 @@ namespace QtAda::core {
 class UserEventFilter;
 class UserVerificationFilter;
 
-class Probe : public QObject {
+class Probe final : public QObject {
     Q_OBJECT
 
 public:
@@ -52,7 +52,8 @@ private slots:
 
     void handleApplicationPaused(bool isPaused) noexcept;
     void handleVerificationMode(bool isMode) noexcept;
-    void handleScriptFinished() noexcept;
+
+    void handleApplicationFinished(int exitCode) noexcept;
 
 private:
     static QAtomicPointer<Probe> s_probeInstance;
@@ -99,5 +100,7 @@ private:
 
     const QObject *inprocessController() const noexcept;
     static bool canShowWidgets() noexcept;
+
+    void prepareScriptRunner(const std::optional<RunSettings> &runSettings) noexcept;
 };
 } // namespace QtAda::core

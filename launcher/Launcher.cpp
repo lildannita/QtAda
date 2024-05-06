@@ -5,6 +5,7 @@
 
 #include "injector/PreloadInjector.hpp"
 #include "InprocessDialog.hpp"
+#include "InprocessRunner.hpp"
 
 #include "Common.hpp"
 
@@ -30,6 +31,9 @@ Launcher::Launcher(const UserLaunchOptions &userOptions, bool fromGui, QObject *
         connect(injector_.get(), &injector::AbstractInjector::stdMessage, printStdMessage);
         connect(this, &Launcher::launcherErrMessage, printQtAdaErrMessage);
         connect(this, &Launcher::launcherOutMessage, printQtAdaOutMessage);
+
+        connect(this, &Launcher::scriptRunError, printQtAdaErrMessage);
+        connect(this, &Launcher::scriptRunLog, printQtAdaOutMessage);
     }
 }
 
@@ -47,6 +51,12 @@ void Launcher::timeout() noexcept
                                            "the timeout value to a bigger value (use --help).")
                                 .arg(options_.userOptions.timeoutValue));
     checkIfLauncherIsFinished();
+}
+
+void Launcher::applicationStarted() noexcept
+{
+    assert(waitingTimer_.isActive());
+    waitingTimer_.stop();
 }
 
 void Launcher::restartTimer() noexcept
@@ -102,17 +112,21 @@ bool Launcher::launch() noexcept
     case LaunchType::Record: {
         options_.env.insert(ENV_LAUNCH_SETTINGS, options_.userOptions.recordSettings.toJson());
         inprocessDialog_ = new inprocess::InprocessDialog(options_.userOptions.recordSettings);
-        connect(inprocessDialog_, &inprocess::InprocessDialog::applicationStarted, this, [this] {
-            assert(waitingTimer_.isActive());
-            waitingTimer_.stop();
-        });
+        connect(inprocessDialog_, &inprocess::InprocessDialog::applicationStarted, this,
+                &Launcher::applicationStarted);
         connect(injector_.get(), &injector::AbstractInjector::stdMessage, inprocessDialog_,
                 &inprocess::InprocessDialog::appendLogMessage);
         break;
     }
     case LaunchType::Run: {
         options_.env.insert(ENV_LAUNCH_SETTINGS, options_.userOptions.runSettings.toJson());
-        //! TODO: здесь должно быть объявление класса, контролирующее запуск скрипта
+        inprocessRunner_ = new inprocess::InprocessRunner(this);
+        connect(inprocessRunner_, &inprocess::InprocessRunner::applicationStarted, this,
+                &Launcher::applicationStarted);
+        connect(inprocessRunner_, &inprocess::InprocessRunner::scriptRunError, this,
+                &Launcher::scriptRunError);
+        connect(inprocessRunner_, &inprocess::InprocessRunner::scriptRunLog, this,
+                &Launcher::scriptRunLog);
         break;
     }
     default:

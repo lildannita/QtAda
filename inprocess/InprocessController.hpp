@@ -3,7 +3,7 @@
 #include <rep_InprocessController_source.h>
 
 namespace QtAda::inprocess {
-class InprocessController : public InprocessControllerSimpleSource {
+class InprocessController final : public InprocessControllerSimpleSource {
     Q_OBJECT
 public:
     InprocessController(QObject *parent = nullptr) noexcept
@@ -29,6 +29,16 @@ public Q_SLOTS:
         emit this->newFramedRootObjectData(model, rootMetaData);
     }
 
+    // ScriptRunner -> InprocessRunner
+    void sendScriptRunError(const QString &msg) override
+    {
+        emit this->scriptRunError(msg);
+    }
+    void sendScriptRunLog(const QString &msg) override
+    {
+        emit this->scriptRunLog(msg);
+    }
+
 Q_SIGNALS:
     // UserEventFilter -> InprocessDialog signals:
     void newScriptLine(const QString &line);
@@ -36,5 +46,9 @@ Q_SIGNALS:
     // UserVerificationFilter -> PropertiesWatcher signals:
     void newMetaPropertyData(const QList<QVariantMap> &metaData);
     void newFramedRootObjectData(const QVariantMap &model, const QList<QVariantMap> &rootMetaData);
+
+    // ScriptRunner -> InprocessRunner
+    void scriptRunError(const QString &msg);
+    void scriptRunLog(const QString &msg);
 };
 } // namespace QtAda::inprocess

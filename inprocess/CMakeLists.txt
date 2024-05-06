@@ -8,14 +8,16 @@ set(inprocess_MOC_HDRS
   InprocessController.hpp
   InprocessDialog.hpp
   PropertiesWatcher.hpp
-  ScriptWriter.hpp)
+  ScriptWriter.hpp
+  InprocessRunner.hpp)
 set(inprocess_HDRS
   ${inprocess_MOC_HDRS}
   InprocessTools.hpp)
 set(inprocess_SRCS
   InprocessDialog.cpp
   PropertiesWatcher.cpp
-  ScriptWriter.cpp)
+  ScriptWriter.cpp
+  InprocessRunner.cpp)
 qt5_wrap_cpp(gen_SRCS ${inprocess_MOC_HDRS})
 qt5_add_resources(gen_SRCS ${QTADA_RESOURCES_DIR}/inprocess.qrc)
 qt5_generate_repc(gen_SRCS ${inprocess_REPS} SOURCE)

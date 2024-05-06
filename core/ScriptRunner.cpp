@@ -1,6 +1,10 @@
 #include "ScriptRunner.hpp"
 
 #include <QCoreApplication>
+#include <QThread>
+#include <QFile>
+#include <QTextStream>
+#include <QJSEngine>
 
 #include "utils/FilterUtils.hpp"
 
@@ -60,5 +64,48 @@ void ScriptRunner::registerObjectReparented(QObject *obj) noexcept
 void ScriptRunner::startScript() noexcept
 {
     assert(this->thread() != qApp->thread());
+
+    const auto &scriptPath = runSettings_.scriptPath;
+    assert(!scriptPath.isEmpty());
+
+    QFile script(scriptPath);
+    assert(script.exists());
+
+    const auto opened = script.open(QIODevice::ReadOnly);
+    assert(opened == true);
+
+    QTextStream stream(&script);
+    const auto scriptContent = stream.readAll();
+    script.close();
+
+    if (scriptContent.trimmed().isEmpty()) {
+        emit scriptError(QStringLiteral("%1 is empty.").arg(scriptPath));
+        finishThread(false);
+        return;
+    }
+
+    QJSEngine engine;
+    const auto runResult = engine.evaluate(scriptContent);
+
+    if (runResult.isError()) {
+        emit scriptError(QStringLiteral("%1: JavaScript Error!\n"
+                                        "[    ERROR    ] %2\n"
+                                        "[ LINE NUMBER ] %3\n"
+                                        "[    STACK    ] %4")
+                             .arg(runSettings_.scriptPath)
+                             .arg(runResult.property("message").toString())
+                             .arg(runResult.property("lineNumber").toInt())
+                             .arg(runResult.property("stack").toString()));
+        finishThread(false);
+    }
+    else {
+        finishThread(true);
+    }
+}
+
+void ScriptRunner::finishThread(bool isOk) noexcept
+{
+    exitCode_ = isOk ? 0 : 1;
+    this->thread()->quit();
 }
 } // namespace QtAda::core

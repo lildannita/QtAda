@@ -49,10 +49,18 @@ Q_GLOBAL_STATIC(LilProbe, s_lilProbe)
 class AsyncCloseEvent : public QEvent {
 public:
     static const QEvent::Type AsyncClose;
-    AsyncCloseEvent()
+    AsyncCloseEvent(int exitCode = 0)
         : QEvent(AsyncClose)
+        , exitCode_(exitCode)
     {
     }
+    int exitCode() const noexcept
+    {
+        return exitCode_;
+    }
+
+private:
+    const int exitCode_;
 };
 const QEvent::Type AsyncCloseEvent::AsyncClose
     = static_cast<QEvent::Type>(QEvent::registerEventType());
@@ -72,9 +80,13 @@ Probe::Probe(const LaunchType launchType, const std::optional<RecordSettings> &r
     inprocessNode_ = new QRemoteObjectNode(this);
     inprocessNode_->connectToNode(QUrl(paths::REMOTE_OBJECT_PATH));
     inprocessController_.reset(inprocessNode_->acquire<InprocessControllerReplica>());
-    connect(inprocessController_.get(), &QRemoteObjectReplica::notified, this, [this] {
+    connect(inprocessController_.get(), &QRemoteObjectReplica::notified, this, [this, runSettings] {
         assert(inprocessController_->applicationRunning() == false);
         inprocessController_->pushApplicationRunning(true);
+
+        if (launchType_ == LaunchType::Run) {
+            prepareScriptRunner(runSettings);
+        }
     });
 
     switch (launchType_) {
@@ -93,7 +105,7 @@ Probe::Probe(const LaunchType launchType, const std::optional<RecordSettings> &r
         connect(inprocessController_.get(), &InprocessControllerReplica::applicationPaused, this,
                 &Probe::handleApplicationPaused);
         connect(inprocessController_.get(), &InprocessControllerReplica::scriptFinished, this,
-                &Probe::handleScriptFinished);
+                [this] { handleApplicationFinished(0); });
         connect(inprocessController_.get(), &InprocessControllerReplica::verificationModeChanged,
                 this, &Probe::handleVerificationMode);
         connect(inprocessController_.get(), &InprocessControllerReplica::requestFramedObjectChange,
@@ -102,22 +114,13 @@ Probe::Probe(const LaunchType launchType, const std::optional<RecordSettings> &r
     }
     case LaunchType::Run: {
         assert(runSettings.has_value());
-
-        auto scriptRunner = new ScriptRunner(std::move(*runSettings));
-        connect(this, &Probe::objectCreated, scriptRunner, &ScriptRunner::registerObjectCreated,
-                Qt::DirectConnection);
-        connect(this, &Probe::objectDestroyed, scriptRunner, &ScriptRunner::registerObjectDestroyed,
-                Qt::DirectConnection);
-        connect(this, &Probe::objectReparented, scriptRunner,
-                &ScriptRunner::registerObjectReparented, Qt::DirectConnection);
-
-        QThread *scriptThread = new QThread(this);
-        connect(scriptThread, &QThread::started, scriptRunner, &ScriptRunner::startScript);
-        connect(scriptThread, &QThread::finished, scriptRunner, &QObject::deleteLater);
-        connect(scriptThread, &QThread::finished, scriptThread, &QObject::deleteLater);
-
-        scriptRunner->moveToThread(scriptThread);
-        scriptThread->start();
+        /*
+         * Так как работа ScriptRunner происходит в другом потоке, а что наиболее
+         * важно - зависит от того, "готов" ли inprocessController_ (чтобы ни одно сообщение
+         * не было упущено из-за того, что inprocessController_ еще не проинициализирован),
+         * то было решено инициализировать данные для режима LaunchType::Run только после
+         * того, как inprocessController_ будет готов.
+         */
         break;
     }
     default:
@@ -147,6 +150,36 @@ bool Probe::initialized() noexcept
 void Probe::kill() noexcept
 {
     delete this;
+}
+
+void Probe::prepareScriptRunner(const std::optional<RunSettings> &runSettings) noexcept
+{
+    assert(QThread::currentThread() == qApp->thread());
+
+    auto *scriptRunner = new ScriptRunner(std::move(*runSettings));
+    connect(this, &Probe::objectCreated, scriptRunner, &ScriptRunner::registerObjectCreated,
+            Qt::DirectConnection);
+    connect(this, &Probe::objectDestroyed, scriptRunner, &ScriptRunner::registerObjectDestroyed,
+            Qt::DirectConnection);
+    connect(this, &Probe::objectReparented, scriptRunner, &ScriptRunner::registerObjectReparented,
+            Qt::DirectConnection);
+    connect(scriptRunner, &ScriptRunner::scriptError, inprocessController_.get(),
+            &InprocessControllerReplica::sendScriptRunError);
+    connect(scriptRunner, &ScriptRunner::scriptLog, inprocessController_.get(),
+            &InprocessControllerReplica::sendScriptRunLog);
+
+    QThread *scriptThread = new QThread(this);
+    connect(scriptThread, &QThread::started, scriptRunner, &ScriptRunner::startScript);
+    connect(scriptThread, &QThread::finished, this, [this, scriptThread, scriptRunner] {
+        const auto exitCode = scriptRunner->exitCode();
+        assert(exitCode != -1);
+        scriptRunner->deleteLater();
+        scriptThread->deleteLater();
+        handleApplicationFinished(exitCode);
+    });
+
+    scriptRunner->moveToThread(scriptThread);
+    scriptThread->start();
 }
 
 void Probe::initProbe(const LaunchType launchType,
@@ -216,10 +249,10 @@ void Probe::handleVerificationMode(bool isMode) noexcept
     verificationMode_ = isMode;
 }
 
-void Probe::handleScriptFinished() noexcept
+void Probe::handleApplicationFinished(int exitCode) noexcept
 {
     inprocessController_->pushApplicationRunning(false);
-    QCoreApplication::postEvent(QCoreApplication::instance(), new AsyncCloseEvent());
+    QCoreApplication::postEvent(QCoreApplication::instance(), new AsyncCloseEvent(exitCode));
 }
 
 bool Probe::eventFilter(QObject *reciever, QEvent *event)
@@ -229,7 +262,8 @@ bool Probe::eventFilter(QObject *reciever, QEvent *event)
     }
 
     if (event->type() == AsyncCloseEvent::AsyncClose) {
-        QCoreApplication::exit();
+        auto *asyncClose = static_cast<AsyncCloseEvent *>(event);
+        QCoreApplication::exit(asyncClose->exitCode());
         return true;
     }
 
