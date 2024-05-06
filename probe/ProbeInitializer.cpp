@@ -46,8 +46,8 @@ void ProbeInitializer::initProbe() noexcept
         Probe::initProbe(launchType, RecordSettings::fromJson(rawLaunchSettings), std::nullopt);
         break;
     }
-    case LaunchType::Execute: {
-        Probe::initProbe(launchType, std::nullopt, ExecuteSettings::fromJson(rawLaunchSettings));
+    case LaunchType::Run: {
+        Probe::initProbe(launchType, std::nullopt, RunSettings::fromJson(rawLaunchSettings));
         break;
     }
     default:

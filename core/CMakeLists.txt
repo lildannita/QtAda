@@ -20,7 +20,8 @@ set(core_MOC_HDRS
   GuiEventFilter.hpp
   QuickEventFilter.hpp
   WidgetEventFilter.hpp
-  UserVerificationFilter.hpp)
+  UserVerificationFilter.hpp
+  ScriptRunner.hpp)
 set(core_HDRS
   ${core_MOC_HDRS}
 # MetaTypeDeclarations.hpp
@@ -39,6 +40,7 @@ set(core_SRCS
   WidgetEventFilter.cpp
   LastEvent.cpp
   UserVerificationFilter.cpp
+  ScriptRunner.cpp
   utils/FilterUtils.cpp
   utils/Tools.cpp)
 qt5_wrap_cpp(gen_SRCS ${core_MOC_HDRS})

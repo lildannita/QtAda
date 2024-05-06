@@ -58,13 +58,13 @@ std::optional<int> UserLaunchOptions::initFromArgs(const char *appPath, QStringL
             recordSettings.scriptPath = std::move(args.takeFirst());
             break;
         }
-        else if ((arg == QLatin1String("-e")) || (arg == QLatin1String("--execute"))) {
+        else if ((arg == QLatin1String("-R")) || (arg == QLatin1String("--run"))) {
             if (type != LaunchType::None) {
                 printMultiplyDefinitionError();
                 return 1;
             }
-            type = LaunchType::Execute;
-            executeSettings.scriptPath = std::move(args.takeFirst());
+            type = LaunchType::Run;
+            runSettings.scriptPath = std::move(args.takeFirst());
             break;
         }
         else if (arg == QLatin1String("--indent-width")) {
@@ -121,8 +121,8 @@ std::optional<int> UserLaunchOptions::initFromArgs(const char *appPath, QStringL
         }
         break;
     }
-    case LaunchType::Execute: {
-        const auto errors = executeSettings.isValid();
+    case LaunchType::Run: {
+        const auto errors = runSettings.isValid();
         if (errors.has_value()) {
             printErrors(*errors);
             return 1;

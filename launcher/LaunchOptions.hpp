@@ -21,7 +21,7 @@ struct UserLaunchOptions final {
 
     LaunchType type = LaunchType::None;
     RecordSettings recordSettings;
-    ExecuteSettings executeSettings;
+    RunSettings runSettings;
 
     std::optional<int> initFromArgs(const char *appPath, QStringList args) noexcept;
 };

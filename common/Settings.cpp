@@ -150,7 +150,7 @@ const RecordSettings RecordSettings::fromJson(const QByteArray &data, bool forGu
     return settings;
 }
 
-std::optional<std::vector<QString>> ExecuteSettings::isValid() const noexcept
+std::optional<std::vector<QString>> RunSettings::isValid() const noexcept
 {
     std::vector<QString> errors;
 
@@ -176,7 +176,7 @@ std::optional<std::vector<QString>> ExecuteSettings::isValid() const noexcept
     return errors.empty() ? std::nullopt : std::make_optional(errors);
 }
 
-const QByteArray ExecuteSettings::toJson(bool forGui) const noexcept
+const QByteArray RunSettings::toJson(bool forGui) const noexcept
 {
     QJsonObject obj;
     if (forGui) {
@@ -189,11 +189,11 @@ const QByteArray ExecuteSettings::toJson(bool forGui) const noexcept
     return document.toJson(QJsonDocument::Indented);
 }
 
-const ExecuteSettings ExecuteSettings::fromJson(const QByteArray &data, bool forGui) noexcept
+const RunSettings RunSettings::fromJson(const QByteArray &data, bool forGui) noexcept
 {
     QJsonDocument readDoc = QJsonDocument::fromJson(data);
     QJsonObject obj = readDoc.object();
-    ExecuteSettings settings;
+    RunSettings settings;
     if (forGui) {
         settings.executeArgs = obj["executeArgs"].toString();
     }

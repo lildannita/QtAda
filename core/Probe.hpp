@@ -16,20 +16,21 @@ QT_END_NAMESPACE
 namespace QtAda::core {
 class UserEventFilter;
 class UserVerificationFilter;
+class ScriptRunner;
 
 class Probe : public QObject {
     Q_OBJECT
 
 public:
     explicit Probe(const LaunchType launchType, const std::optional<RecordSettings> &recordSettings,
-                   const std::optional<ExecuteSettings> &executeSettings,
+                   const std::optional<RunSettings> &runSettings,
                    QObject *parent = nullptr) noexcept;
     ~Probe() noexcept;
 
     static bool initialized() noexcept;
     static void initProbe(const LaunchType launchType,
                           const std::optional<RecordSettings> &recordSettings,
-                          const std::optional<ExecuteSettings> &executeSettings) noexcept;
+                          const std::optional<RunSettings> &runSettings) noexcept;
     static Probe *probeInstance() noexcept;
 
     static void startup() noexcept;
@@ -66,9 +67,9 @@ private:
     bool filtersPaused_ = false;
     bool verificationMode_ = false;
 
+    ScriptRunner *scriptRunner_ = nullptr;
+
     const LaunchType launchType_;
-    const std::optional<const RecordSettings> recordSettings_;
-    const std::optional<const ExecuteSettings> executeSettings_;
 
     // Очень важно, что построение дерева объектов должно происходить
     // в одном потоке из экземпляров, которые мы сохраняем в knownObjects_

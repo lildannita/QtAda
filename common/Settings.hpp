@@ -10,7 +10,7 @@ namespace QtAda {
 enum class LaunchType {
     None = 0,
     Record = 1,
-    Execute = 2,
+    Run = 2,
 };
 
 enum class TextIndexBehavior {
@@ -45,13 +45,13 @@ struct RecordSettings final {
     static const RecordSettings fromJson(const QByteArray &data, bool forGui = false) noexcept;
 };
 
-struct ExecuteSettings final {
+struct RunSettings final {
     QString scriptPath = QString();
 
     QString executeArgs = QString();
 
     std::optional<std::vector<QString>> isValid() const noexcept;
     const QByteArray toJson(bool forGui = false) const noexcept;
-    static const ExecuteSettings fromJson(const QByteArray &data, bool forGui = false) noexcept;
+    static const RunSettings fromJson(const QByteArray &data, bool forGui = false) noexcept;
 };
 } // namespace QtAda

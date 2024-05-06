@@ -14,6 +14,7 @@
 #include "ProbeGuard.hpp"
 #include "UserEventFilter.hpp"
 #include "UserVerificationFilter.hpp"
+#include "ScriptRunner.hpp"
 #include <inprocess/rep_InprocessController_replica.h>
 
 namespace QtAda::core {
@@ -57,12 +58,10 @@ const QEvent::Type AsyncCloseEvent::AsyncClose
     = static_cast<QEvent::Type>(QEvent::registerEventType());
 
 Probe::Probe(const LaunchType launchType, const std::optional<RecordSettings> &recordSettings,
-             const std::optional<ExecuteSettings> &executeSettings, QObject *parent) noexcept
+             const std::optional<RunSettings> &runSettings, QObject *parent) noexcept
     : QObject{ parent }
     , queueTimer_{ new QTimer(this) }
     , launchType_{ launchType }
-    , recordSettings_{ recordSettings }
-    , executeSettings_{ executeSettings }
 {
     Q_ASSERT(thread() == qApp->thread());
 
@@ -81,7 +80,7 @@ Probe::Probe(const LaunchType launchType, const std::optional<RecordSettings> &r
     switch (launchType_) {
     case LaunchType::Record: {
         assert(recordSettings.has_value());
-        userEventFilter_ = new UserEventFilter(*recordSettings, this);
+        userEventFilter_ = new UserEventFilter(std::move(*recordSettings), this);
         userVerificationFilter_ = new UserVerificationFilter(this);
 
         connect(userEventFilter_, &UserEventFilter::newScriptLine, inprocessController_.get(),
@@ -101,9 +100,15 @@ Probe::Probe(const LaunchType launchType, const std::optional<RecordSettings> &r
                 userVerificationFilter_, &UserVerificationFilter::changeFramedObject);
         break;
     }
-    case LaunchType::Execute: {
-        assert(executeSettings.has_value());
-        //! TODO: здесь должна быть настройка для запуска тестового скрипта
+    case LaunchType::Run: {
+        assert(runSettings.has_value());
+
+        scriptRunner_ = new ScriptRunner(std::move(*runSettings), this);
+        connect(this, &Probe::objectCreated, scriptRunner_, &ScriptRunner::registerObjectCreated);
+        connect(this, &Probe::objectDestroyed, scriptRunner_,
+                &ScriptRunner::registerObjectDestroyed);
+        connect(this, &Probe::objectReparented, scriptRunner_,
+                &ScriptRunner::registerObjectReparented);
         break;
     }
     default:
@@ -137,7 +142,7 @@ void Probe::kill() noexcept
 
 void Probe::initProbe(const LaunchType launchType,
                       const std::optional<RecordSettings> &recordSettings,
-                      const std::optional<ExecuteSettings> &executeSettings) noexcept
+                      const std::optional<RunSettings> &runSettings) noexcept
 {
     assert(qApp);
     assert(!initialized());
@@ -145,7 +150,7 @@ void Probe::initProbe(const LaunchType launchType,
     Probe *probe = nullptr;
     {
         ProbeGuard guard;
-        probe = new Probe(launchType, recordSettings, executeSettings);
+        probe = new Probe(launchType, recordSettings, runSettings);
     }
 
     connect(qApp, &QCoreApplication::aboutToQuit, probe, &Probe::kill);

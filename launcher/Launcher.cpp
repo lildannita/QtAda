@@ -110,8 +110,8 @@ bool Launcher::launch() noexcept
                 &inprocess::InprocessDialog::appendLogMessage);
         break;
     }
-    case LaunchType::Execute: {
-        options_.env.insert(ENV_LAUNCH_SETTINGS, options_.userOptions.executeSettings.toJson());
+    case LaunchType::Run: {
+        options_.env.insert(ENV_LAUNCH_SETTINGS, options_.userOptions.runSettings.toJson());
         //! TODO: здесь должно быть объявление класса, контролирующее запуск скрипта
         break;
     }

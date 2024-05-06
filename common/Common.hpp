@@ -26,7 +26,7 @@ Usage: %1 [options] <launch type> <script path> <application> [args]
 
 Launch type:
  -r, --record                           record test script
- -e, --execute                          execute test script
+ -R, --run                              run test script
 
 Options:
  -h, --help                             print program help and exit

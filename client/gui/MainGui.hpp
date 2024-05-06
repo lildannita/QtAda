@@ -66,8 +66,8 @@ private slots:
     void writeAppOutMessage(const QString &msg) noexcept;
 
 private:
-    using Settings = std::pair<RecordSettings, ExecuteSettings>;
-    using ConstSettings = const std::pair<const RecordSettings &, const ExecuteSettings &> &;
+    using Settings = std::pair<RecordSettings, RunSettings>;
+    using ConstSettings = const std::pair<const RecordSettings &, const RunSettings &> &;
 
     struct LaunchSettings final {
         QString workingDirectory;

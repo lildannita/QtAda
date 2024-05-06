@@ -98,26 +98,26 @@ public:
         return this->blockCount();
     }
 
-    void setSettings(const std::pair<RecordSettings, ExecuteSettings> &settings) noexcept
+    void setSettings(const std::pair<RecordSettings, RunSettings> &settings) noexcept
     {
         assert(role_ == FileRole::ScriptRole);
         recordSettings_ = settings.first;
-        executeSettings_ = settings.second;
+        runSettings_ = settings.second;
     }
-    std::pair<RecordSettings, ExecuteSettings> getSettings() const noexcept
+    std::pair<RecordSettings, RunSettings> getSettings() const noexcept
     {
         assert(role_ == FileRole::ScriptRole);
-        return { recordSettings_, executeSettings_ };
+        return { recordSettings_, runSettings_ };
     }
     RecordSettings getRecordSettings() const noexcept
     {
         assert(role_ == FileRole::ScriptRole);
         return recordSettings_;
     }
-    ExecuteSettings getExecuteSettings() const noexcept
+    RunSettings getRunSettings() const noexcept
     {
         assert(role_ == FileRole::ScriptRole);
-        return executeSettings_;
+        return runSettings_;
     }
 
 signals:
@@ -138,7 +138,7 @@ private:
     QTabWidget *editorsTabWidget_ = nullptr;
 
     RecordSettings recordSettings_;
-    ExecuteSettings executeSettings_;
+    RunSettings runSettings_;
 
     bool isChanged_ = false;
 

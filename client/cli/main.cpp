@@ -90,7 +90,7 @@ int cliInitializer(int argc, char *argv[])
         auto exec = app.exec();
         return exec == 0 ? launcher.exitCode() : exec;
     }
-    case LaunchType::Execute: {
+    case LaunchType::Run: {
         QCoreApplication app(argc, argv);
         Launcher launcher(options);
         if (launcher.launch()) {

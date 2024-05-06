@@ -392,7 +392,7 @@ void MainGui::updateProjectFileView(bool isExternal) noexcept
         }
     }
 
-    //! TODO: нужно ли реагировать на "ручное" изменение настроек (RecordSettings, ExecuteSettings)
+    //! TODO: нужно ли реагировать на "ручное" изменение настроек (RecordSettings, RunSettings)
     //! в файле проекта? По идее мы "постоянно" храним этим параметры внутри GUI в валидном виде,
     //! а если реагировать на "ручное" изменение, то на текущий момент это было бы очень ресурсо-
     //! затратно, так как каждый набор параметров нужно было бы проверять на валидность.
@@ -1161,22 +1161,21 @@ void MainGui::openFile(const QModelIndex &index) noexcept
         project_->beginGroup(paths::PROJECT_RECORD_GROUP);
         const auto recordJson = project_->value(path, QByteArray()).toByteArray();
         project_->endGroup();
-        project_->beginGroup(paths::PROJECT_EXECUTE_GROUP);
-        const auto executeJson = project_->value(path, QByteArray()).toByteArray();
+        project_->beginGroup(paths::PROJECT_RUN_GROUP);
+        const auto runJson = project_->value(path, QByteArray()).toByteArray();
         project_->endGroup();
 
         const auto recordSettings
             = recordJson.isEmpty() ? RecordSettings() : RecordSettings::fromJson(recordJson, true);
-        const auto executeSettings = recordJson.isEmpty()
-                                         ? ExecuteSettings()
-                                         : ExecuteSettings::fromJson(executeJson, true);
+        const auto runSettings
+            = recordJson.isEmpty() ? RunSettings() : RunSettings::fromJson(runJson, true);
 
         //! TODO: Очень некрасивое решение. Когда мы загоняем настройки в элементы GUI, то
         //! благодаря их ограничениям, мы точно получим валидные значения. Но в текущей версии
         //! получится так, что сначала мы тут установливаем новые значения в настройки, а потом,
         //! при изменении текущего индекса QTabWidget, функция установки "новых" значений вызовется
         //! повторно.
-        updateCurrentSettings({ std::move(recordSettings), std::move(executeSettings) });
+        updateCurrentSettings({ std::move(recordSettings), std::move(runSettings) });
         const auto settings = readCurrentSettings();
         fileEditor->setSettings(settings);
         saveScriptSettings(path, std::move(settings));
@@ -1255,10 +1254,10 @@ MainGui::Settings MainGui::readCurrentSettings() const noexcept
     recordSettings.appendLineIndex = ui->lineIndexSpinBox->value();
     recordSettings.executeArgs = ui->recordAppArgsEdit->text();
 
-    ExecuteSettings executeSettings;
-    executeSettings.executeArgs = ui->runAppArgsEdit->text();
+    RunSettings runSettings;
+    runSettings.executeArgs = ui->runAppArgsEdit->text();
 
-    return { recordSettings, executeSettings };
+    return { recordSettings, runSettings };
 }
 
 void MainGui::saveScriptSettings(const QString &path, ConstSettings settings) noexcept
@@ -1267,7 +1266,7 @@ void MainGui::saveScriptSettings(const QString &path, ConstSettings settings) no
     project_->beginGroup(paths::PROJECT_RECORD_GROUP);
     project_->setValue(path, settings.first.toJson(true));
     project_->endGroup();
-    project_->beginGroup(paths::PROJECT_EXECUTE_GROUP);
+    project_->beginGroup(paths::PROJECT_RUN_GROUP);
     project_->setValue(path, settings.second.toJson(true));
     project_->endGroup();
     flushProjectFile();
@@ -1313,7 +1312,7 @@ void MainGui::updateCurrentSettings(ConstSettings settings) noexcept
     settingsChangeHandlerBlocked_ = true;
 
     const auto recordSettings = settings.first;
-    const auto executeSettings = settings.second;
+    const auto runSettings = settings.second;
 
     ui->indentWidthSpinBox->setValue(recordSettings.indentWidth);
     ui->blockCommentLinesSpinBox->setValue(recordSettings.blockCommentMinimumCount);
@@ -1333,7 +1332,7 @@ void MainGui::updateCurrentSettings(ConstSettings settings) noexcept
     ui->lineIndexSpinBox->setValue(recordSettings.appendLineIndex);
     ui->recordAppArgsEdit->setText(recordSettings.executeArgs);
 
-    ui->runAppArgsEdit->setText(executeSettings.executeArgs);
+    ui->runAppArgsEdit->setText(runSettings.executeArgs);
 
     settingsChangeHandlerBlocked_ = false;
 }
@@ -1351,8 +1350,7 @@ void MainGui::updateScriptPathForSettings(const QString &oldPath, const QString 
     assert(!oldPath.isEmpty());
 
     auto updatePath = [this, oldPath, newPath](bool isRecordMode) {
-        project_->beginGroup(isRecordMode ? paths::PROJECT_RECORD_GROUP
-                                          : paths::PROJECT_EXECUTE_GROUP);
+        project_->beginGroup(isRecordMode ? paths::PROJECT_RECORD_GROUP : paths::PROJECT_RUN_GROUP);
         if (project_->contains(oldPath)) {
             const auto settings = project_->value(oldPath, QByteArray()).toByteArray();
             project_->remove(oldPath);
@@ -1384,7 +1382,7 @@ launcher::UserLaunchOptions MainGui::getUserOptionsForLauncher(const QString &ap
     assert(lastScriptEditor_ != nullptr);
 
     launcher::UserLaunchOptions options;
-    options.type = isRecordScript ? LaunchType::Record : LaunchType::Execute;
+    options.type = isRecordScript ? LaunchType::Record : LaunchType::Run;
     options.timeoutValue = ui->timeoutSpinBox->value();
 
     const auto workingDirectory = ui->workingDirectoryEdit->text().trimmed();
@@ -1408,11 +1406,11 @@ launcher::UserLaunchOptions MainGui::getUserOptionsForLauncher(const QString &ap
         executeArgs = recordSettings.executeArgs;
     }
     else {
-        auto executeSettings = lastScriptEditor_->getExecuteSettings();
-        executeSettings.scriptPath = scriptPath;
-        options.executeSettings = executeSettings;
+        auto runSettings = lastScriptEditor_->getRunSettings();
+        runSettings.scriptPath = scriptPath;
+        options.runSettings = runSettings;
 
-        executeArgs = executeSettings.executeArgs;
+        executeArgs = runSettings.executeArgs;
     }
 
     auto launchAppArguments = executeArgs.split(QRegExp("\\s+"), Qt::SkipEmptyParts);

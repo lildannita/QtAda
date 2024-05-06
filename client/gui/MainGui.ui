@@ -718,7 +718,7 @@ margin-left: 5px;</string>
              </item>
             </layout>
            </widget>
-           <widget class="QWidget" name="executeSettingsTab">
+           <widget class="QWidget" name="runSettingsTab">
             <attribute name="title">
              <string>Run Settings</string>
             </attribute>
