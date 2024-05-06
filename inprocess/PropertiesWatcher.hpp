@@ -16,7 +16,7 @@ QT_END_NAMESPACE
 namespace QtAda::inprocess {
 class InprocessController;
 
-class PropertiesWatcher : public QWidget {
+class PropertiesWatcher final : public QWidget {
     Q_OBJECT
 public:
     explicit PropertiesWatcher(InprocessController *inprocessController, QWidget *parent) noexcept;

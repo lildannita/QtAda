@@ -1,7 +1,7 @@
 #pragma once
 
 namespace QtAda::core {
-class ProbeGuard {
+class ProbeGuard final {
 public:
     ProbeGuard() noexcept;
     ~ProbeGuard() noexcept;

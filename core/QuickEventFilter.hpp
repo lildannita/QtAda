@@ -3,7 +3,7 @@
 #include "GuiEventFilter.hpp"
 
 namespace QtAda::core {
-class QuickEventFilter : public GuiEventFilter<QQuickItem, QuickClass> {
+class QuickEventFilter final : public GuiEventFilter<QQuickItem, QuickClass> {
     Q_OBJECT
 public:
     QuickEventFilter(const RecordSettings &settings, QObject *parent = nullptr) noexcept;

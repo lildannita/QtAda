@@ -15,7 +15,7 @@ class QFrame;
 QT_END_NAMESPACE
 
 namespace QtAda::core {
-class QuickFrame : public QQuickPaintedItem {
+class QuickFrame final : public QQuickPaintedItem {
     Q_OBJECT
 public:
     QuickFrame(QQuickItem *parent = nullptr)

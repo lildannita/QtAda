@@ -26,7 +26,7 @@ Q_DECLARE_METATYPE(const QMatrix4x4 *)
 Q_DECLARE_METATYPE(QTimeZone)
 
 namespace QtAda::core::tools {
-class ProtectedObjectSample : public QObject {
+class ProtectedObjectSample final : public QObject {
 public:
     using QObject::staticQtMetaObject;
 };

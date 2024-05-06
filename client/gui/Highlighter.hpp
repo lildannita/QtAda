@@ -5,7 +5,7 @@
 #include <QTextCharFormat>
 
 namespace QtAda::gui {
-class Highlighter : public QSyntaxHighlighter {
+class Highlighter final : public QSyntaxHighlighter {
     Q_OBJECT
 
 public:
