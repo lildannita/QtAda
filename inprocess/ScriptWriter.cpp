@@ -129,7 +129,7 @@ void ScriptWriter::finishScript(bool isCancelled) noexcept
     flushSavedLines();
     switch (recordSettings_.scriptWriteMode) {
     case ScriptWriteMode::NewScript: {
-        flushScriptLine("}", 0);
+        flushScriptLine("}\ntest();", 0);
         break;
     }
     case ScriptWriteMode::UpdateScript: {
