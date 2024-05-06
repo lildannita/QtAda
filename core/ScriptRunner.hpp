@@ -11,6 +11,8 @@ public:
     ScriptRunner(const RunSettings &settings, QObject *parent = nullptr) noexcept;
 
 public slots:
+    void startScript() noexcept;
+
     void registerObjectCreated(QObject *obj) noexcept;
     void registerObjectDestroyed(QObject *obj) noexcept;
     void registerObjectReparented(QObject *obj) noexcept;

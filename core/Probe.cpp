@@ -103,12 +103,21 @@ Probe::Probe(const LaunchType launchType, const std::optional<RecordSettings> &r
     case LaunchType::Run: {
         assert(runSettings.has_value());
 
-        scriptRunner_ = new ScriptRunner(std::move(*runSettings), this);
-        connect(this, &Probe::objectCreated, scriptRunner_, &ScriptRunner::registerObjectCreated);
-        connect(this, &Probe::objectDestroyed, scriptRunner_,
-                &ScriptRunner::registerObjectDestroyed);
-        connect(this, &Probe::objectReparented, scriptRunner_,
-                &ScriptRunner::registerObjectReparented);
+        auto scriptRunner = new ScriptRunner(std::move(*runSettings));
+        connect(this, &Probe::objectCreated, scriptRunner, &ScriptRunner::registerObjectCreated,
+                Qt::DirectConnection);
+        connect(this, &Probe::objectDestroyed, scriptRunner, &ScriptRunner::registerObjectDestroyed,
+                Qt::DirectConnection);
+        connect(this, &Probe::objectReparented, scriptRunner,
+                &ScriptRunner::registerObjectReparented, Qt::DirectConnection);
+
+        QThread *scriptThread = new QThread(this);
+        connect(scriptThread, &QThread::started, scriptRunner, &ScriptRunner::startScript);
+        connect(scriptThread, &QThread::finished, scriptRunner, &QObject::deleteLater);
+        connect(scriptThread, &QThread::finished, scriptThread, &QObject::deleteLater);
+
+        scriptRunner->moveToThread(scriptThread);
+        scriptThread->start();
         break;
     }
     default:

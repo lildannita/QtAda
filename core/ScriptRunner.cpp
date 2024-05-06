@@ -1,5 +1,7 @@
 #include "ScriptRunner.hpp"
 
+#include <QCoreApplication>
+
 #include "utils/FilterUtils.hpp"
 
 namespace QtAda::core {
@@ -53,5 +55,10 @@ void ScriptRunner::registerObjectReparented(QObject *obj) noexcept
         pathToObject_[newPath] = obj;
         it->second = newPath;
     }
+}
+
+void ScriptRunner::startScript() noexcept
+{
+    assert(this->thread() != qApp->thread());
 }
 } // namespace QtAda::core

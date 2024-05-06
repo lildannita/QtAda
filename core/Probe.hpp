@@ -16,7 +16,6 @@ QT_END_NAMESPACE
 namespace QtAda::core {
 class UserEventFilter;
 class UserVerificationFilter;
-class ScriptRunner;
 
 class Probe : public QObject {
     Q_OBJECT
@@ -66,8 +65,6 @@ private:
     UserVerificationFilter *userVerificationFilter_ = nullptr;
     bool filtersPaused_ = false;
     bool verificationMode_ = false;
-
-    ScriptRunner *scriptRunner_ = nullptr;
 
     const LaunchType launchType_;
 
