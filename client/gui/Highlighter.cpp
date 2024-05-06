@@ -12,21 +12,21 @@ Highlighter::Highlighter(QTextDocument *parent) noexcept
     keywordFormat.setForeground(QColor("#569CD6"));
     keywordFormat.setFontWeight(QFont::Bold);
     const QStringList keywordPatterns
-        = { "\\barguments\\b", "\\bbreak\\b",      "\\bcase\\b",         "\\bcatch\\b",
-            "\\bcontinue\\b",  "\\bdefault\\b",    "\\bdelete\\b",       "\\bdo\\b",
-            "\\belse\\b",      "\\beval\\b",       "\\bfinaly\\b",       "\\bfor\\b",
-            "\\bfunction\\b",  "\\bif\\b",         "\\bin\\b",           "\\binstanceof\\b",
-            "\\bnew\\b",       "\\breturn\\b",     "\\bswitch\\b",       "\\bthis\\b",
-            "\\bthrow\\b",     "\\btry\\b",        "\\btypeof\\b",       "\\bvar\\b",
-            "\\bvoid\\b",      "\\bwhile\\b",      "\\bwith\\b",         "\\babstract\\b",
-            "\\bboolean\\b",   "\\bbyte\\b",       "\\bchar\\b",         "\\bclass\\b",
-            "\\bconst\\b",     "\\bdebugger\\b",   "\\bdouble\\b",       "\\benum\\b",
-            "\\bexport\\b",    "\\bextends\\b",    "\\bfinal\\b",        "\\bfloat\\b",
-            "\\bgoto\\b",      "\\bimplements\\b", "\\bimport\\b",       "\\bint\\b",
-            "\\binterface\\b", "\\blong\\b",       "\\bnative\\b",       "\\bpackage\\b",
-            "\\bprivate\\b",   "\\bprotected\\b",  "\\bpublic\\b",       "\\bshort\\b",
-            "\\bstatic\\b",    "\\bsuper\\b",      "\\bsynchronized\\b", "\\bthrows\\b",
-            "\\btransient\\b", "\\bvolatile\\b" };
+        = { "\\barguments\\b", "\\bbreak\\b",     "\\bcase\\b",       "\\bcatch\\b",
+            "\\bcontinue\\b",  "\\bdefault\\b",   "\\bdelete\\b",     "\\bdo\\b",
+            "\\belse\\b",      "\\beval\\b",      "\\bfinaly\\b",     "\\bfor\\b",
+            "\\bfunction\\b",  "\\bif\\b",        "\\bin\\b",         "\\binstanceof\\b",
+            "\\bnew\\b",       "\\breturn\\b",    "\\bswitch\\b",     "\\bthis\\b",
+            "\\bthrow\\b",     "\\btry\\b",       "\\btypeof\\b",     "\\blet\\b",
+            "\\bvar\\b",       "\\bvoid\\b",      "\\bwhile\\b",      "\\bwith\\b",
+            "\\babstract\\b",  "\\bboolean\\b",   "\\bbyte\\b",       "\\bchar\\b",
+            "\\bclass\\b",     "\\bconst\\b",     "\\bdebugger\\b",   "\\bdouble\\b",
+            "\\benum\\b",      "\\bexport\\b",    "\\bextends\\b",    "\\bfinal\\b",
+            "\\bfloat\\b",     "\\bgoto\\b",      "\\bimplements\\b", "\\bimport\\b",
+            "\\bint\\b",       "\\binterface\\b", "\\blong\\b",       "\\bnative\\b",
+            "\\bpackage\\b",   "\\bprivate\\b",   "\\bprotected\\b",  "\\bpublic\\b",
+            "\\bshort\\b",     "\\bstatic\\b",    "\\bsuper\\b",      "\\bsynchronized\\b",
+            "\\bthrows\\b",    "\\btransient\\b", "\\bvolatile\\b" };
 
     for (const auto &pattern : keywordPatterns) {
         rule.pattern = QRegularExpression(pattern);

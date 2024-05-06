@@ -429,10 +429,11 @@ static QString qTreeViewFilter(const QWidget *widget, const QMouseEvent *event,
     const auto currentItem = view->model()->data(extra.changeModelIndex);
     const auto currentItemText
         = currentItem.canConvert<QString>() ? currentItem.toString() : QString();
-    return QStringLiteral("%1Delegate('%2');%3")
+    return QStringLiteral("%1Delegate('%2', %3);%4")
         .arg(extra.changeType == ExtraInfoForDelayed::TreeViewExtra::Expanded ? "expand"
                                                                               : "collapse")
         .arg(utils::objectPath(widget))
+        .arg(utils::treeIndexPath(extra.changeModelIndex))
         .arg(currentItemText.isEmpty()
                  ? ""
                  : QStringLiteral(" // Delegate text: '%1'").arg(currentItemText.simplified()));
@@ -494,11 +495,14 @@ static QString qItemViewClickFilter(const QAbstractItemView *view,
         const auto currentItem = view->model()->data(currentIndex);
         const auto currentItemText
             = currentItem.canConvert<QString>() ? currentItem.toString() : QString();
-        return QStringLiteral("delegate%1Click('%2', (%3, %4));%5")
+        const auto indexPath
+            = qobject_cast<const QTreeView *>(view) != nullptr
+                  ? utils::treeIndexPath(currentIndex)
+                  : QStringLiteral("%1, %2").arg(currentIndex.row()).arg(currentIndex.column());
+        return QStringLiteral("delegate%1Click('%2', %3);%4")
             .arg(event->type() == QEvent::MouseButtonDblClick ? "Dbl" : "")
             .arg(utils::objectPath(qobject_cast<const QWidget *>(view)))
-            .arg(currentIndex.row())
-            .arg(currentIndex.column())
+            .arg(indexPath)
             .arg(currentItemText.isEmpty()
                      ? ""
                      : QStringLiteral(" // Delegate text: '%1'").arg(currentItemText.simplified()));
@@ -599,8 +603,6 @@ static QString qItemViewSelectionFilter(const QWidget *widget, const QMouseEvent
     }
 
     const auto selectedCellsData = utils::selectedCellsData(view->selectionModel());
-    //! TODO: на этапе обработки записанных действий скорее всего придется переделать
-    //! запись выбранных ячеек
     return selectedCellsData.isEmpty()
                ? QStringLiteral("clearSelection('%1');").arg(utils::objectPath(widget))
                : QStringLiteral("let selectionData = [%1];\nsetSelection('%2', selectionData);")
@@ -632,7 +634,7 @@ static QString qMenuBarFilter(const QWidget *widget, const QMouseEvent *event,
     const auto *menu = action->menu();
     if (menu == nullptr) {
         return QStringLiteral("%1activateMenuAction('%2', %3%4);")
-            .arg(action->isSeparator() ? " // Looks like QMenu::Separator clicked\n// " : "")
+            .arg(action->isSeparator() ? "// Looks like QMenu::Separator clicked\n// " : "")
             .arg(utils::objectPath(widget))
             .arg(utils::textIndexStatement(settings.textIndexBehavior,
                                            menuBar->actions().indexOf(action), action->text()))
@@ -704,7 +706,7 @@ static QString qTabBarFilter(const QWidget *widget, const QMouseEvent *event,
     auto *tabBar = qobject_cast<const QTabBar *>(widget);
     assert(tabBar != nullptr);
     const auto index = tabBar->currentIndex();
-    return QStringLiteral("selectTabItem('%1', '%2');")
+    return QStringLiteral("selectTabItem('%1', %2);")
         .arg(utils::objectPath(widget))
         .arg(utils::textIndexStatement(settings.textIndexBehavior, index, tabBar->tabText(index)));
 }
@@ -1045,21 +1047,29 @@ void WidgetEventFilter::callKeyFilters() noexcept
 void WidgetEventFilter::processKeyEvent(const QString &text) noexcept
 {
     assert(keyWatchDog_.component != nullptr);
+
     QModelIndex index;
+    QString indexPath;
     const auto viewWidget = utils::searchSpecificComponent(
         keyWatchDog_.component, filters::s_widgetMetaMap.at(WidgetClass::ItemView));
     if (viewWidget != nullptr) {
         auto *view = qobject_cast<const QAbstractItemView *>(viewWidget);
         assert(view != nullptr);
         index = view->currentIndex();
+        if (index.isValid()) {
+            if (qobject_cast<const QTreeView *>(view) != nullptr) {
+                indexPath = utils::treeIndexPath(index);
+            }
+            else {
+                indexPath = QStringLiteral("%1, %2").arg(index.row()).arg(index.column());
+            }
+        }
     }
 
     const auto keyLine
         = QStringLiteral("setText('%1'%2, '%3');")
               .arg(utils::objectPath(index.isValid() ? viewWidget : keyWatchDog_.component))
-              .arg(index.isValid()
-                       ? QStringLiteral(", (%1, %2)").arg(index.row()).arg(index.column())
-                       : "")
+              .arg(indexPath.isEmpty() ? "" : QStringLiteral(", %1").arg(indexPath))
               .arg(utils::escapeText(std::move(text)));
     flushKeyEvent(std::move(keyLine));
 

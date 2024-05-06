@@ -96,7 +96,7 @@ inline QString setValueStatement(const GuiComponent *component, DigitType value,
     static_assert(std::is_arithmetic<DigitType>::value, "Type T must be a digit");
     return QStringLiteral("setValue('%1', %2);")
         .arg(objectPath(component))
-        .arg(secondValue.has_value() ? QStringLiteral("(%1, %2)").arg(value).arg(*secondValue)
+        .arg(secondValue.has_value() ? QStringLiteral("%1, %2").arg(value).arg(*secondValue)
                                      : QString::number(value));
 }
 template <typename GuiComponent>
@@ -230,4 +230,5 @@ QString textIndexStatement(TextIndexBehavior behavior, int index,
 
 // Special filters for QWidgets:
 QString selectedCellsData(const QItemSelectionModel *model) noexcept;
+QString treeIndexPath(const QModelIndex &index) noexcept;
 } // namespace QtAda::core::utils

@@ -111,7 +111,7 @@ QString textIndexStatement(TextIndexBehavior behavior, int index, const QString 
     case TextIndexBehavior::OnlyIndex:
         return QString::number(index);
     case TextIndexBehavior::OnlyText:
-        return text;
+        return QStringLiteral("'%1'").arg(text);
     case TextIndexBehavior::TextIndex:
         return QStringLiteral("'%1', %2").arg(text).arg(index);
     default:
@@ -147,36 +147,42 @@ QString selectedCellsData(const QItemSelectionModel *selectionModel) noexcept
     }
 
     if (fullRows.size() == model->rowCount() && fullColumns.size() == model->columnCount()) {
-        return "['ALL', 'ALL']";
+        return "{row: 'ALL', column: 'ALL'}";
     }
 
-    QString result;
+    QStringList list;
     for (int row : fullRows) {
-        result += QStringLiteral("[%1, 'ALL'], ").arg(row);
+        list.push_back(QStringLiteral("{row: %1, column: 'ALL'}").arg(row));
     }
     for (int column : fullColumns) {
-        result += QStringLiteral("['ALL', %1], ").arg(column);
+        list.push_back(QStringLiteral("{row: 'ALL', column: %1}").arg(column));
     }
     for (auto it = rowsToColumns.constBegin(); it != rowsToColumns.constEnd(); ++it) {
         if (!fullRows.contains(it.key())) {
-            QString cols = "[";
-            for (int col : it.value()) {
-                if (!fullColumns.contains(col)) {
-                    cols += QStringLiteral("%1, ").arg(col);
+            QStringList columns;
+            for (const auto column : it.value()) {
+                if (!fullColumns.contains(column)) {
+                    columns.push_back(QString::number(column));
                 }
             }
-            if (cols != "[") {
-                cols[cols.length() - 2] = ']';
-                cols.chop(1);
-                result += QStringLiteral("[%1, %2], ").arg(it.key()).arg(cols);
+            if (!columns.isEmpty()) {
+                list.push_back(QStringLiteral("{row: %1, column: [%2]}")
+                                   .arg(it.key())
+                                   .arg(columns.join(", ")));
             }
         }
     }
+    return list.join(", ");
+}
 
-    if (!result.isEmpty()) {
-        result.chop(2);
+QString treeIndexPath(const QModelIndex &index) noexcept
+{
+    QStringList path;
+    auto current = index;
+    while (current.isValid()) {
+        path.prepend(QString::number(current.row()));
+        current = current.parent();
     }
-
-    return result;
+    return QStringLiteral("[%1]").arg(path.join(", "));
 }
 } // namespace QtAda::core::utils

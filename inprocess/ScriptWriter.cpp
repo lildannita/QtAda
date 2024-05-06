@@ -158,7 +158,7 @@ void ScriptWriter::handleNewLine(const QString &scriptLine) noexcept
     const auto isNewLine = linesHandler_.registerLine(scriptLine);
     if (isNewLine) {
         for (const auto &line : linesHandler_.cutLine) {
-            if (line.startsWith('/')) {
+            if (line.startsWith('/') || line.startsWith("let")) {
                 continue;
             }
             const auto bracketIndex = line.indexOf('(');

@@ -68,7 +68,7 @@ inline QString qWheelEventHandler(const QObject *obj, const QEvent *event,
     }
 
     const auto delta = wheelEvent->pixelDelta();
-    return QStringLiteral("wheelEvent('%1', (%2, %3));")
+    return QStringLiteral("wheelEvent('%1', %2, %3);")
         .arg(path.isEmpty() ? utils::objectPath(obj) : path)
         .arg(delta.x())
         .arg(delta.y());
