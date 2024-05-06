@@ -1088,12 +1088,12 @@ QString WidgetEventFilter::handleCloseEvent(const QObject *obj, const QEvent *ev
 
     if (utils::searchSpecificComponent(widget, filters::s_widgetMetaMap.at(WidgetClass::Dialog))
         != nullptr) {
-        return QStringLiteral("closeDialog(%1);").arg(utils::objectPath(widget));
+        return QStringLiteral("closeDialog('%1');").arg(utils::objectPath(widget));
     }
     else if (utils::searchSpecificComponent(widget,
                                             filters::s_widgetMetaMap.at(WidgetClass::Window))
              != nullptr) {
-        return QStringLiteral("closeWindow(%1);").arg(utils::objectPath(widget));
+        return QStringLiteral("closeWindow('%1');").arg(utils::objectPath(widget));
     }
     //! TODO: Это событие для QMenu генерируется и при выборе какого-либо QAction, причем
     //! событие мыши, которое привело к закрытию QMenu, не генерируется (в отличие от
@@ -1103,6 +1103,6 @@ QString WidgetEventFilter::handleCloseEvent(const QObject *obj, const QEvent *ev
     //!
     //! UPD: Как оказалось, такое генерируется и не только для QMenu, но и для QToolBar.
     //! Поэтому пока что делаем заглушку для всех остальных случаев:
-    return QStringLiteral("// close(%1);").arg(utils::objectPath(widget));
+    return QStringLiteral("// close('%1');").arg(utils::objectPath(widget));
 }
 } // namespace QtAda::core

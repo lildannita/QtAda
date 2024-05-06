@@ -752,9 +752,9 @@ QString QuickEventFilter::handleCloseEvent(const QObject *obj, const QEvent *eve
 
     if (utils::metaObjectWatcher(obj->metaObject(),
                                  filters::s_quickMetaMap.at(QuickClass::Window).first)) {
-        return QStringLiteral("closeWindow(%1);").arg(utils::objectPath(obj));
+        return QStringLiteral("closeWindow('%1');").arg(utils::objectPath(obj));
     }
     //! TODO: Временная заглушка, см. WidgetEventFilter::handleCloseEvent()
-    return QStringLiteral("// close(%1);").arg(utils::objectPath(obj));
+    return QStringLiteral("// close('%1');").arg(utils::objectPath(obj));
 }
 } // namespace QtAda::core
