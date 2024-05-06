@@ -275,6 +275,9 @@ void MainGui::closeEvent(QCloseEvent *event)
 
 void MainGui::configureProject(const QString &projectPath) noexcept
 {
+    //! TODO: Нужно решить проблему с отображением в кириллице. По идее,
+    //! достаточно использования toUtf8/fromUtf8
+
     // Если открываем новый прооект
     if (project_ != nullptr) {
         if (projectPath == project_->fileName()) {

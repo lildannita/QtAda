@@ -148,6 +148,9 @@ void Editor::wheelEvent(QWheelEvent *event) noexcept
     }
     this->setFont(font);
     this->update();
+
+    //! TODO: позже нужно будет изменять масштаб у всех остальных файлов,
+    //! и сохранять последний масштаб в файл проекта
 }
 
 FileEditor::FileEditor(const QString &filePath, int role, QTabWidget *editorsTabWidget,
