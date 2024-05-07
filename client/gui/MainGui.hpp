@@ -47,9 +47,10 @@ private slots:
     void handleSettingsChange() noexcept;
     void handleLaunchSettingsChange() noexcept;
 
-    void runScript(const QString &path) noexcept
-    {
-    }
+    void runScript(const QString &path) noexcept;
+    void runCurrentScript() noexcept;
+    void runAllScripts() noexcept;
+
     void removeFromProject(const QString &path, bool isScript) noexcept;
     void removeDirFromProject(const QString &path) noexcept;
     void renameFile(QStandardItemModel *model, const QModelIndex &index) noexcept;
@@ -60,10 +61,12 @@ private slots:
     void executeApplication(const QString &path) noexcept;
 
     void startupScriptWriterLauncher(bool isUpdateMode) noexcept;
+    void startupScriptRunnerLauncher(QStringList scripts) noexcept;
 
     void writeQtAdaErrMessage(const QString &msg) noexcept;
     void writeQtAdaOutMessage(const QString &msg) noexcept;
     void writeAppOutMessage(const QString &msg) noexcept;
+    void writeScriptServiceMessage(const QString &msg, bool isResult = false) noexcept;
 
 private:
     using Settings = std::pair<RecordSettings, RunSettings>;
@@ -73,6 +76,20 @@ private:
         QString workingDirectory;
         int timeoutValue;
     };
+
+    struct ScriptsRunData final {
+        QStringList scripts;
+        QString currentScript;
+        int testsPassed = 0;
+        int testsFailed = 0;
+
+        void clear()
+        {
+            scripts.clear();
+            testsPassed = 0;
+            testsFailed = 0;
+        }
+    } scriptsRunData_;
 
     Ui::MainGui *ui = nullptr;
     launcher::Launcher *launcher_ = nullptr;
@@ -119,9 +136,20 @@ private:
 
     launcher::UserLaunchOptions getUserOptionsForLauncher(const QString &appPath,
                                                           const QString &scriptPath,
-                                                          bool isRecordScript,
-                                                          bool isUpdateMode = false) const noexcept;
-    void prepareLogTextEdits(const QString &appPath, const QString &scriptPath, bool isStarting,
-                             bool isFailedOnStart = false, int exitCode = 0) noexcept;
+                                                          LaunchType type,
+                                                          bool isUpdateMode) const noexcept;
+    launcher::UserLaunchOptions getUserOptionsForRecord(const QString &appPath,
+                                                        const QString &scriptPath,
+                                                        bool isUpdateMode) const noexcept;
+    launcher::UserLaunchOptions getUserOptionsForRun(const QString &appPath,
+                                                     const QString &scriptPath) const noexcept;
+    void prepareTextEditForAppLog(const QString &timestamp, const QString &appPath, bool isStarting,
+                                  int exitCode = 0) noexcept;
+    void prepareLogTextEditsForRecording(const QString &appPath, const QString &scriptPath,
+                                         bool isStarting, int exitCode = 0) noexcept;
+    void prepareLogTextEditsForRunning(bool isStarting) noexcept;
+
+    void writeColoredMessage(bool isForQtAdaLog, const QString &msg,
+                             const QString &color = QString(), bool isAppendMode = true) noexcept;
 };
 } // namespace QtAda::gui

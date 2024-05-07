@@ -35,6 +35,7 @@ struct LaunchOptions final {
     LauncherState state = LauncherState::Initial;
     int exitCode = 0;
 
+    LaunchOptions(LaunchType type, bool fromGui) noexcept;
     explicit LaunchOptions(const UserLaunchOptions &options) noexcept;
 };
 } // namespace QtAda::launcher

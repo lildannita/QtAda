@@ -80,26 +80,20 @@ int cliInitializer(int argc, char *argv[])
     case LaunchType::Record: {
         QApplication app(argc, argv);
         Launcher launcher(options);
-        if (launcher.launch()) {
-            QObject::connect(&launcher, &Launcher::launcherFinished, &app, &QCoreApplication::quit);
-        }
-        else {
+        QObject::connect(&launcher, &Launcher::launcherFinished, &app, &QCoreApplication::quit);
+        if (!launcher.launch()) {
             return launcher.exitCode();
         }
-
         auto exec = app.exec();
         return exec == 0 ? launcher.exitCode() : exec;
     }
     case LaunchType::Run: {
         QCoreApplication app(argc, argv);
         Launcher launcher(options);
-        if (launcher.launch()) {
-            QObject::connect(&launcher, &Launcher::launcherFinished, &app, &QCoreApplication::quit);
-        }
-        else {
+        QObject::connect(&launcher, &Launcher::launcherFinished, &app, &QCoreApplication::quit);
+        if (!launcher.launch()) {
             return launcher.exitCode();
         }
-
         auto exec = app.exec();
         return exec == 0 ? launcher.exitCode() : exec;
     }

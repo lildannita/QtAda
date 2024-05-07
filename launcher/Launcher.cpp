@@ -10,12 +10,32 @@
 #include "Common.hpp"
 
 namespace QtAda::launcher {
+// Этот конструктор нужен только для MainGui::runAllScripts()
+Launcher::Launcher(LaunchType type, bool fromGui, QObject *parent) noexcept
+    : options_{ type, fromGui }
+{
+    assert(type == LaunchType::Run);
+    assert(fromGui == true);
+    setInitialParameters(type, fromGui);
+}
+
 Launcher::Launcher(const UserLaunchOptions &userOptions, bool fromGui, QObject *parent) noexcept
-    : options_(std::move(userOptions))
+    : options_{ userOptions }
 {
     waitingTimer_.setInterval(options_.userOptions.timeoutValue * 1000);
-    waitingTimer_.setSingleShot(true);
+    setInitialParameters(options_.userOptions.type, fromGui);
+}
 
+Launcher::~Launcher() noexcept
+{
+    if (injector_ != nullptr) {
+        injector_->stop();
+    }
+}
+
+void Launcher::setInitialParameters(LaunchType type, bool fromGui) noexcept
+{
+    waitingTimer_.setSingleShot(true);
     connect(&waitingTimer_, &QTimer::timeout, this, &Launcher::timeout);
 
     injector_ = std::make_unique<injector::PreloadInjector>();
@@ -28,7 +48,9 @@ Launcher::Launcher(const UserLaunchOptions &userOptions, bool fromGui, QObject *
                 &Launcher::stdMessage);
     }
     else {
-        connect(injector_.get(), &injector::AbstractInjector::stdMessage, printStdMessage);
+        if (type == LaunchType::Record) {
+            connect(injector_.get(), &injector::AbstractInjector::stdMessage, printStdMessage);
+        }
         connect(this, &Launcher::launcherErrMessage, printQtAdaErrMessage);
         connect(this, &Launcher::launcherOutMessage, printQtAdaOutMessage);
 
@@ -37,11 +59,10 @@ Launcher::Launcher(const UserLaunchOptions &userOptions, bool fromGui, QObject *
     }
 }
 
-Launcher::~Launcher() noexcept
+void Launcher::updateLaunchOptions(const UserLaunchOptions &options) noexcept
 {
-    if (injector_ != nullptr) {
-        injector_->stop();
-    }
+    options_ = LaunchOptions(options);
+    waitingTimer_.setInterval(options_.userOptions.timeoutValue * 1000);
 }
 
 void Launcher::timeout() noexcept

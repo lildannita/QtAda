@@ -22,6 +22,8 @@ static constexpr char QTADA_OUT_COLOR[] = "\033[30;42m";
 static constexpr char GUI_INACTIVE_LOG_COLOR[] = "#7F7F80";
 static constexpr char GUI_SERVICE_LOG_COLOR[] = "#008785";
 static constexpr char GUI_ERROR_LOG_COLOR[] = "#FF6666";
+static constexpr char GUI_SCRIPT_RESULT_COLOR[] = "#D69444";
+static constexpr char GUI_SCRIPT_SERVICE_COLOR[] = "#71B1DA";
 
 inline void printUsage(const char *appPath)
 {

@@ -126,6 +126,15 @@ MainGui::MainGui(const QString &projectPath, QWidget *parent)
 {
     ui->setupUi(this);
 
+    // Устанавливаем шрифты для логов
+    QFontDatabase fontDatabase;
+    auto font = QApplication::font();
+    if (fontDatabase.hasFamily("Hack")) {
+        font.setFamily("Hack");
+    }
+    ui->qtadaLogTextEdit->setFont(font);
+    ui->appLogTextEdit->setFont(font);
+
     // По-умолчанию прячем все настройки, пока не откроем скрипт
     ui->recordAndSettingsWidget->setVisible(false);
 
@@ -218,6 +227,9 @@ MainGui::MainGui(const QString &projectPath, QWidget *parent)
             [this] { startupScriptWriterLauncher(false); });
     connect(ui->updateButton, &QPushButton::clicked, this,
             [this] { startupScriptWriterLauncher(true); });
+
+    connect(ui->actionRunAll, &QAction::triggered, this, &MainGui::runAllScripts);
+    connect(ui->actionRunCurrent, &QAction::triggered, this, &MainGui::runCurrentScript);
 }
 
 MainGui::~MainGui()
@@ -1382,14 +1394,13 @@ void MainGui::flushProjectFile() noexcept
 
 launcher::UserLaunchOptions MainGui::getUserOptionsForLauncher(const QString &appPath,
                                                                const QString &scriptPath,
-                                                               bool isRecordScript,
+                                                               LaunchType type,
                                                                bool isUpdateMode) const noexcept
 {
     assert(project_ != nullptr);
-    assert(lastScriptEditor_ != nullptr);
 
     launcher::UserLaunchOptions options;
-    options.type = isRecordScript ? LaunchType::Record : LaunchType::Run;
+    options.type = type;
     options.timeoutValue = ui->timeoutSpinBox->value();
 
     const auto workingDirectory = ui->workingDirectoryEdit->text().trimmed();
@@ -1403,21 +1414,35 @@ launcher::UserLaunchOptions MainGui::getUserOptionsForLauncher(const QString &ap
     }
 
     QString executeArgs;
-    if (isRecordScript) {
+    switch (type) {
+    case LaunchType::Record: {
+        assert(lastScriptEditor_ != nullptr);
         auto recordSettings = lastScriptEditor_->getRecordSettings();
         recordSettings.scriptPath = scriptPath;
         recordSettings.scriptWriteMode
             = isUpdateMode ? ScriptWriteMode::UpdateScript : ScriptWriteMode::NewScript;
         options.recordSettings = recordSettings;
-
         executeArgs = recordSettings.executeArgs;
+        break;
     }
-    else {
-        auto runSettings = lastScriptEditor_->getRunSettings();
+    case LaunchType::Run: {
+        RunSettings runSettings;
+        project_->beginGroup(paths::PROJECT_RUN_GROUP);
+        const auto rawRunSettings = project_->value(scriptPath, "").toByteArray();
+        project_->endGroup();
+        if (!rawRunSettings.isEmpty()) {
+            auto tmpRunSettings = RunSettings::fromJson(std::move(rawRunSettings), true);
+            if (tmpRunSettings.isValid()) {
+                runSettings = std::move(tmpRunSettings);
+            }
+        }
         runSettings.scriptPath = scriptPath;
         options.runSettings = runSettings;
-
         executeArgs = runSettings.executeArgs;
+        break;
+    }
+    default:
+        Q_UNREACHABLE();
     }
 
     auto launchAppArguments = executeArgs.split(QRegExp("\\s+"), Qt::SkipEmptyParts);
@@ -1425,6 +1450,19 @@ launcher::UserLaunchOptions MainGui::getUserOptionsForLauncher(const QString &ap
     options.launchAppArguments = std::move(launchAppArguments);
 
     return options;
+}
+
+launcher::UserLaunchOptions MainGui::getUserOptionsForRecord(const QString &appPath,
+                                                             const QString &scriptPath,
+                                                             bool isUpdateMode) const noexcept
+{
+    return getUserOptionsForLauncher(appPath, scriptPath, LaunchType::Record, isUpdateMode);
+}
+
+launcher::UserLaunchOptions MainGui::getUserOptionsForRun(const QString &appPath,
+                                                          const QString &scriptPath) const noexcept
+{
+    return getUserOptionsForLauncher(appPath, scriptPath, LaunchType::Run, false);
 }
 
 void MainGui::startupScriptWriterLauncher(bool isUpdateMode) noexcept
@@ -1449,106 +1487,243 @@ void MainGui::startupScriptWriterLauncher(bool isUpdateMode) noexcept
     //! и может все-таки лучше этот путь доставать оттуда? Причем мы точно знаем индекс
     //! этого элемента в дереве: (1, 0)
     const auto appPath = project_->value(paths::PROJECT_APP_PATH, "").toString();
-    const auto scriptPath = lastScriptEditor_->filePath();
     assert(!appPath.isEmpty());
-    prepareLogTextEdits(appPath, scriptPath, true);
+    const auto scriptPath = lastScriptEditor_->filePath();
+    assert(!scriptPath.isEmpty());
+    prepareLogTextEditsForRecording(appPath, scriptPath, true);
 
-    launcher_
-        = new Launcher(getUserOptionsForLauncher(appPath, scriptPath, true, isUpdateMode), true);
+    launcher_ = new Launcher(getUserOptionsForRecord(appPath, scriptPath, isUpdateMode), true);
     connect(launcher_, &Launcher::launcherErrMessage, this, &MainGui::writeQtAdaErrMessage);
     connect(launcher_, &Launcher::launcherOutMessage, this, &MainGui::writeQtAdaOutMessage);
     connect(launcher_, &Launcher::stdMessage, this, &MainGui::writeAppOutMessage);
+    connect(launcher_, &Launcher::launcherFinished, this, [this, appPath, scriptPath] {
+        prepareLogTextEditsForRecording(appPath, scriptPath, false, launcher_->exitCode());
+
+        const auto readResult = lastScriptEditor_->reReadFile();
+        if (!readResult) {
+            const auto editorIndex = editorsTabWidget_->indexOf(lastScriptEditor_);
+            assert(editorIndex >= 0);
+            closeFileInEditor(editorIndex);
+        }
+        launcher_->deleteLater();
+        launcher_ = nullptr;
+
+        this->setEnabled(true);
+        this->showMaximized();
+    });
 
     if (launcher_->launch()) {
         lastScriptEditor_->saveFile();
-        QObject::connect(launcher_, &Launcher::launcherFinished, this, [this, appPath, scriptPath] {
-            prepareLogTextEdits(appPath, scriptPath, false, false, launcher_->exitCode());
-
-            const auto readResult = lastScriptEditor_->reReadFile();
-            if (!readResult) {
-                const auto editorIndex = editorsTabWidget_->indexOf(lastScriptEditor_);
-                assert(editorIndex >= 0);
-                closeFileInEditor(editorIndex);
-            }
-            launcher_->deleteLater();
-            launcher_ = nullptr;
-
-            this->setEnabled(true);
-            this->showMaximized();
-        });
         this->setEnabled(false);
         this->showMinimized();
     }
     else {
-        prepareLogTextEdits(appPath, scriptPath, true, true);
-        launcher_->deleteLater();
-        launcher_ = nullptr;
         QMessageBox::critical(this, paths::QTADA_ERROR_HEADER,
                               QStringLiteral("An error occurred while launching the application. "
                                              "For more information view log messages."));
     }
 }
 
-void MainGui::prepareLogTextEdits(const QString &appPath, const QString &scriptPath,
-                                  bool isStarting, bool isFailedOnStart, int exitCode) noexcept
+void MainGui::prepareTextEditForAppLog(const QString &timestamp, const QString &appPath,
+                                       bool isStarting, int exitCode) noexcept
 {
-    const auto currentTime = QTime::currentTime().toString("hh:mm:ss");
     if (isStarting) {
         const auto appLogText
             = ui->appLogTextEdit->toPlainText().trimmed().toHtmlEscaped().replace("\n", "<br>");
         if (!appLogText.isEmpty()) {
-            ui->appLogTextEdit->setHtml(QStringLiteral("<font color=\"%1\">%2</font><br>")
-                                            .arg(GUI_INACTIVE_LOG_COLOR)
-                                            .arg(appLogText));
+            writeColoredMessage(false, appLogText, GUI_INACTIVE_LOG_COLOR, false);
         }
-        ui->appLogTextEdit->append(QStringLiteral("<font color=\"%1\">%2: Starting %3...</font>")
-                                       .arg(GUI_SERVICE_LOG_COLOR)
-                                       .arg(currentTime)
-                                       .arg(appPath));
+        writeColoredMessage(false, QStringLiteral("%1: Starting %2...").arg(timestamp).arg(appPath),
+                            GUI_SERVICE_LOG_COLOR);
+    }
+    else {
+        writeColoredMessage(
+            false,
+            QStringLiteral("%1: %2 exited with code %3").arg(timestamp).arg(appPath).arg(exitCode),
+            GUI_SERVICE_LOG_COLOR);
+    }
+}
 
+void MainGui::prepareLogTextEditsForRecording(const QString &appPath, const QString &scriptPath,
+                                              bool isStarting, int exitCode) noexcept
+{
+    const auto timestamp = QTime::currentTime().toString("hh:mm:ss");
+    prepareTextEditForAppLog(timestamp, appPath, isStarting, exitCode);
+    if (isStarting) {
         const auto qtadaLogText
             = ui->qtadaLogTextEdit->toPlainText().trimmed().toHtmlEscaped().replace("\n", "<br>");
         if (!qtadaLogText.isEmpty()) {
-            ui->qtadaLogTextEdit->setHtml(QStringLiteral("<font color=\"%1\">%2</font><br>")
-                                              .arg(GUI_INACTIVE_LOG_COLOR)
-                                              .arg(qtadaLogText));
+            writeColoredMessage(true, qtadaLogText, GUI_INACTIVE_LOG_COLOR, false);
         }
-        ui->qtadaLogTextEdit->append(
-            QStringLiteral("<font color=\"%1\">%2: Starting recording %3...</font>")
-                .arg(GUI_SERVICE_LOG_COLOR)
-                .arg(currentTime)
-                .arg(scriptPath));
+        writeColoredMessage(
+            true, QStringLiteral("%1: Starting recording %2...").arg(timestamp).arg(scriptPath),
+            GUI_SERVICE_LOG_COLOR);
     }
     else {
-        ui->appLogTextEdit->append(
-            QStringLiteral("<font color=\"%1\">%2: %3</font>")
-                .arg(GUI_SERVICE_LOG_COLOR)
-                .arg(currentTime)
-                .arg(isFailedOnStart
-                         ? QStringLiteral("Error occurred during launch %1").arg(appPath)
-                         : QStringLiteral("%1 exited with code %2").arg(appPath).arg(exitCode)));
-        ui->qtadaLogTextEdit->append(
-            QStringLiteral("<font color=\"%1\">%2: %3 %4</font>")
-                .arg(GUI_SERVICE_LOG_COLOR)
-                .arg(currentTime)
+        writeColoredMessage(
+            true,
+            QStringLiteral("%1: %2 %3")
+                .arg(timestamp)
                 .arg(scriptPath)
-                .arg(isFailedOnStart ? "wasn't written due to an error" : "recorded successfully"));
+                .arg(exitCode != 0 ? "wasn't written due to an error" : "recorded successfully"),
+            GUI_SERVICE_LOG_COLOR);
+    }
+}
+
+void MainGui::prepareLogTextEditsForRunning(bool isStarting) noexcept
+{
+    const auto timestamp = QTime::currentTime().toString("hh:mm:ss");
+    if (isStarting) {
+        const auto qtadaLogText
+            = ui->qtadaLogTextEdit->toPlainText().trimmed().toHtmlEscaped().replace("\n", "<br>");
+        if (!qtadaLogText.isEmpty()) {
+            writeColoredMessage(true, qtadaLogText, GUI_INACTIVE_LOG_COLOR, false);
+        }
+        writeColoredMessage(true, QStringLiteral("%1: Starting testing...").arg(timestamp),
+                            GUI_SERVICE_LOG_COLOR);
+    }
+    else {
+        writeColoredMessage(true, QStringLiteral("%1: Testing finished").arg(timestamp),
+                            GUI_SERVICE_LOG_COLOR);
+    }
+}
+
+void MainGui::runScript(const QString &path) noexcept
+{
+    assert(!path.isEmpty());
+    startupScriptRunnerLauncher(QStringList(path));
+}
+
+void MainGui::runCurrentScript() noexcept
+{
+    assert(lastScriptEditor_ != nullptr);
+    startupScriptRunnerLauncher(QStringList(lastScriptEditor_->filePath()));
+}
+
+void MainGui::runAllScripts() noexcept
+{
+    startupScriptRunnerLauncher(project_->value(paths::PROJECT_SCRIPTS, {}).toStringList());
+}
+
+void MainGui::startupScriptRunnerLauncher(QStringList scripts) noexcept
+{
+    using namespace launcher;
+    assert(launcher_ == nullptr);
+
+    scriptsRunData_.scripts = std::move(scripts);
+    assert(!scriptsRunData_.scripts.isEmpty());
+    const auto appPath = project_->value(paths::PROJECT_APP_PATH, "").toString();
+    assert(!appPath.isEmpty());
+
+    launcher_ = new Launcher(LaunchType::Run, true);
+    connect(launcher_, &Launcher::launcherErrMessage, this, &MainGui::writeQtAdaErrMessage);
+    connect(launcher_, &Launcher::launcherOutMessage, this, &MainGui::writeQtAdaOutMessage);
+    connect(launcher_, &Launcher::scriptRunError, this, &MainGui::writeQtAdaErrMessage);
+    connect(launcher_, &Launcher::scriptRunLog, this, &MainGui::writeQtAdaOutMessage);
+
+    auto launcherRunner = [this, appPath] {
+        assert(!scriptsRunData_.scripts.isEmpty());
+        assert(launcher_ != nullptr);
+        scriptsRunData_.currentScript = scriptsRunData_.scripts.takeFirst();
+        writeScriptServiceMessage(
+            QStringLiteral("[ Run      ] %1").arg(scriptsRunData_.currentScript));
+        launcher_->updateLaunchOptions(
+            getUserOptionsForRun(appPath, scriptsRunData_.currentScript));
+        if (!launcher_->launch()) {
+            return false;
+        }
+        return true;
+    };
+
+    connect(launcher_, &Launcher::launcherFinished, this, [this, launcherRunner] {
+        if (launcher_->exitCode() == 0) {
+            scriptsRunData_.testsPassed++;
+            writeScriptServiceMessage(
+                QStringLiteral("[       OK ] %1").arg(launcher_->currentScriptPath()));
+        }
+        else {
+            scriptsRunData_.testsFailed++;
+            writeScriptServiceMessage(
+                QStringLiteral("[    ERROR ] %1").arg(launcher_->currentScriptPath()));
+        }
+
+        if (scriptsRunData_.scripts.isEmpty()) {
+            if (scriptsRunData_.testsFailed > 0) {
+                writeScriptServiceMessage(QStringLiteral("[  FAILED  ] Passed: %1 | Failed: %2")
+                                              .arg(scriptsRunData_.testsPassed)
+                                              .arg(scriptsRunData_.testsFailed),
+                                          true);
+            }
+            else {
+                writeScriptServiceMessage(
+                    QStringLiteral("[  PASSED  ] %1 tests").arg(scriptsRunData_.testsPassed), true);
+            }
+
+            scriptsRunData_.clear();
+            prepareLogTextEditsForRunning(false);
+            this->setEnabled(true);
+            launcher_->deleteLater();
+            launcher_ = nullptr;
+        }
+        else {
+            launcherRunner();
+        }
+    });
+
+    prepareLogTextEditsForRunning(true);
+    ui->tabWidget->setCurrentIndex(0);
+    this->setEnabled(false);
+    if (!launcherRunner()) {
+        QMessageBox::critical(this, paths::QTADA_ERROR_HEADER,
+                              QStringLiteral("An error occurred while launching the application. "
+                                             "For more information view log messages."));
+    }
+}
+
+void MainGui::writeColoredMessage(bool isForQtAdaLog, const QString &msg, const QString &color,
+                                  bool isAppendMode) noexcept
+{
+    const auto coloredMessage
+        = QStringLiteral("<span style=\"white-space: pre-wrap;%1\">%2</span>")
+              .arg(color.isEmpty() ? "" : QStringLiteral(" color: %1;").arg(color))
+              .arg(msg.trimmed());
+    if (isForQtAdaLog) {
+        if (isAppendMode) {
+            ui->qtadaLogTextEdit->append(std::move(coloredMessage));
+        }
+        else {
+            ui->qtadaLogTextEdit->setHtml(std::move(coloredMessage));
+            ui->qtadaLogTextEdit->append("");
+        }
+    }
+    else {
+        if (isAppendMode) {
+            ui->appLogTextEdit->append(std::move(coloredMessage));
+        }
+        else {
+            ui->appLogTextEdit->setHtml(std::move(coloredMessage));
+            ui->appLogTextEdit->append("");
+        }
     }
 }
 
 void MainGui::writeQtAdaErrMessage(const QString &msg) noexcept
 {
-    ui->qtadaLogTextEdit->append(
-        QStringLiteral("<font color=\"%1\">%2</font>").arg(GUI_ERROR_LOG_COLOR).arg(msg));
+    writeColoredMessage(true, msg, GUI_ERROR_LOG_COLOR);
 }
 
 void MainGui::writeQtAdaOutMessage(const QString &msg) noexcept
 {
-    ui->qtadaLogTextEdit->append(msg);
+    writeColoredMessage(true, msg);
+}
+
+void MainGui::writeScriptServiceMessage(const QString &msg, bool isResult) noexcept
+{
+    writeColoredMessage(true, msg, isResult ? GUI_SCRIPT_RESULT_COLOR : GUI_SCRIPT_SERVICE_COLOR);
 }
 
 void MainGui::writeAppOutMessage(const QString &msg) noexcept
 {
-    ui->appLogTextEdit->append(msg.trimmed());
+    writeColoredMessage(false, msg);
 }
 } // namespace QtAda::gui

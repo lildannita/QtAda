@@ -34,8 +34,6 @@ void ScriptRunner::registerObjectDestroyed(QObject *obj) noexcept
     }
 
     const auto path = it->second;
-    assert(pathToObject_.count(path) == 1);
-
     pathToObject_.erase(path);
     objectToPath_.erase(it);
 }
@@ -52,8 +50,6 @@ void ScriptRunner::registerObjectReparented(QObject *obj) noexcept
     }
 
     const auto oldPath = it->second;
-    assert(pathToObject_.count(oldPath) == 1);
-
     if (oldPath != newPath) {
         pathToObject_.erase(oldPath);
         pathToObject_[newPath] = obj;

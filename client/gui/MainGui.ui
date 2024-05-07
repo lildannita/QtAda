@@ -284,8 +284,8 @@ margin-left: 5px;</string>
                  <rect>
                   <x>0</x>
                   <y>0</y>
-                  <width>511</width>
-                  <height>223</height>
+                  <width>522</width>
+                  <height>239</height>
                  </rect>
                 </property>
                 <layout class="QVBoxLayout" name="verticalLayout_8">
@@ -404,7 +404,7 @@ margin-left: 5px;</string>
                  <rect>
                   <x>0</x>
                   <y>0</y>
-                  <width>497</width>
+                  <width>508</width>
                   <height>287</height>
                  </rect>
                 </property>
@@ -733,8 +733,8 @@ margin-left: 5px;</string>
                  <rect>
                   <x>0</x>
                   <y>0</y>
-                  <width>511</width>
-                  <height>223</height>
+                  <width>522</width>
+                  <height>239</height>
                  </rect>
                 </property>
                 <layout class="QVBoxLayout" name="verticalLayout_3">
@@ -916,20 +916,6 @@ margin-left: 5px;</string>
         <layout class="QHBoxLayout" name="horizontalLayout_8">
          <item>
           <widget class="QTextEdit" name="appLogTextEdit">
-           <property name="readOnly">
-            <bool>true</bool>
-           </property>
-          </widget>
-         </item>
-        </layout>
-       </widget>
-       <widget class="QWidget" name="scriptLogTab">
-        <attribute name="title">
-         <string>Script Log</string>
-        </attribute>
-        <layout class="QHBoxLayout" name="horizontalLayout_9">
-         <item>
-          <widget class="QTextEdit" name="scriptLogTextEdit">
            <property name="readOnly">
             <bool>true</bool>
            </property>

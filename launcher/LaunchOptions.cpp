@@ -156,6 +156,13 @@ std::optional<int> UserLaunchOptions::initFromArgs(const char *appPath, QStringL
     return std::nullopt;
 }
 
+// Этот конструктор нужен только для MainGui::runAllScripts()
+LaunchOptions::LaunchOptions(LaunchType type, bool fromGui) noexcept
+{
+    assert(type == LaunchType::Run);
+    assert(fromGui == true);
+}
+
 LaunchOptions::LaunchOptions(const UserLaunchOptions &options) noexcept
     : userOptions(std::move(options))
     , env(QProcessEnvironment::systemEnvironment())
