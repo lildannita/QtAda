@@ -10,31 +10,13 @@
 #include "Common.hpp"
 
 namespace QtAda::launcher {
-// Этот конструктор нужен только для MainGui::runAllScripts()
-Launcher::Launcher(LaunchType type, bool fromGui, QObject *parent) noexcept
-    : options_{ type, fromGui }
-{
-    assert(type == LaunchType::Run);
-    assert(fromGui == true);
-    setInitialParameters(type, fromGui);
-}
-
 Launcher::Launcher(const UserLaunchOptions &userOptions, bool fromGui, QObject *parent) noexcept
     : options_{ userOptions }
+    , initFromGui_{ fromGui }
 {
+    const auto type = options_.userOptions.type;
+
     waitingTimer_.setInterval(options_.userOptions.timeoutValue * 1000);
-    setInitialParameters(options_.userOptions.type, fromGui);
-}
-
-Launcher::~Launcher() noexcept
-{
-    if (injector_ != nullptr) {
-        injector_->stop();
-    }
-}
-
-void Launcher::setInitialParameters(LaunchType type, bool fromGui) noexcept
-{
     waitingTimer_.setSingleShot(true);
     connect(&waitingTimer_, &QTimer::timeout, this, &Launcher::timeout);
 
@@ -43,26 +25,69 @@ void Launcher::setInitialParameters(LaunchType type, bool fromGui) noexcept
     connect(injector_.get(), &injector::AbstractInjector::finished, this,
             &Launcher::injectorFinished, Qt::QueuedConnection);
 
-    if (fromGui) {
+    if (initFromGui_) {
         connect(injector_.get(), &injector::AbstractInjector::stdMessage, this,
                 &Launcher::stdMessage);
     }
     else {
-        if (type == LaunchType::Record) {
+        switch (type) {
+        case LaunchType::Record: {
             connect(injector_.get(), &injector::AbstractInjector::stdMessage, printStdMessage);
+            break;
+        }
+        case LaunchType::Run: {
+            connect(this, &Launcher::scriptRunError, printScriptErrorMessage);
+            connect(this, &Launcher::scriptRunLog, printScriptOutMessage);
+            connect(this, &Launcher::scriptRunService, printScriptOutMessage);
+            connect(this, &Launcher::scriptRunResult, printScriptOutMessage);
+            break;
+        }
+        default:
+            Q_UNREACHABLE();
         }
         connect(this, &Launcher::launcherErrMessage, printQtAdaErrMessage);
         connect(this, &Launcher::launcherOutMessage, printQtAdaOutMessage);
+    }
 
-        connect(this, &Launcher::scriptRunError, printQtAdaErrMessage);
-        connect(this, &Launcher::scriptRunLog, printQtAdaOutMessage);
+    if (type == LaunchType::Run) {
+        connect(this, &Launcher::launcherReadyForNextTest, this, [this] {
+            const auto testedScript = options_.runningScript;
+            assert(!testedScript.isEmpty());
+            if (exitCode() == 0) {
+                scriptsRunData_.testsPassed++;
+                emit scriptRunService(QStringLiteral("[       OK ] %1").arg(testedScript));
+            }
+            else {
+                scriptsRunData_.testsFailed++;
+                emit scriptRunService(QStringLiteral("[     FAIL ] %1").arg(testedScript));
+            }
+
+            if (options_.userOptions.runSettings.isEmpty()) {
+                emit scriptRunResult("[==========]");
+                if (scriptsRunData_.testsFailed > 0) {
+                    options_.exitCode = 1;
+                    emit scriptRunResult(QStringLiteral("[  FAILED  ] Passed: %1 | Failed: %2")
+                                             .arg(scriptsRunData_.testsPassed)
+                                             .arg(scriptsRunData_.testsFailed));
+                }
+                else {
+                    emit scriptRunResult(
+                        QStringLiteral("[  PASSED  ] %1 tests").arg(scriptsRunData_.testsPassed));
+                }
+                emit launcherFinished();
+            }
+            else {
+                launch();
+            }
+        });
     }
 }
 
-void Launcher::updateLaunchOptions(const UserLaunchOptions &options) noexcept
+Launcher::~Launcher() noexcept
 {
-    options_ = LaunchOptions(options);
-    waitingTimer_.setInterval(options_.userOptions.timeoutValue * 1000);
+    if (injector_ != nullptr) {
+        injector_->stop();
+    }
 }
 
 void Launcher::timeout() noexcept
@@ -132,6 +157,7 @@ bool Launcher::launch() noexcept
     switch (options_.userOptions.type) {
     case LaunchType::Record: {
         options_.env.insert(ENV_LAUNCH_SETTINGS, options_.userOptions.recordSettings.toJson());
+
         inprocessDialog_ = new inprocess::InprocessDialog(options_.userOptions.recordSettings);
         connect(inprocessDialog_, &inprocess::InprocessDialog::applicationStarted, this,
                 &Launcher::applicationStarted);
@@ -140,14 +166,33 @@ bool Launcher::launch() noexcept
         break;
     }
     case LaunchType::Run: {
-        options_.env.insert(ENV_LAUNCH_SETTINGS, options_.userOptions.runSettings.toJson());
-        inprocessRunner_ = new inprocess::InprocessRunner(this);
-        connect(inprocessRunner_, &inprocess::InprocessRunner::applicationStarted, this,
-                &Launcher::applicationStarted);
-        connect(inprocessRunner_, &inprocess::InprocessRunner::scriptRunError, this,
-                &Launcher::scriptRunError);
-        connect(inprocessRunner_, &inprocess::InprocessRunner::scriptRunLog, this,
-                &Launcher::scriptRunLog);
+        const auto runSettings = options_.userOptions.runSettings.takeFirst();
+        options_.runningScript = runSettings.scriptPath;
+
+        // Пока только в GUI у нас есть возможность задать для каждого скрипта
+        // свои аргументы запуска тестируемого приложения
+        auto &launchAppArguments = options_.userOptions.launchAppArguments;
+        assert(launchAppArguments.size() > 0);
+        if (initFromGui_) {
+            if (launchAppArguments.size() > 1) {
+                launchAppArguments.erase(launchAppArguments.begin() + 1, launchAppArguments.end());
+            }
+            launchAppArguments.append(
+                runSettings.executeArgs.split(QRegExp("\\s+"), Qt::SkipEmptyParts));
+        }
+
+        emit scriptRunService(QStringLiteral("[ RUN      ] %1").arg(options_.runningScript));
+        options_.env.insert(ENV_LAUNCH_SETTINGS, runSettings.toJson());
+
+        if (inprocessRunner_ == nullptr) {
+            inprocessRunner_ = new inprocess::InprocessRunner(this);
+            connect(inprocessRunner_, &inprocess::InprocessRunner::applicationStarted, this,
+                    &Launcher::applicationStarted);
+            connect(inprocessRunner_, &inprocess::InprocessRunner::scriptRunError, this,
+                    &Launcher::scriptRunError);
+            connect(inprocessRunner_, &inprocess::InprocessRunner::scriptRunLog, this,
+                    &Launcher::scriptRunLog);
+        }
         break;
     }
     default:
@@ -182,6 +227,7 @@ void Launcher::handleLauncherFailure(int exitCode, const QString &errorMessage) 
 
 void Launcher::checkIfLauncherIsFinished() noexcept
 {
+    bool isFinished = false;
     if (options_.state == LauncherState::InjectorFinished) {
         if (inprocessDialog_ != nullptr && inprocessDialog_->isStarted()) {
             connect(inprocessDialog_, &inprocess::InprocessDialog::inprocessClosed, this,
@@ -192,7 +238,7 @@ void Launcher::checkIfLauncherIsFinished() noexcept
                                "script generation in the dialog."));
         }
         else {
-            emit launcherFinished();
+            isFinished = true;
         }
     }
     else if (options_.state == LauncherState::InjectorFailed) {
@@ -200,6 +246,17 @@ void Launcher::checkIfLauncherIsFinished() noexcept
             options_.exitCode = 1;
         }
         destroyInprocessDialog();
+        isFinished = true;
+    }
+
+    if (!isFinished) {
+        return;
+    }
+
+    if (options_.userOptions.type == LaunchType::Run) {
+        emit launcherReadyForNextTest();
+    }
+    else {
         emit launcherFinished();
     }
 }

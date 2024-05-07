@@ -30,6 +30,14 @@ static bool argToInt(int &option, const QString &value, const QString &arg) noex
 
 std::optional<int> UserLaunchOptions::initFromArgs(const char *appPath, QStringList args) noexcept
 {
+    //! TODO: Сейчас эта струтура объявляется для того, чтобы записывать в нее
+    //! все настройки, кроме пути к скрипту. Делается это для того, чтобы была
+    //! возможность запустить несколько скриптов. Но в будущем нужно будет реализовать,
+    //! чтобы для каждого скрипта была возможность задать свои параметры, как это
+    //! сейчас делается в GUI. Также нужно задать возможность указать файл проекта
+    //! и запускать его через консоль.
+    RunSettings standartRunSettings;
+
     while (!args.isEmpty() && args.first().startsWith('-')) {
         const auto arg = args.takeFirst();
         if ((arg == QLatin1String("-h")) || (arg == QLatin1String("--help"))) {
@@ -64,7 +72,10 @@ std::optional<int> UserLaunchOptions::initFromArgs(const char *appPath, QStringL
                 return 1;
             }
             type = LaunchType::Run;
-            runSettings.scriptPath = std::move(args.takeFirst());
+            while (args.first().endsWith(".js")) {
+                standartRunSettings.scriptPath = args.takeFirst();
+                runSettings.push_back(standartRunSettings);
+            }
             break;
         }
         else if (arg == QLatin1String("--indent-width")) {
@@ -107,12 +118,12 @@ std::optional<int> UserLaunchOptions::initFromArgs(const char *appPath, QStringL
             }
         }
         else if (arg == QLatin1String("--attemps-number")) {
-            if (!argToInt(runSettings.attempsNumber, args.takeFirst(), arg)) {
+            if (!argToInt(standartRunSettings.attempsNumber, args.takeFirst(), arg)) {
                 return 1;
             }
         }
         else if (arg == QLatin1String("--retry-interval")) {
-            if (!argToInt(runSettings.retryInterval, args.takeFirst(), arg)) {
+            if (!argToInt(standartRunSettings.retryInterval, args.takeFirst(), arg)) {
                 return 1;
             }
         }
@@ -132,9 +143,15 @@ std::optional<int> UserLaunchOptions::initFromArgs(const char *appPath, QStringL
         break;
     }
     case LaunchType::Run: {
-        const auto errors = runSettings.isValid();
-        if (errors.has_value()) {
-            printErrors(*errors);
+        std::vector<QString> errors;
+        for (const auto &settings : runSettings) {
+            const auto settingsErrors = settings.isValid();
+            if (settingsErrors.has_value()) {
+                errors.insert(errors.end(), settingsErrors->begin(), settingsErrors->end());
+            }
+        }
+        if (!errors.empty()) {
+            printErrors(std::move(errors));
             return 1;
         }
         break;
@@ -154,13 +171,6 @@ std::optional<int> UserLaunchOptions::initFromArgs(const char *appPath, QStringL
     }
 
     return std::nullopt;
-}
-
-// Этот конструктор нужен только для MainGui::runAllScripts()
-LaunchOptions::LaunchOptions(LaunchType type, bool fromGui) noexcept
-{
-    assert(type == LaunchType::Run);
-    assert(fromGui == true);
 }
 
 LaunchOptions::LaunchOptions(const UserLaunchOptions &options) noexcept

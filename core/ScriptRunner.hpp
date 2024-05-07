@@ -17,6 +17,8 @@ public:
 
 signals:
     void scriptError(const QString &msg);
+    //! TODO: пока не понятно, нужен ли этот сигнал,
+    //! но скорее всего надо будет убрать
     void scriptLog(const QString &msg);
 
 public slots:

@@ -61,12 +61,13 @@ private slots:
     void executeApplication(const QString &path) noexcept;
 
     void startupScriptWriterLauncher(bool isUpdateMode) noexcept;
-    void startupScriptRunnerLauncher(QStringList scripts) noexcept;
+    void startupScriptRunnerLauncher(const QStringList &scripts) noexcept;
 
     void writeQtAdaErrMessage(const QString &msg) noexcept;
     void writeQtAdaOutMessage(const QString &msg) noexcept;
     void writeAppOutMessage(const QString &msg) noexcept;
-    void writeScriptServiceMessage(const QString &msg, bool isResult = false) noexcept;
+    void writeScriptServiceMessage(const QString &msg) noexcept;
+    void writeScriptResultMessage(const QString &msg) noexcept;
 
 private:
     using Settings = std::pair<RecordSettings, RunSettings>;
@@ -76,20 +77,6 @@ private:
         QString workingDirectory;
         int timeoutValue;
     };
-
-    struct ScriptsRunData final {
-        QStringList scripts;
-        QString currentScript;
-        int testsPassed = 0;
-        int testsFailed = 0;
-
-        void clear()
-        {
-            scripts.clear();
-            testsPassed = 0;
-            testsFailed = 0;
-        }
-    } scriptsRunData_;
 
     Ui::MainGui *ui = nullptr;
     launcher::Launcher *launcher_ = nullptr;
@@ -135,14 +122,14 @@ private:
     void flushProjectFile() noexcept;
 
     launcher::UserLaunchOptions getUserOptionsForLauncher(const QString &appPath,
-                                                          const QString &scriptPath,
+                                                          const QStringList &scripts,
                                                           LaunchType type,
                                                           bool isUpdateMode) const noexcept;
     launcher::UserLaunchOptions getUserOptionsForRecord(const QString &appPath,
                                                         const QString &scriptPath,
                                                         bool isUpdateMode) const noexcept;
     launcher::UserLaunchOptions getUserOptionsForRun(const QString &appPath,
-                                                     const QString &scriptPath) const noexcept;
+                                                     const QStringList &scripts) const noexcept;
     void prepareTextEditForAppLog(const QString &timestamp, const QString &appPath, bool isStarting,
                                   int exitCode = 0) noexcept;
     void prepareLogTextEditsForRecording(const QString &appPath, const QString &scriptPath,

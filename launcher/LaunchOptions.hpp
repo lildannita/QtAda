@@ -21,7 +21,7 @@ struct UserLaunchOptions final {
 
     LaunchType type = LaunchType::None;
     RecordSettings recordSettings;
-    RunSettings runSettings;
+    QList<RunSettings> runSettings;
 
     std::optional<int> initFromArgs(const char *appPath, QStringList args) noexcept;
 };
@@ -31,6 +31,8 @@ struct LaunchOptions final {
     QString absoluteExecutablePath;
     probe::ProbeABI probe;
     QProcessEnvironment env;
+
+    QString runningScript;
 
     LauncherState state = LauncherState::Initial;
     int exitCode = 0;

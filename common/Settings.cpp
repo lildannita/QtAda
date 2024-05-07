@@ -160,17 +160,18 @@ std::optional<std::vector<QString>> RunSettings::isValid() const noexcept
     else {
         QFileInfo script(scriptPath);
         if (!script.exists()) {
-            errors.push_back(QStringLiteral("The script does not exist at the specified path."));
+            errors.push_back(QStringLiteral("The script does not exist at '%1'.").arg(scriptPath));
         }
         else if (!script.isFile()) {
-            errors.push_back(QStringLiteral("The specified path does not point to a file."));
+            errors.push_back(QStringLiteral("'%1' does not point to a file.").arg(scriptPath));
         }
         else if (!script.isReadable()) {
-            errors.push_back(QStringLiteral("The script at the specified path cannot be read."));
+            errors.push_back(QStringLiteral("The script at '%1' cannot be read.").arg(scriptPath));
         }
         else if (script.suffix() != QStringLiteral("js")) {
             errors.push_back(
-                QStringLiteral("The script must be a JavaScript file with a .js extension."));
+                QStringLiteral("'%1': the script must be a JavaScript file with a .js extension.")
+                    .arg(scriptPath));
         }
     }
 
@@ -186,7 +187,6 @@ std::optional<std::vector<QString>> RunSettings::isValid() const noexcept
                 "The retry interval before next attempt is less than the required minimum of %1.")
                 .arg(MINIMUM_RETRY_INTERVAL));
     }
-
     return errors.empty() ? std::nullopt : std::make_optional(errors);
 }
 

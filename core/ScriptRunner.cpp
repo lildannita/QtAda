@@ -75,7 +75,7 @@ void ScriptRunner::startScript() noexcept
     script.close();
 
     if (scriptContent.trimmed().isEmpty()) {
-        emit scriptError(QStringLiteral("%1 is empty.").arg(scriptPath));
+        emit scriptError(QStringLiteral("{    ERROR    } Script is empty!").arg(scriptPath));
         finishThread(false);
         return;
     }
@@ -84,11 +84,10 @@ void ScriptRunner::startScript() noexcept
     const auto runResult = engine.evaluate(scriptContent);
 
     if (runResult.isError()) {
-        emit scriptError(QStringLiteral("%1: JavaScript Error!\n"
-                                        "[    ERROR    ] %2\n"
-                                        "[ LINE NUMBER ] %3\n"
-                                        "[    STACK    ] %4")
-                             .arg(runSettings_.scriptPath)
+        emit scriptError(QStringLiteral("{    ERROR    } %1\n"
+                                        "{ LINE NUMBER } %2\n"
+                                        "{ STACK BEGIN }\n%3\n"
+                                        "{  STACK END  }")
                              .arg(runResult.property("message").toString())
                              .arg(runResult.property("lineNumber").toInt())
                              .arg(runResult.property("stack").toString()));

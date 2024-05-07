@@ -1393,7 +1393,7 @@ void MainGui::flushProjectFile() noexcept
 }
 
 launcher::UserLaunchOptions MainGui::getUserOptionsForLauncher(const QString &appPath,
-                                                               const QString &scriptPath,
+                                                               const QStringList &scripts,
                                                                LaunchType type,
                                                                bool isUpdateMode) const noexcept
 {
@@ -1418,36 +1418,39 @@ launcher::UserLaunchOptions MainGui::getUserOptionsForLauncher(const QString &ap
     case LaunchType::Record: {
         assert(lastScriptEditor_ != nullptr);
         auto recordSettings = lastScriptEditor_->getRecordSettings();
-        recordSettings.scriptPath = scriptPath;
+        recordSettings.scriptPath = scripts.first();
         recordSettings.scriptWriteMode
             = isUpdateMode ? ScriptWriteMode::UpdateScript : ScriptWriteMode::NewScript;
         options.recordSettings = recordSettings;
-        executeArgs = recordSettings.executeArgs;
+
+        options.launchAppArguments = QStringList(std::move(appPath));
+        options.launchAppArguments.append(
+            recordSettings.executeArgs.split(QRegExp("\\s+"), Qt::SkipEmptyParts));
         break;
     }
     case LaunchType::Run: {
-        RunSettings runSettings;
         project_->beginGroup(paths::PROJECT_RUN_GROUP);
-        const auto rawRunSettings = project_->value(scriptPath, "").toByteArray();
-        project_->endGroup();
-        if (!rawRunSettings.isEmpty()) {
-            auto tmpRunSettings = RunSettings::fromJson(std::move(rawRunSettings), true);
-            if (tmpRunSettings.isValid()) {
-                runSettings = std::move(tmpRunSettings);
+        for (const auto &script : scripts) {
+            const auto rawRunSettings = project_->value(script, "").toByteArray();
+            if (!rawRunSettings.isEmpty()) {
+                auto runSettings = RunSettings::fromJson(std::move(rawRunSettings), true);
+                if (runSettings.isValid()) {
+                    runSettings.scriptPath = script;
+                    options.runSettings.push_back(std::move(runSettings));
+                    continue;
+                }
             }
+            RunSettings runSettings;
+            runSettings.scriptPath = script;
+            options.runSettings.push_back(std::move(runSettings));
         }
-        runSettings.scriptPath = scriptPath;
-        options.runSettings = runSettings;
-        executeArgs = runSettings.executeArgs;
+        project_->endGroup();
+        options.launchAppArguments = QStringList(std::move(appPath));
         break;
     }
     default:
         Q_UNREACHABLE();
     }
-
-    auto launchAppArguments = executeArgs.split(QRegExp("\\s+"), Qt::SkipEmptyParts);
-    launchAppArguments.push_front(std::move(appPath));
-    options.launchAppArguments = std::move(launchAppArguments);
 
     return options;
 }
@@ -1456,13 +1459,14 @@ launcher::UserLaunchOptions MainGui::getUserOptionsForRecord(const QString &appP
                                                              const QString &scriptPath,
                                                              bool isUpdateMode) const noexcept
 {
-    return getUserOptionsForLauncher(appPath, scriptPath, LaunchType::Record, isUpdateMode);
+    return getUserOptionsForLauncher(appPath, QStringList(scriptPath), LaunchType::Record,
+                                     isUpdateMode);
 }
 
 launcher::UserLaunchOptions MainGui::getUserOptionsForRun(const QString &appPath,
-                                                          const QString &scriptPath) const noexcept
+                                                          const QStringList &scripts) const noexcept
 {
-    return getUserOptionsForLauncher(appPath, scriptPath, LaunchType::Run, false);
+    return getUserOptionsForLauncher(appPath, scripts, LaunchType::Run, false);
 }
 
 void MainGui::startupScriptWriterLauncher(bool isUpdateMode) noexcept
@@ -1605,75 +1609,33 @@ void MainGui::runAllScripts() noexcept
     startupScriptRunnerLauncher(project_->value(paths::PROJECT_SCRIPTS, {}).toStringList());
 }
 
-void MainGui::startupScriptRunnerLauncher(QStringList scripts) noexcept
+void MainGui::startupScriptRunnerLauncher(const QStringList &scripts) noexcept
 {
     using namespace launcher;
     assert(launcher_ == nullptr);
+    assert(!scripts.isEmpty());
 
-    scriptsRunData_.scripts = std::move(scripts);
-    assert(!scriptsRunData_.scripts.isEmpty());
     const auto appPath = project_->value(paths::PROJECT_APP_PATH, "").toString();
     assert(!appPath.isEmpty());
 
-    launcher_ = new Launcher(LaunchType::Run, true);
+    launcher_ = new Launcher(getUserOptionsForRun(appPath, scripts), true);
     connect(launcher_, &Launcher::launcherErrMessage, this, &MainGui::writeQtAdaErrMessage);
     connect(launcher_, &Launcher::launcherOutMessage, this, &MainGui::writeQtAdaOutMessage);
     connect(launcher_, &Launcher::scriptRunError, this, &MainGui::writeQtAdaErrMessage);
     connect(launcher_, &Launcher::scriptRunLog, this, &MainGui::writeQtAdaOutMessage);
-
-    auto launcherRunner = [this, appPath] {
-        assert(!scriptsRunData_.scripts.isEmpty());
-        assert(launcher_ != nullptr);
-        scriptsRunData_.currentScript = scriptsRunData_.scripts.takeFirst();
-        writeScriptServiceMessage(
-            QStringLiteral("[ Run      ] %1").arg(scriptsRunData_.currentScript));
-        launcher_->updateLaunchOptions(
-            getUserOptionsForRun(appPath, scriptsRunData_.currentScript));
-        if (!launcher_->launch()) {
-            return false;
-        }
-        return true;
-    };
-
-    connect(launcher_, &Launcher::launcherFinished, this, [this, launcherRunner] {
-        if (launcher_->exitCode() == 0) {
-            scriptsRunData_.testsPassed++;
-            writeScriptServiceMessage(
-                QStringLiteral("[       OK ] %1").arg(launcher_->currentScriptPath()));
-        }
-        else {
-            scriptsRunData_.testsFailed++;
-            writeScriptServiceMessage(
-                QStringLiteral("[    ERROR ] %1").arg(launcher_->currentScriptPath()));
-        }
-
-        if (scriptsRunData_.scripts.isEmpty()) {
-            if (scriptsRunData_.testsFailed > 0) {
-                writeScriptServiceMessage(QStringLiteral("[  FAILED  ] Passed: %1 | Failed: %2")
-                                              .arg(scriptsRunData_.testsPassed)
-                                              .arg(scriptsRunData_.testsFailed),
-                                          true);
-            }
-            else {
-                writeScriptServiceMessage(
-                    QStringLiteral("[  PASSED  ] %1 tests").arg(scriptsRunData_.testsPassed), true);
-            }
-
-            scriptsRunData_.clear();
-            prepareLogTextEditsForRunning(false);
-            this->setEnabled(true);
-            launcher_->deleteLater();
-            launcher_ = nullptr;
-        }
-        else {
-            launcherRunner();
-        }
+    connect(launcher_, &Launcher::scriptRunService, this, &MainGui::writeScriptServiceMessage);
+    connect(launcher_, &Launcher::scriptRunResult, this, &MainGui::writeScriptResultMessage);
+    connect(launcher_, &Launcher::launcherFinished, this, [this] {
+        prepareLogTextEditsForRunning(false);
+        this->setEnabled(true);
+        launcher_->deleteLater();
+        launcher_ = nullptr;
     });
 
     prepareLogTextEditsForRunning(true);
     ui->tabWidget->setCurrentIndex(0);
     this->setEnabled(false);
-    if (!launcherRunner()) {
+    if (!launcher_->launch()) {
         QMessageBox::critical(this, paths::QTADA_ERROR_HEADER,
                               QStringLiteral("An error occurred while launching the application. "
                                              "For more information view log messages."));
@@ -1695,6 +1657,7 @@ void MainGui::writeColoredMessage(bool isForQtAdaLog, const QString &msg, const 
             ui->qtadaLogTextEdit->setHtml(std::move(coloredMessage));
             ui->qtadaLogTextEdit->append("");
         }
+        ui->qtadaLogTextEdit->moveCursor(QTextCursor::End);
     }
     else {
         if (isAppendMode) {
@@ -1704,6 +1667,7 @@ void MainGui::writeColoredMessage(bool isForQtAdaLog, const QString &msg, const 
             ui->appLogTextEdit->setHtml(std::move(coloredMessage));
             ui->appLogTextEdit->append("");
         }
+        ui->appLogTextEdit->moveCursor(QTextCursor::End);
     }
 }
 
@@ -1717,9 +1681,14 @@ void MainGui::writeQtAdaOutMessage(const QString &msg) noexcept
     writeColoredMessage(true, msg);
 }
 
-void MainGui::writeScriptServiceMessage(const QString &msg, bool isResult) noexcept
+void MainGui::writeScriptServiceMessage(const QString &msg) noexcept
 {
-    writeColoredMessage(true, msg, isResult ? GUI_SCRIPT_RESULT_COLOR : GUI_SCRIPT_SERVICE_COLOR);
+    writeColoredMessage(true, msg, GUI_SCRIPT_SERVICE_COLOR);
+}
+
+void MainGui::writeScriptResultMessage(const QString &msg) noexcept
+{
+    writeColoredMessage(true, msg, GUI_SCRIPT_RESULT_COLOR);
 }
 
 void MainGui::writeAppOutMessage(const QString &msg) noexcept
