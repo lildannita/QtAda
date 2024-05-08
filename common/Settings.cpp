@@ -45,7 +45,7 @@ static bool fileCanBeWritten(const QFileInfo &fileInfo) noexcept
     return false;
 }
 
-std::optional<std::vector<QString>> RecordSettings::isValid() const noexcept
+std::optional<std::vector<QString>> RecordSettings::findErrors() const noexcept
 {
     std::vector<QString> errors;
 
@@ -150,7 +150,7 @@ const RecordSettings RecordSettings::fromJson(const QByteArray &data, bool forGu
     return settings;
 }
 
-std::optional<std::vector<QString>> RunSettings::isValid() const noexcept
+std::optional<std::vector<QString>> RunSettings::findErrors() const noexcept
 {
     std::vector<QString> errors;
 
@@ -217,7 +217,7 @@ const RunSettings RunSettings::fromJson(const QByteArray &data, bool forGui) noe
         settings.scriptPath = obj["scriptPath"].toString();
     }
     settings.attempsNumber = obj["attempsNumber"].toInt();
-    settings.retryInterval = obj["executeArgs"].toInt();
+    settings.retryInterval = obj["retryInterval"].toInt();
     return settings;
 }
 

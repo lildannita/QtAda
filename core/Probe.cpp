@@ -80,18 +80,19 @@ Probe::Probe(const LaunchType launchType, const std::optional<RecordSettings> &r
     inprocessNode_ = new QRemoteObjectNode(this);
     inprocessNode_->connectToNode(QUrl(paths::REMOTE_OBJECT_PATH));
     inprocessController_.reset(inprocessNode_->acquire<InprocessControllerReplica>());
-    connect(inprocessController_.get(), &QRemoteObjectReplica::notified, this, [this, runSettings] {
+    connect(inprocessController_.get(), &QRemoteObjectReplica::notified, this, [this] {
         assert(inprocessController_->applicationRunning() == false);
         inprocessController_->pushApplicationRunning(true);
 
         if (launchType_ == LaunchType::Run) {
-            prepareScriptRunner(runSettings);
+            scriptThread_->start();
         }
     });
 
     switch (launchType_) {
     case LaunchType::Record: {
         assert(recordSettings.has_value());
+        assert(recordSettings->isValid());
         userEventFilter_ = new UserEventFilter(std::move(*recordSettings), this);
         userVerificationFilter_ = new UserVerificationFilter(this);
 
@@ -114,13 +115,43 @@ Probe::Probe(const LaunchType launchType, const std::optional<RecordSettings> &r
     }
     case LaunchType::Run: {
         assert(runSettings.has_value());
-        /*
-         * Так как работа ScriptRunner происходит в другом потоке, а что наиболее
-         * важно - зависит от того, "готов" ли inprocessController_ (чтобы ни одно сообщение
-         * не было упущено из-за того, что inprocessController_ еще не проинициализирован),
-         * то было решено инициализировать данные для режима LaunchType::Run только после
-         * того, как inprocessController_ будет готов.
-         */
+        assert(runSettings->isValid());
+        scriptThread_ = new QThread(this);
+        scriptRunner_ = new ScriptRunner(std::move(*runSettings));
+        scriptRunner_->moveToThread(scriptThread_);
+
+        connect(this, &Probe::objectCreated, scriptRunner_, &ScriptRunner::registerObjectCreated,
+                Qt::DirectConnection);
+        connect(this, &Probe::objectDestroyed, scriptRunner_,
+                &ScriptRunner::registerObjectDestroyed, Qt::DirectConnection);
+        connect(this, &Probe::objectReparented, scriptRunner_,
+                &ScriptRunner::registerObjectReparented, Qt::DirectConnection);
+        connect(scriptRunner_, &ScriptRunner::scriptError, inprocessController_.get(),
+                &InprocessControllerReplica::sendScriptRunError);
+        connect(scriptRunner_, &ScriptRunner::scriptLog, inprocessController_.get(),
+                &InprocessControllerReplica::sendScriptRunLog);
+
+        connect(scriptThread_, &QThread::started, scriptRunner_, &ScriptRunner::startScript);
+        connect(scriptRunner_, &ScriptRunner::aboutToClose, this, [this](int exitCode) {
+            assert(scriptThread_ != qApp->thread());
+            disconnect(this, &Probe::objectCreated, scriptRunner_, 0);
+            disconnect(this, &Probe::objectDestroyed, scriptRunner_, 0);
+            disconnect(this, &Probe::objectReparented, scriptRunner_, 0);
+
+            connect(scriptThread_, &QThread::finished, this, [this, exitCode] {
+                scriptRunner_->deleteLater();
+                handleApplicationFinished(exitCode);
+            });
+            scriptThread_->quit();
+
+            //! TODO: Вообще, получается так, что scriptRunner_ иногда удаляется и без явного
+            //! вызова, если мы дожидаемся его закрыти с помощью scriptThread_->wait(). Почему
+            //! так происходит - непонятно. Но по идее вызов этой функции и не нужен, так как
+            //! мы все равно закрываем приложение только после того, как поток завершит свою
+            //! работу. На текущий момент все работает правильно, утечек не обнаружено, но тем
+            //! не менее разобраться с scriptThread_->wait() нужно.
+            //! scriptThread_->wait();
+        });
         break;
     }
     default:
@@ -150,49 +181,6 @@ bool Probe::initialized() noexcept
 void Probe::kill() noexcept
 {
     delete this;
-}
-
-void Probe::prepareScriptRunner(const std::optional<RunSettings> &runSettings) noexcept
-{
-    assert(this->thread() == qApp->thread());
-    scriptThread_ = new QThread(this);
-    scriptRunner_ = new ScriptRunner(std::move(*runSettings));
-    scriptRunner_->moveToThread(scriptThread_);
-
-    connect(this, &Probe::objectCreated, scriptRunner_, &ScriptRunner::registerObjectCreated,
-            Qt::DirectConnection);
-    connect(this, &Probe::objectDestroyed, scriptRunner_, &ScriptRunner::registerObjectDestroyed,
-            Qt::DirectConnection);
-    connect(this, &Probe::objectReparented, scriptRunner_, &ScriptRunner::registerObjectReparented,
-            Qt::DirectConnection);
-    connect(scriptRunner_, &ScriptRunner::scriptError, inprocessController_.get(),
-            &InprocessControllerReplica::sendScriptRunError);
-    connect(scriptRunner_, &ScriptRunner::scriptLog, inprocessController_.get(),
-            &InprocessControllerReplica::sendScriptRunLog);
-
-    connect(scriptThread_, &QThread::started, scriptRunner_, &ScriptRunner::startScript);
-    connect(scriptRunner_, &ScriptRunner::aboutToClose, this, [this](int exitCode) {
-        assert(scriptThread_ != qApp->thread());
-        disconnect(this, &Probe::objectCreated, scriptRunner_, 0);
-        disconnect(this, &Probe::objectDestroyed, scriptRunner_, 0);
-        disconnect(this, &Probe::objectReparented, scriptRunner_, 0);
-
-        connect(scriptThread_, &QThread::finished, this, [this, exitCode] {
-            scriptRunner_->deleteLater();
-            handleApplicationFinished(exitCode);
-        });
-        scriptThread_->quit();
-
-        //! TODO: Вообще, получается так, что scriptRunner_ иногда удаляется и без явного
-        //! вызова, если мы дожидаемся его закрыти с помощью scriptThread_->wait(). Почему
-        //! так происходит - непонятно. Но по идее вызов этой функции и не нужен, так как
-        //! мы все равно закрываем приложение только после того, как поток завершит свою
-        //! работу. На текущий момент все работает правильно, утечек не обнаружено, но тем
-        //! не менее разобраться с scriptThread_->wait() нужно.
-        //! scriptThread_->wait();
-    });
-
-    scriptThread_->start();
 }
 
 void Probe::initProbe(const LaunchType launchType,

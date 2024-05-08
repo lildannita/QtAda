@@ -135,7 +135,7 @@ std::optional<int> UserLaunchOptions::initFromArgs(const char *appPath, QStringL
 
     switch (type) {
     case LaunchType::Record: {
-        const auto errors = recordSettings.isValid();
+        const auto errors = recordSettings.findErrors();
         if (errors.has_value()) {
             printErrors(*errors);
             return 1;
@@ -145,7 +145,7 @@ std::optional<int> UserLaunchOptions::initFromArgs(const char *appPath, QStringL
     case LaunchType::Run: {
         std::vector<QString> errors;
         for (const auto &settings : runSettings) {
-            const auto settingsErrors = settings.isValid();
+            const auto settingsErrors = settings.findErrors();
             if (settingsErrors.has_value()) {
                 errors.insert(errors.end(), settingsErrors->begin(), settingsErrors->end());
             }

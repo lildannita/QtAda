@@ -40,7 +40,11 @@ struct RecordSettings final {
     bool needToGenerateCycle = false;
     int cycleMinimumCount = MINIMUM_CYCLE_COUNT;
 
-    std::optional<std::vector<QString>> isValid() const noexcept;
+    std::optional<std::vector<QString>> findErrors() const noexcept;
+    bool isValid() const noexcept
+    {
+        return !findErrors().has_value();
+    }
     const QByteArray toJson(bool forGui = false) const noexcept;
     static const RecordSettings fromJson(const QByteArray &data, bool forGui = false) noexcept;
 };
@@ -53,7 +57,11 @@ struct RunSettings final {
     int attempsNumber = DEFAULT_ATTEMPS_NUMBER;
     int retryInterval = DEFAULT_RETRY_INTERVAL;
 
-    std::optional<std::vector<QString>> isValid() const noexcept;
+    std::optional<std::vector<QString>> findErrors() const noexcept;
+    bool isValid() const noexcept
+    {
+        return !findErrors().has_value();
+    }
     const QByteArray toJson(bool forGui = false) const noexcept;
     static const RunSettings fromJson(const QByteArray &data, bool forGui = false) noexcept;
 };

@@ -104,7 +104,5 @@ private:
 
     const QObject *inprocessController() const noexcept;
     static bool canShowWidgets() noexcept;
-
-    void prepareScriptRunner(const std::optional<RunSettings> &runSettings) noexcept;
 };
 } // namespace QtAda::core
