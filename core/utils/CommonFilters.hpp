@@ -5,6 +5,7 @@
 #include <QObject>
 
 #include "FilterUtils.hpp"
+#include "Paths.hpp"
 
 namespace QtAda::core::filters {
 template <typename GuiComponent>
@@ -19,7 +20,8 @@ QString qMouseEventHandler(const GuiComponent *component, const QEvent *event,
     }
 
     const auto clickPosition = component->mapFromGlobal(mouseEvent->globalPos());
-    return QStringLiteral("mouse%1Click('%2', '%3', %4, %5);")
+    return QStringLiteral("%1mouse%2Click('%3', '%4', %5, %6);")
+        .arg(SCRIPT_COMMAND_PREFIX)
         .arg(event->type() == QEvent::MouseButtonDblClick ? "Dbl" : "")
         .arg(path.isEmpty() ? utils::objectPath(component) : path)
         .arg(utils::mouseButtonToString(mouseEvent->button()))

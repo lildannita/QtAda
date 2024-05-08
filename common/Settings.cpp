@@ -175,17 +175,27 @@ std::optional<std::vector<QString>> RunSettings::findErrors() const noexcept
         }
     }
 
-    if (attempsNumber < MINIMUM_ATTEMPS_NUMBER) {
+    if (retrievalAttempts < MINIMUM_RETRIEVAL_ATTEMPTS) {
         errors.push_back(
             QStringLiteral(
-                "The number of attemps to retrive object is less than the required minimum of %1.")
-                .arg(MINIMUM_ATTEMPS_NUMBER));
+                "The number of attempts to retrive object is less than the required minimum of %1.")
+                .arg(MINIMUM_RETRIEVAL_ATTEMPTS));
     }
-    if (retryInterval < MINIMUM_RETRY_INTERVAL) {
+    if (retrievalInterval < MINIMUM_RETRIEVAL_INTERVAL) {
         errors.push_back(
             QStringLiteral(
                 "The retry interval before next attempt is less than the required minimum of %1.")
-                .arg(MINIMUM_RETRY_INTERVAL));
+                .arg(MINIMUM_RETRIEVAL_INTERVAL));
+    }
+    if (verifyAttempts < MINIMUM_VERIFY_ATTEMPTS) {
+        errors.push_back(QStringLiteral("The number of attempts to verify the expected value is "
+                                        "less than the required minimum of %1.")
+                             .arg(MINIMUM_VERIFY_ATTEMPTS));
+    }
+    if (verifyInterval < MINIMUM_VERIFY_INTERVAL) {
+        errors.push_back(QStringLiteral("The retry interval before next verify attempt is less "
+                                        "than the required minimum of %1.")
+                             .arg(MINIMUM_VERIFY_ATTEMPTS));
     }
     return errors.empty() ? std::nullopt : std::make_optional(errors);
 }
@@ -199,8 +209,11 @@ const QByteArray RunSettings::toJson(bool forGui) const noexcept
     else {
         obj["scriptPath"] = this->scriptPath;
     }
-    obj["attempsNumber"] = this->attempsNumber;
-    obj["retryInterval"] = this->retryInterval;
+    obj["retrievalAttempts"] = this->retrievalAttempts;
+    obj["retrievalInterval"] = this->retrievalInterval;
+    obj["verifyAttempts"] = this->verifyAttempts;
+    obj["verifyInterval"] = this->verifyInterval;
+    obj["showElapsed"] = this->showElapsed;
     const auto document = QJsonDocument(obj);
     return document.toJson(QJsonDocument::Indented);
 }
@@ -216,8 +229,11 @@ const RunSettings RunSettings::fromJson(const QByteArray &data, bool forGui) noe
     else {
         settings.scriptPath = obj["scriptPath"].toString();
     }
-    settings.attempsNumber = obj["attempsNumber"].toInt();
-    settings.retryInterval = obj["retryInterval"].toInt();
+    settings.retrievalAttempts = obj["retrievalAttempts"].toInt();
+    settings.retrievalInterval = obj["retrievalInterval"].toInt();
+    settings.verifyAttempts = obj["verifyAttempts"].toInt();
+    settings.verifyInterval = obj["verifyInterval"].toInt();
+    settings.showElapsed = obj["showElapsed"].toBool();
     return settings;
 }
 

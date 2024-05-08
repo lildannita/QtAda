@@ -102,6 +102,16 @@ QString mouseButtonToString(const Qt::MouseButton mouseButton) noexcept
     return QLatin1String("<unknown>");
 }
 
+std::optional<Qt::MouseButton> mouseButtonFromString(const QString &mouseButton) noexcept
+{
+    for (const auto &pair : s_mouseButtons) {
+        if (pair.second == mouseButton) {
+            return pair.first;
+        }
+    }
+    return std::nullopt;
+}
+
 QString textIndexStatement(TextIndexBehavior behavior, int index, const QString &text) noexcept
 {
     if (text.isEmpty()) {

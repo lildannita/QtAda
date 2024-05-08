@@ -27,6 +27,8 @@ inline QString keyToString(const int key) noexcept
     return QKeySequence(static_cast<Qt::Key>(key)).toString();
 }
 
+std::optional<Qt::MouseButton> mouseButtonFromString(const QString &mouseButton) noexcept;
+
 template <typename GuiComponent>
 bool mouseEventCanBeFiltered(const GuiComponent *component, const QMouseEvent *event,
                              bool shouldBePressEvent = false) noexcept

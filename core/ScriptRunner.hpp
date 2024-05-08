@@ -4,18 +4,23 @@
 
 #include "Settings.hpp"
 
+QT_BEGIN_NAMESPACE
+class QJSEngine;
+QT_END_NAMESPACE
+
 namespace QtAda::core {
 class ScriptRunner final : public QObject {
     Q_OBJECT
 public:
     ScriptRunner(const RunSettings &settings, QObject *parent = nullptr) noexcept;
 
-    Q_INVOKABLE void mouseClick(const QString &path) noexcept;
+    Q_INVOKABLE void verify(const QString &path, const QString &property,
+                            const QString &value) noexcept;
+    Q_INVOKABLE void mouseClick(const QString &path, const QString &mouseButtonStr, int x,
+                                int y) noexcept;
 
 signals:
     void scriptError(const QString &msg);
-    //! TODO: пока не понятно, нужен ли этот сигнал,
-    //! но скорее всего надо будет убрать
     void scriptLog(const QString &msg);
 
     void aboutToClose(int exitCode);
@@ -32,12 +37,9 @@ private:
     std::map<const QObject *, QString> objectToPath_;
 
     const RunSettings runSettings_;
+    QJSEngine *engine_ = nullptr;
 
-    QObject *findObjectByPath(const QString &path) noexcept
-    {
-        //! TODO: Здесь и будет "засыпать" текущий поток
-        return nullptr;
-    }
+    QObject *findObjectByPath(const QString &path) noexcept;
 
     void finishThread(bool isOk) noexcept;
 };

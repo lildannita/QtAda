@@ -117,15 +117,28 @@ std::optional<int> UserLaunchOptions::initFromArgs(const char *appPath, QStringL
                 return 1;
             }
         }
-        else if (arg == QLatin1String("--attemps-number")) {
-            if (!argToInt(standartRunSettings.attempsNumber, args.takeFirst(), arg)) {
+        else if (arg == QLatin1String("--retrieval-attempts")) {
+            if (!argToInt(standartRunSettings.retrievalAttempts, args.takeFirst(), arg)) {
                 return 1;
             }
         }
-        else if (arg == QLatin1String("--retry-interval")) {
-            if (!argToInt(standartRunSettings.retryInterval, args.takeFirst(), arg)) {
+        else if (arg == QLatin1String("--retrieval-interval")) {
+            if (!argToInt(standartRunSettings.retrievalInterval, args.takeFirst(), arg)) {
                 return 1;
             }
+        }
+        else if (arg == QLatin1String("--verify-attempts")) {
+            if (!argToInt(standartRunSettings.verifyAttempts, args.takeFirst(), arg)) {
+                return 1;
+            }
+        }
+        else if (arg == QLatin1String("--verify-interval")) {
+            if (!argToInt(standartRunSettings.verifyInterval, args.takeFirst(), arg)) {
+                return 1;
+            }
+        }
+        else if (arg == QLatin1String("--show-elapsed")) {
+            standartRunSettings.showElapsed = true;
         }
         else {
             printQtAdaErrMessage(QStringLiteral("Unknown parameter: %1.").arg(arg));

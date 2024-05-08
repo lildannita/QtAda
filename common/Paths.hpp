@@ -2,6 +2,10 @@
 
 #include <QDir>
 
+namespace QtAda {
+static constexpr char SCRIPT_COMMAND_PREFIX[] = "QtAda.";
+}
+
 namespace QtAda::paths {
 static const auto QTADA_CONFIG = QStringLiteral("%1/.config/qtada.conf").arg(QDir::homePath());
 static constexpr char PROJECT_SUFFIX[] = "qtada";
