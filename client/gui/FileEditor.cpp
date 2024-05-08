@@ -11,14 +11,16 @@
 #include <QPainter>
 #include <QTextBlock>
 #include <QAction>
+#include <QSpinBox>
 
 #include "Paths.hpp"
 #include "Highlighter.hpp"
 
 namespace QtAda::gui {
-Editor::Editor(QAction *lineWrapAction, QWidget *parent) noexcept
+Editor::Editor(QAction *lineWrapAction, QSpinBox *lineIndexSpinBox, QWidget *parent) noexcept
     : QPlainTextEdit(parent)
     , lineWrapAction_{ lineWrapAction }
+    , lineIndexSpinBox_{ lineIndexSpinBox }
 {
     assert(lineWrapAction_ != nullptr);
     updateWrapMode();
@@ -56,6 +58,9 @@ int Editor::lineNumberAreaWidth() const noexcept
 void Editor::updateLineNumberAreaWidth() noexcept
 {
     setViewportMargins(lineNumberAreaWidth(), 0, 0, 0);
+    if (lineIndexSpinBox_ != nullptr) {
+        lineIndexSpinBox_->setMaximum(this->blockCount());
+    }
 }
 
 void Editor::updateLineNumberArea(const QRect &rect, int dy) noexcept
@@ -154,8 +159,9 @@ void Editor::wheelEvent(QWheelEvent *event) noexcept
 }
 
 FileEditor::FileEditor(const QString &filePath, int role, QTabWidget *editorsTabWidget,
-                       QAction *lineWrapAction, QWidget *parent) noexcept
-    : Editor{ lineWrapAction, parent }
+                       QAction *lineWrapAction, QSpinBox *lineIndexSpinBox,
+                       QWidget *parent) noexcept
+    : Editor{ lineWrapAction, lineIndexSpinBox, parent }
     , editorsTabWidget_{ editorsTabWidget }
     , filePath_{ filePath }
     , role_{ role }

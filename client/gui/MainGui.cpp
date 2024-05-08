@@ -1162,7 +1162,9 @@ void MainGui::openFile(const QModelIndex &index) noexcept
     const auto tabIcon = item->icon();
     assert(!tabIcon.isNull());
 
-    auto *fileEditor = new FileEditor(path, role, editorsTabWidget_, ui->actionLineWrap);
+    auto *fileEditor
+        = new FileEditor(path, role, editorsTabWidget_, ui->actionLineWrap,
+                         role == FileRole::ScriptRole ? ui->lineIndexSpinBox : nullptr);
     const auto isFileReadable = fileEditor->readFile();
     if (!isFileReadable) {
         fileEditor->deleteLater();

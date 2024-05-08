@@ -7,6 +7,7 @@
 
 QT_BEGIN_NAMESPACE
 class QTabWidget;
+class QSpinBox;
 QT_END_NAMESPACE
 
 namespace QtAda::gui {
@@ -15,7 +16,7 @@ namespace QtAda::gui {
 class Editor : public QPlainTextEdit {
     Q_OBJECT
 public:
-    Editor(QAction *lineWrapAction, QWidget *parent = nullptr) noexcept;
+    Editor(QAction *lineWrapAction, QSpinBox *lineIndexSpinBox, QWidget *parent = nullptr) noexcept;
 
     void lineNumberAreaPaintEvent(QPaintEvent *event) noexcept;
     int lineNumberAreaWidth() const noexcept;
@@ -39,6 +40,7 @@ private slots:
 private:
     QWidget *lineNumberArea_;
     QAction *lineWrapAction_ = nullptr;
+    QSpinBox *lineIndexSpinBox_ = nullptr;
 
     int lastHighlitedLine_ = -1;
 };
@@ -73,7 +75,8 @@ class FileEditor final : public Editor {
     Q_OBJECT
 public:
     FileEditor(const QString &filePath, int role, QTabWidget *editorsTabWidget,
-               QAction *lineWrapAction, QWidget *parent = nullptr) noexcept;
+               QAction *lineWrapAction, QSpinBox *lineIndexSpinBox,
+               QWidget *parent = nullptr) noexcept;
 
     bool readFile() noexcept;
     bool reReadFile() noexcept;
