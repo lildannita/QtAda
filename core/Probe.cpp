@@ -154,32 +154,45 @@ void Probe::kill() noexcept
 
 void Probe::prepareScriptRunner(const std::optional<RunSettings> &runSettings) noexcept
 {
-    assert(QThread::currentThread() == qApp->thread());
+    assert(this->thread() == qApp->thread());
+    scriptThread_ = new QThread(this);
+    scriptRunner_ = new ScriptRunner(std::move(*runSettings));
+    scriptRunner_->moveToThread(scriptThread_);
 
-    auto *scriptRunner = new ScriptRunner(std::move(*runSettings));
-    connect(this, &Probe::objectCreated, scriptRunner, &ScriptRunner::registerObjectCreated,
+    connect(this, &Probe::objectCreated, scriptRunner_, &ScriptRunner::registerObjectCreated,
             Qt::DirectConnection);
-    connect(this, &Probe::objectDestroyed, scriptRunner, &ScriptRunner::registerObjectDestroyed,
+    connect(this, &Probe::objectDestroyed, scriptRunner_, &ScriptRunner::registerObjectDestroyed,
             Qt::DirectConnection);
-    connect(this, &Probe::objectReparented, scriptRunner, &ScriptRunner::registerObjectReparented,
+    connect(this, &Probe::objectReparented, scriptRunner_, &ScriptRunner::registerObjectReparented,
             Qt::DirectConnection);
-    connect(scriptRunner, &ScriptRunner::scriptError, inprocessController_.get(),
+    connect(scriptRunner_, &ScriptRunner::scriptError, inprocessController_.get(),
             &InprocessControllerReplica::sendScriptRunError);
-    connect(scriptRunner, &ScriptRunner::scriptLog, inprocessController_.get(),
+    connect(scriptRunner_, &ScriptRunner::scriptLog, inprocessController_.get(),
             &InprocessControllerReplica::sendScriptRunLog);
 
-    QThread *scriptThread = new QThread(this);
-    connect(scriptThread, &QThread::started, scriptRunner, &ScriptRunner::startScript);
-    connect(scriptThread, &QThread::finished, this, [this, scriptThread, scriptRunner] {
-        const auto exitCode = scriptRunner->exitCode();
-        assert(exitCode != -1);
-        scriptRunner->deleteLater();
-        scriptThread->deleteLater();
-        handleApplicationFinished(exitCode);
+    connect(scriptThread_, &QThread::started, scriptRunner_, &ScriptRunner::startScript);
+    connect(scriptRunner_, &ScriptRunner::aboutToClose, this, [this](int exitCode) {
+        assert(scriptThread_ != qApp->thread());
+        disconnect(this, &Probe::objectCreated, scriptRunner_, 0);
+        disconnect(this, &Probe::objectDestroyed, scriptRunner_, 0);
+        disconnect(this, &Probe::objectReparented, scriptRunner_, 0);
+
+        connect(scriptThread_, &QThread::finished, this, [this, exitCode] {
+            scriptRunner_->deleteLater();
+            handleApplicationFinished(exitCode);
+        });
+        scriptThread_->quit();
+
+        //! TODO: Вообще, получается так, что scriptRunner_ иногда удаляется и без явного
+        //! вызова, если мы дожидаемся его закрыти с помощью scriptThread_->wait(). Почему
+        //! так происходит - непонятно. Но по идее вызов этой функции и не нужен, так как
+        //! мы все равно закрываем приложение только после того, как поток завершит свою
+        //! работу. На текущий момент все работает правильно, утечек не обнаружено, но тем
+        //! не менее разобраться с scriptThread_->wait() нужно.
+        //! scriptThread_->wait();
     });
 
-    scriptRunner->moveToThread(scriptThread);
-    scriptThread->start();
+    scriptThread_->start();
 }
 
 void Probe::initProbe(const LaunchType launchType,

@@ -2,6 +2,11 @@ cmake_minimum_required(VERSION 3.17 FATAL_ERROR)
 
 project(QtAda)
 
+# Для проверки на утечки:
+# set(SANITIZE_FLAGS "-fsanitize=address -fno-omit-frame-pointer -g")
+# set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${SANITIZE_FLAGS}")
+# set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${SANITIZE_FLAGS}")
+
 set(QtAda_VERSION_MAJOR 0)
 set(QtAda_VERSION_MINOR 2)
 set(QtAda_VERSION_PATCH 0)

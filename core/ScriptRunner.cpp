@@ -81,6 +81,8 @@ void ScriptRunner::startScript() noexcept
     }
 
     QJSEngine engine;
+    auto qtAdaJsObj = engine.newQObject(this);
+    engine.globalObject().setProperty("QtAda", qtAdaJsObj);
     const auto runResult = engine.evaluate(scriptContent);
 
     if (runResult.isError()) {
@@ -100,7 +102,11 @@ void ScriptRunner::startScript() noexcept
 
 void ScriptRunner::finishThread(bool isOk) noexcept
 {
-    exitCode_ = isOk ? 0 : 1;
-    this->thread()->quit();
+    emit aboutToClose(isOk ? 0 : 1);
+}
+
+void ScriptRunner::mouseClick(const QString &path) noexcept
+{
+    std::cout << "path = " << path.toStdString() << std::endl << std::flush;
 }
 } // namespace QtAda::core

@@ -10,16 +10,15 @@ class ScriptRunner final : public QObject {
 public:
     ScriptRunner(const RunSettings &settings, QObject *parent = nullptr) noexcept;
 
-    int exitCode() const noexcept
-    {
-        return exitCode_;
-    }
+    Q_INVOKABLE void mouseClick(const QString &path) noexcept;
 
 signals:
     void scriptError(const QString &msg);
     //! TODO: пока не понятно, нужен ли этот сигнал,
     //! но скорее всего надо будет убрать
     void scriptLog(const QString &msg);
+
+    void aboutToClose(int exitCode);
 
 public slots:
     void startScript() noexcept;
@@ -29,16 +28,6 @@ public slots:
     void registerObjectReparented(QObject *obj) noexcept;
 
 private:
-    /*
-     * Приходится использовать отдельную переменную, так как
-     * хоть QThread и имеет метод `exit(int exitCode)`, но
-     * получить этот код возможности нет.
-     * (-1) - работа потока еще не завершена
-     * (1) - работа потока завершена с ошибкой
-     * (0) - работа потока завершена успешно
-     */
-    int exitCode_ = -1;
-
     std::map<const QString, QObject *> pathToObject_;
     std::map<const QObject *, QString> objectToPath_;
 
