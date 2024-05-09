@@ -15,13 +15,15 @@ public:
     ScriptRunner(const RunSettings &settings, QObject *parent = nullptr) noexcept;
 
     Q_INVOKABLE void verify(const QString &path, const QString &property,
-                            const QString &value) noexcept;
+                            const QString &value) const noexcept;
     Q_INVOKABLE void mouseClick(const QString &path, const QString &mouseButtonStr, int x,
-                                int y) noexcept;
+                                int y) const noexcept;
+    Q_INVOKABLE void checkButton(const QString &path, bool isChecked) const noexcept;
 
 signals:
-    void scriptError(const QString &msg);
-    void scriptLog(const QString &msg);
+    void scriptError(const QString &msg) const;
+    void scriptWarning(const QString &msg) const;
+    void scriptLog(const QString &msg) const;
 
     void aboutToClose(int exitCode);
 
@@ -39,7 +41,8 @@ private:
     const RunSettings runSettings_;
     QJSEngine *engine_ = nullptr;
 
-    QObject *findObjectByPath(const QString &path) noexcept;
+    QObject *findObjectByPath(const QString &path) const noexcept;
+    bool checkObjectAvailability(const QObject *object, const QString &path) const noexcept;
 
     void finishThread(bool isOk) noexcept;
 };

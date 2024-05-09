@@ -7,6 +7,7 @@
 #include <QFile>
 #include <QTextStream>
 #include <QJSEngine>
+#include <QQmlProperty>
 
 #include "utils/FilterUtils.hpp"
 #include "utils/Tools.hpp"
@@ -107,7 +108,7 @@ void ScriptRunner::finishThread(bool isOk) noexcept
     emit aboutToClose(isOk ? 0 : 1);
 }
 
-QObject *ScriptRunner::findObjectByPath(const QString &path) noexcept
+QObject *ScriptRunner::findObjectByPath(const QString &path) const noexcept
 {
     QElapsedTimer timer;
     timer.start();
@@ -141,8 +142,24 @@ QObject *ScriptRunner::findObjectByPath(const QString &path) noexcept
     return nullptr;
 }
 
+bool ScriptRunner::checkObjectAvailability(const QObject *object,
+                                           const QString &path) const noexcept
+{
+    if (!utils::getFromVariant<bool>(QQmlProperty::read(object, "enabled"))) {
+        emit scriptWarning(
+            QStringLiteral("'%1': action on object ignored due to its disabled state").arg(path));
+        return false;
+    }
+    else if (!utils::getFromVariant<bool>(QQmlProperty::read(object, "visible"))) {
+        emit scriptWarning(
+            QStringLiteral("'%1': action on object ignored due to its invisibility").arg(path));
+        return false;
+    }
+    return true;
+}
+
 void ScriptRunner::verify(const QString &path, const QString &property,
-                          const QString &value) noexcept
+                          const QString &value) const noexcept
 {
     auto *object = findObjectByPath(path);
 
@@ -194,7 +211,7 @@ void ScriptRunner::verify(const QString &path, const QString &property,
 }
 
 void ScriptRunner::mouseClick(const QString &path, const QString &mouseButtonStr, int x,
-                              int y) noexcept
+                              int y) const noexcept
 {
     auto *object = findObjectByPath(path);
     const auto mouseButton = utils::mouseButtonFromString(mouseButtonStr);
@@ -211,5 +228,37 @@ void ScriptRunner::mouseClick(const QString &path, const QString &mouseButtonStr
 
     QGuiApplication::postEvent(object, pressEvent);
     QGuiApplication::postEvent(object, releaseEvent);
+
+    //! TODO: желательно отправлять события аналогично тому, как работает
+    //! QMetaObject::invokeMethod(..., Qt::BlockingQueuedConnection);
+    //! чтобы точно все "события" выполнялись по очереди. Но пока непонятно
+    //! как это делать с обычными событиями, поэтому используем небольшую
+    //! задержку:
+    QThread::msleep(10);
+}
+
+void ScriptRunner::checkButton(const QString &path, bool isChecked) const noexcept
+{
+    auto *object = findObjectByPath(path);
+
+    if (!object->inherits("QAbstractButton") && !object->inherits("QQuickAbstractButton")) {
+        engine_->throwError(QStringLiteral("'%1': is not a button").arg(path));
+    }
+    if (!utils::getFromVariant<bool>(QQmlProperty::read(object, "checkable"))) {
+        engine_->throwError(QStringLiteral("'%1': button is not checkable").arg(path));
+    }
+
+    if (!checkObjectAvailability(object, path)) {
+        return;
+    }
+
+    if (utils::getFromVariant<bool>(QQmlProperty::read(object, "checked")) == isChecked) {
+        emit scriptWarning(
+            QStringLiteral("'%1': button already has state %2").arg(isChecked ? "true" : "false"));
+    }
+    else {
+        bool ok = QMetaObject::invokeMethod(object, "toggle", Qt::BlockingQueuedConnection);
+        assert(ok == true);
+    }
 }
 } // namespace QtAda::core
