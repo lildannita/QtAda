@@ -130,11 +130,6 @@ static QString qButtonsFilter(const QWidget *widget, const QMouseEvent *event,
         }
     }
 
-    auto clickType = [rectContains, event] {
-        return rectContains ? (event->type() == QEvent::MouseButtonDblClick ? "DblClick" : "Click")
-                            : "Press";
-    };
-
     auto *button = qobject_cast<const QAbstractButton *>(currentWidget);
     assert(button != nullptr);
     // Для QRadioButton, хоть он и checkable, нам это не важно, так как сколько по нему не кликай,
@@ -144,32 +139,15 @@ static QString qButtonsFilter(const QWidget *widget, const QMouseEvent *event,
     // Во время события Release состояние checked еще не поменяется, поэтому инвертируем значение
     const auto isChecked = !button->isChecked();
     const auto buttonText = button->text();
+    const auto buttonPath = utils::objectPath(currentWidget);
 
     if (rectContains && isCheckable) {
-        const auto buttonPath = utils::objectPath(currentWidget);
-        auto generate = [buttonPath, buttonText](bool isChecked) {
-            return QStringLiteral("checkButton('%1', %2);%3")
-                .arg(buttonPath)
-                .arg(isChecked ? "true" : "false")
-                .arg(buttonText.isEmpty()
-                         ? ""
-                         : QStringLiteral(" // Button text: '%1'").arg(buttonText.simplified()));
-        };
-
-        if (event->type() == QEvent::MouseButtonDblClick) {
-            return QStringLiteral("%1\n%2").arg(generate(!isChecked)).arg(generate(isChecked));
-        }
-        else {
-            return generate(isChecked);
-        }
+        return checkButtonCommand(buttonPath, isChecked,
+                                  event->type() == QEvent::MouseButtonDblClick, buttonText);
     }
-
-    return QStringLiteral("button%1('%2');%3")
-        .arg(clickType())
-        .arg(utils::objectPath(currentWidget))
-        .arg(buttonText.isEmpty()
-                 ? ""
-                 : QStringLiteral(" // Button text: '%1'").arg(buttonText.simplified()));
+    else {
+        return buttonEventCommand(buttonPath, event, rectContains, buttonText);
+    }
 }
 
 static QString qComboBoxFilter(const QWidget *widget, const QMouseEvent *event,

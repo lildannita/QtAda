@@ -81,18 +81,13 @@ static QString qButtonsFilter(const QQuickItem *item, const QMouseEvent *event,
     }
     assert(currentItem != nullptr);
 
+    const auto buttonPath = utils::objectPath(currentItem);
     const auto buttonRect = currentItem->boundingRect();
     const auto clickPos = currentItem->mapFromGlobal(event->globalPos());
     const auto rectContains = buttonRect.contains(clickPos);
-    auto clickType = [rectContains, event] {
-        return rectContains ? (event->type() == QEvent::MouseButtonDblClick ? "DblClick" : "Click")
-                            : "Press";
-    };
 
     if (currentClass == QuickClass::MouseArea) {
-        return QStringLiteral("mouseArea%1('%2');")
-            .arg(clickType())
-            .arg(utils::objectPath(currentItem));
+        return mouseAreaEventCommand(buttonPath, event, rectContains);
     }
 
     // Для RadioButton и TabButton, хоть они и checkable, нам это не важно,
@@ -106,30 +101,12 @@ static QString qButtonsFilter(const QQuickItem *item, const QMouseEvent *event,
     const auto buttonText = utils::getFromVariant<QString>(QQmlProperty::read(currentItem, "text"));
 
     if (rectContains && isCheckable) {
-        const auto buttonPath = utils::objectPath(currentItem);
-        auto generate = [buttonPath, buttonText](bool isChecked) {
-            return QStringLiteral("checkButton('%1', %2);%3")
-                .arg(buttonPath)
-                .arg(isChecked ? "true" : "false")
-                .arg(buttonText.isEmpty()
-                         ? ""
-                         : QStringLiteral(" // Button text: '%1'").arg(buttonText.simplified()));
-        };
-
-        if (event->type() == QEvent::MouseButtonDblClick) {
-            return QStringLiteral("%1\n%2").arg(generate(!isChecked)).arg(generate(isChecked));
-        }
-        else {
-            return generate(isChecked);
-        }
+        return checkButtonCommand(buttonPath, isChecked,
+                                  event->type() == QEvent::MouseButtonDblClick, buttonText);
     }
-
-    return QStringLiteral("button%1('%2');%3")
-        .arg(clickType())
-        .arg(utils::objectPath(currentItem))
-        .arg(buttonText.isEmpty()
-                 ? ""
-                 : QStringLiteral(" // Button text: '%1'").arg(buttonText.simplified()));
+    else {
+        return buttonEventCommand(buttonPath, event, rectContains, buttonText);
+    }
 }
 
 static QString qDelayButtonFilter(const QQuickItem *item, const QMouseEvent *event,

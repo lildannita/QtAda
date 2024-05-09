@@ -28,9 +28,9 @@ set(core_HDRS
   ProbeGuard.hpp
   ProcessedObjects.hpp
   LastEvent.hpp
-  utils/Tools.hpp
+  utils/FilterUtils.hpp
   utils/CommonFilters.hpp
-  utils/FilterUtils.hpp)
+  utils/Tools.hpp)
 set(core_SRCS
 # MetaObjectHandler.cpp
   Probe.cpp
@@ -42,6 +42,7 @@ set(core_SRCS
   UserVerificationFilter.cpp
   ScriptRunner.cpp
   utils/FilterUtils.cpp
+  utils/CommonFilters.cpp
   utils/Tools.cpp)
 qt5_wrap_cpp(gen_SRCS ${core_MOC_HDRS})
 

@@ -55,7 +55,8 @@ QString qKeyEventHandler(const GuiComponent *component, const QEvent *event,
     }
 
     const auto eventText = keyEvent->text();
-    return QStringLiteral("keyEvent('%1', '%2');")
+    return QStringLiteral("%1keyEvent('%2', '%3');")
+        .arg(SCRIPT_COMMAND_PREFIX)
         .arg(path.isEmpty() ? utils::objectPath(component) : path)
         .arg(eventText.isEmpty() ? utils::keyToString(keyEvent->key())
                                  : utils::escapeText(eventText));
@@ -70,9 +71,17 @@ inline QString qWheelEventHandler(const QObject *obj, const QEvent *event,
     }
 
     const auto delta = wheelEvent->pixelDelta();
-    return QStringLiteral("wheelEvent('%1', %2, %3);")
+    return QStringLiteral("%1wheelEvent('%2', %3, %4);")
+        .arg(SCRIPT_COMMAND_PREFIX)
         .arg(path.isEmpty() ? utils::objectPath(obj) : path)
         .arg(delta.x())
         .arg(delta.y());
 }
+
+QString buttonEventCommand(const QString &path, const QEvent *event, bool isReleaseInside,
+                           const QString &buttonText = QString()) noexcept;
+QString mouseAreaEventCommand(const QString &path, const QEvent *event,
+                              bool isReleaseInside) noexcept;
+QString checkButtonCommand(const QString &path, bool isChecked, bool isDoubleCheck,
+                           const QString &buttonText = QString()) noexcept;
 } // namespace QtAda::core::filters
