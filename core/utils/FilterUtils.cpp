@@ -55,7 +55,13 @@ static uint objectIndexInObjectList(const QObject *obj, const QObjectList &child
 
 static QString metaObjectId(const QObject *obj) noexcept
 {
-    const QString metaObjName = obj->metaObject()->className();
+    //! TODO: В className() для классов, созданных в QML, автоматически устанавливается
+    //! суффикс "QMLTYPE_{число}" (это примерно то, что мы и делаем при нахождении objectPath),
+    //! но проблема в том, что это число - не постоянная величина (особенно это видно со
+    //! "специфическими" надстройками над графической оболочкой). Поэтому при запуске скриптов
+    //! могут быть проблемы. В связи с этим решено пока что убирать этот суффикс, если он есть.
+    const QString metaObjName = QString(obj->metaObject()->className())
+                                    .remove(QRegularExpression("(?<=.)_QMLTYPE_\\d+$"));
     const auto *parent = obj->parent();
     return QString("%1_%2")
         .arg(metaObjName)
@@ -64,7 +70,7 @@ static QString metaObjectId(const QObject *obj) noexcept
 
 static QString objectId(const QObject *obj) noexcept
 {
-    const QString objName = obj->objectName();
+    const auto objName = obj->objectName();
     const auto *parent = obj->parent();
     return QString("%1_%2").arg(objName).arg(
         parent ? objectIndexInObjectList(obj, parent->children()) : 0);
