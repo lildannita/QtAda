@@ -1,6 +1,7 @@
 #pragma once
 
 #include <QObject>
+#include <QEvent>
 
 #include "Settings.hpp"
 
@@ -18,6 +19,12 @@ public:
                             const QString &value) const noexcept;
     Q_INVOKABLE void mouseClick(const QString &path, const QString &mouseButtonStr, int x,
                                 int y) const noexcept;
+    Q_INVOKABLE void buttonClick(const QString &path) const noexcept;
+    Q_INVOKABLE void buttonDblClick(const QString &path) const noexcept;
+    Q_INVOKABLE void buttonPress(const QString &path) const noexcept;
+    Q_INVOKABLE void mouseAreaClick(const QString &path) const noexcept;
+    Q_INVOKABLE void mouseAreaDblClick(const QString &path) const noexcept;
+    Q_INVOKABLE void mouseAreaPress(const QString &path) const noexcept;
     Q_INVOKABLE void checkButton(const QString &path, bool isChecked) const noexcept;
 
 signals:
@@ -43,6 +50,8 @@ private:
 
     QObject *findObjectByPath(const QString &path) const noexcept;
     bool checkObjectAvailability(const QObject *object, const QString &path) const noexcept;
+    void mouseAreaEventTemplate(const QString &path,
+                                const std::vector<QEvent::Type> events) const noexcept;
 
     void finishThread(bool isOk) noexcept;
 };

@@ -13,6 +13,12 @@
 #include "utils/Tools.hpp"
 
 namespace QtAda::core {
+static QMouseEvent *simpleMouseEvent(const QEvent::Type type, const QPoint &pos,
+                                     const Qt::MouseButton button = Qt::LeftButton) noexcept
+{
+    return new QMouseEvent(type, pos, button, button, Qt::NoModifier);
+}
+
 ScriptRunner::ScriptRunner(const RunSettings &settings, QObject *parent) noexcept
     : QObject{ parent }
     , runSettings_{ settings }
@@ -170,6 +176,7 @@ void ScriptRunner::verify(const QString &path, const QString &property,
     const auto propertyIndex = metaObject->indexOfProperty(qPrintable(property));
     if (propertyIndex == -1) {
         engine_->throwError(QStringLiteral("Unknown meta-property name: '%1'").arg(property));
+        return;
     }
 
     const auto attempts = runSettings_.verifyAttempts;
@@ -203,6 +210,7 @@ void ScriptRunner::verify(const QString &path, const QString &property,
                                     .arg(currentValue)
                                     .arg(attempts)
                                     .arg(interval));
+            return;
         }
         else {
             QThread::msleep(interval);
@@ -221,13 +229,10 @@ void ScriptRunner::mouseClick(const QString &path, const QString &mouseButtonStr
     }
 
     const auto pos = QPoint(x, y);
-    auto *pressEvent = new QMouseEvent(QEvent::MouseButtonPress, pos, *mouseButton, *mouseButton,
-                                       Qt::NoModifier);
-    auto *releaseEvent = new QMouseEvent(QEvent::MouseButtonRelease, pos, *mouseButton,
-                                         *mouseButton, Qt::NoModifier);
-
-    QGuiApplication::postEvent(object, pressEvent);
-    QGuiApplication::postEvent(object, releaseEvent);
+    QGuiApplication::postEvent(object,
+                               simpleMouseEvent(QEvent::MouseButtonPress, pos, *mouseButton));
+    QGuiApplication::postEvent(object,
+                               simpleMouseEvent(QEvent::MouseButtonRelease, pos, *mouseButton));
 
     //! TODO: желательно отправлять события аналогично тому, как работает
     //! QMetaObject::invokeMethod(..., Qt::BlockingQueuedConnection);
@@ -235,6 +240,139 @@ void ScriptRunner::mouseClick(const QString &path, const QString &mouseButtonStr
     //! как это делать с обычными событиями, поэтому используем небольшую
     //! задержку:
     QThread::msleep(10);
+    //! UPD: Можно определить собственный класс под такие события, который при
+    //! "реализации" события, остановит QEventLoop, который был бы запущен сразу
+    //! после очередного postEvent.
+}
+
+/*
+ * На удивление, ситуация для воспроизведения нажатий, обратная обработке нажатий
+ * (см. UserEventFilter::eventFilter).
+ *
+ * Примечание: для обычного Click в Quick и Widgets нужно в любом случае повторять цикл
+ * P -> R, так как события Click не существует, ну или просто использовать метод toggle()
+ * (но его нет для MouseArea в QML).
+ *
+ * В QML максимально просто можно эмулировать нужное нажатие на кнопку - нужно просто отправить
+ * нужное событие.
+ *
+ * В QtWidgets для воспроизведения любого типа нажатия нужно воспроизвести полный цикл событий,
+ * которые происходят "в оригинале" при генерации воспроизводимого события в GUI:
+ *      1) Для DoubleClick: P -> R -> D -> R
+ *      2) Для Press: P -> R-(вне области элемента)
+ * В противном случае GUI не воспримет отправляемое событие или заблокирует обработку событий.
+ */
+
+void ScriptRunner::buttonClick(const QString &path) const noexcept
+{
+    auto *object = findObjectByPath(path);
+    if (!object->inherits("QAbstractButton") && !object->inherits("QQuickAbstractButton")) {
+        engine_->throwError(QStringLiteral("'%1': is not a button").arg(path));
+        return;
+    }
+    if (!checkObjectAvailability(object, path)) {
+        return;
+    }
+
+    bool ok = QMetaObject::invokeMethod(object, "toggle", Qt::BlockingQueuedConnection);
+    assert(ok == true);
+}
+
+void ScriptRunner::buttonDblClick(const QString &path) const noexcept
+{
+    auto *object = findObjectByPath(path);
+    const auto isWidgetButton = object->inherits("QAbstractButton");
+    const auto isQuickButton = object->inherits("QQuickAbstractButton");
+
+    if (!isWidgetButton && !isQuickButton) {
+        engine_->throwError(QStringLiteral("'%1': is not a button").arg(path));
+        return;
+    }
+    if (!checkObjectAvailability(object, path)) {
+        return;
+    }
+
+    const auto height = utils::getFromVariant<double>(QQmlProperty::read(object, "height"));
+    const auto width = utils::getFromVariant<double>(QQmlProperty::read(object, "width"));
+    const auto pos = QPoint(width / 2, height / 2);
+    if (isQuickButton) {
+        QGuiApplication::postEvent(object, simpleMouseEvent(QEvent::MouseButtonDblClick, pos));
+    }
+    else if (isWidgetButton) {
+        QGuiApplication::postEvent(object, simpleMouseEvent(QEvent::MouseButtonPress, pos));
+        QGuiApplication::postEvent(object, simpleMouseEvent(QEvent::MouseButtonRelease, pos));
+        QGuiApplication::postEvent(object, simpleMouseEvent(QEvent::MouseButtonDblClick, pos));
+        QGuiApplication::postEvent(object, simpleMouseEvent(QEvent::MouseButtonRelease, pos));
+    }
+    else {
+        Q_UNREACHABLE();
+    }
+}
+
+void ScriptRunner::buttonPress(const QString &path) const noexcept
+{
+    auto *object = findObjectByPath(path);
+    const auto isWidgetButton = object->inherits("QAbstractButton");
+    const auto isQuickButton = object->inherits("QQuickAbstractButton");
+
+    if (!isWidgetButton && !isQuickButton) {
+        engine_->throwError(QStringLiteral("'%1': is not a button").arg(path));
+        return;
+    }
+    if (!checkObjectAvailability(object, path)) {
+        return;
+    }
+
+    const auto height = utils::getFromVariant<double>(QQmlProperty::read(object, "height"));
+    const auto width = utils::getFromVariant<double>(QQmlProperty::read(object, "width"));
+    const auto pos = QPoint(width / 2, height / 2);
+    if (isQuickButton) {
+        QGuiApplication::postEvent(object, simpleMouseEvent(QEvent::MouseButtonPress, pos));
+    }
+    else if (isWidgetButton) {
+        QGuiApplication::postEvent(object, simpleMouseEvent(QEvent::MouseButtonPress, pos));
+        QGuiApplication::postEvent(object,
+                                   simpleMouseEvent(QEvent::MouseButtonRelease, QPoint(-10, -10)));
+    }
+    else {
+        Q_UNREACHABLE();
+    }
+}
+
+void ScriptRunner::mouseAreaEventTemplate(const QString &path,
+                                          const std::vector<QEvent::Type> events) const noexcept
+{
+    auto *object = findObjectByPath(path);
+
+    if (!object->inherits("QQuickMouseArea")) {
+        engine_->throwError(QStringLiteral("'%1': is not a mouse area").arg(path));
+        return;
+    }
+    if (!checkObjectAvailability(object, path)) {
+        return;
+    }
+
+    const auto height = utils::getFromVariant<double>(QQmlProperty::read(object, "height"));
+    const auto width = utils::getFromVariant<double>(QQmlProperty::read(object, "width"));
+    const auto pos = QPoint(width / 2, height / 2);
+    for (const auto &event : events) {
+        QGuiApplication::postEvent(object, simpleMouseEvent(event, pos));
+    }
+}
+
+void ScriptRunner::mouseAreaClick(const QString &path) const noexcept
+{
+    mouseAreaEventTemplate(path, { QEvent::MouseButtonPress, QEvent::MouseButtonRelease });
+}
+
+void ScriptRunner::mouseAreaDblClick(const QString &path) const noexcept
+{
+    mouseAreaEventTemplate(path, { QEvent::MouseButtonDblClick });
+}
+
+void ScriptRunner::mouseAreaPress(const QString &path) const noexcept
+{
+    mouseAreaEventTemplate(path, { QEvent::MouseButtonPress });
 }
 
 void ScriptRunner::checkButton(const QString &path, bool isChecked) const noexcept
@@ -243,9 +381,11 @@ void ScriptRunner::checkButton(const QString &path, bool isChecked) const noexce
 
     if (!object->inherits("QAbstractButton") && !object->inherits("QQuickAbstractButton")) {
         engine_->throwError(QStringLiteral("'%1': is not a button").arg(path));
+        return;
     }
     if (!utils::getFromVariant<bool>(QQmlProperty::read(object, "checkable"))) {
         engine_->throwError(QStringLiteral("'%1': button is not checkable").arg(path));
+        return;
     }
 
     if (!checkObjectAvailability(object, path)) {
@@ -261,4 +401,5 @@ void ScriptRunner::checkButton(const QString &path, bool isChecked) const noexce
         assert(ok == true);
     }
 }
+
 } // namespace QtAda::core
