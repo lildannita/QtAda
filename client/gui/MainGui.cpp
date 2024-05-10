@@ -221,6 +221,9 @@ MainGui::MainGui(const QString &projectPath, QWidget *parent)
 
     connect(ui->lineIndexFromScriptButton, &QPushButton::clicked, this, [this] {
         assert(lastScriptEditor_ != nullptr);
+        //! TODO: временный костыль, позже нужно будет переделать логику
+        //! получения "текущего" индекса строки
+        lastScriptEditor_->saveFile();
         const auto lineNumber = lastScriptEditor_->lastHighlitedLine();
         assert(lineNumber <= ui->lineIndexSpinBox->maximum());
         ui->lineIndexSpinBox->setValue(lineNumber);
