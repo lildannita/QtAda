@@ -29,6 +29,7 @@ public:
     Q_INVOKABLE void selectItem(const QString &path, int index) const noexcept;
     Q_INVOKABLE void selectItem(const QString &path, const QString &text) const noexcept;
     Q_INVOKABLE void selectItem(const QString &path, const QString &text, int index) const noexcept;
+    Q_INVOKABLE void changeValue(const QString &path, const QString &type) const noexcept;
 
 signals:
     void scriptError(const QString &msg) const;

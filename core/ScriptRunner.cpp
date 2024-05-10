@@ -534,4 +534,105 @@ void ScriptRunner::selectItem(const QString &path, const QString &text, int inde
 {
     selectItemTemplate(path, index, text, TextIndexBehavior::TextIndex);
 }
+
+void ScriptRunner::changeValue(const QString &path, const QString &type) const noexcept
+{
+    auto *object = findObjectByPath(path);
+    const auto changeType = utils::changeTypeFromString(type);
+    if (!changeType.has_value()) {
+        engine_->throwError(QStringLiteral("Unknown change type: '%1'").arg(type));
+        return;
+    }
+
+    const auto isWidgetSlider = object->inherits("QAbstractSlider");
+    const auto isWidgetSpinBox = object->inherits("QSpinBox") || object->inherits("QDoubleSpinBox");
+    const auto isQuickSpinBox = object->inherits("QQuickSpinBox");
+    if (!isWidgetSlider && !isWidgetSpinBox && !isQuickSpinBox) {
+        engine_->throwError(
+            QStringLiteral("'%1': this function doesn't support such an object").arg(path));
+        return;
+    }
+    if (!checkObjectAvailability(object, path)) {
+        return;
+    }
+
+    if (isWidgetSlider) {
+        bool isSliderType = true;
+        auto value = utils::getFromVariant<int>(QQmlProperty::read(object, "value"));
+
+        switch (*changeType) {
+        case ChangeType::Up:
+        case ChangeType::Down:
+        case ChangeType::SingleStepAdd:
+        case ChangeType::SingleStepSub: {
+            const auto singleStep
+                = utils::getFromVariant<int>(QQmlProperty::read(object, "singleStep"));
+            value += (singleStep
+                      * ((*changeType == ChangeType::Up || *changeType == ChangeType::SingleStepAdd)
+                             ? 1
+                             : -1));
+            break;
+        }
+        case ChangeType::PageStepAdd:
+        case ChangeType::PageStepSub: {
+            const auto pageStep
+                = utils::getFromVariant<int>(QQmlProperty::read(object, "pageStep"));
+            value += pageStep * (*changeType == ChangeType::PageStepAdd ? 1 : -1);
+            break;
+        }
+        case ChangeType::ToMinimum: {
+            value = utils::getFromVariant<int>(QQmlProperty::read(object, "minimum"));
+            break;
+        }
+        case ChangeType::ToMaximum: {
+            value = utils::getFromVariant<int>(QQmlProperty::read(object, "maximum"));
+            break;
+        }
+        default:
+            Q_UNREACHABLE();
+        }
+
+        bool ok = QMetaObject::invokeMethod(object, "setValue", Qt::BlockingQueuedConnection,
+                                            Q_ARG(int, value));
+        assert(ok == true);
+        return;
+    }
+
+    auto up = [&] {
+        assert(isWidgetSpinBox == true || isQuickSpinBox == true);
+        bool ok = QMetaObject::invokeMethod(object, isWidgetSpinBox ? "stepUp" : "increase",
+                                            Qt::BlockingQueuedConnection);
+        assert(ok == true);
+    };
+    auto down = [&] {
+        assert(isWidgetSpinBox == true || isQuickSpinBox == true);
+        bool ok = QMetaObject::invokeMethod(object, isWidgetSpinBox ? "stepDown" : "decrease",
+                                            Qt::BlockingQueuedConnection);
+        assert(ok == true);
+    };
+
+    switch (*changeType) {
+    case ChangeType::Up: {
+        up();
+        break;
+    }
+    case ChangeType::DblUp: {
+        up();
+        up();
+        break;
+    }
+    case ChangeType::Down: {
+        down();
+        break;
+    }
+    case ChangeType::DblDown: {
+        down();
+        down();
+        break;
+    }
+    default:
+        engine_->throwError(
+            QStringLiteral("'%1': this object doesn't support such a change type").arg(path));
+    }
+}
 } // namespace QtAda::core

@@ -78,6 +78,16 @@ inline QString qWheelEventHandler(const QObject *obj, const QEvent *event,
         .arg(delta.y());
 }
 
+template <typename GuiComponent>
+inline QString changeValueStatement(const GuiComponent *component, const QString &type) noexcept
+{
+    CHECK_GUI_CLASS(GuiComponent);
+    return QStringLiteral("%1changeValue('%2', '%3');")
+        .arg(SCRIPT_COMMAND_PREFIX)
+        .arg(utils::objectPath(component))
+        .arg(type);
+}
+
 QString buttonEventCommand(const QString &path, const QEvent *event, bool isReleaseInside,
                            const QString &buttonText = QString()) noexcept;
 QString mouseAreaEventCommand(const QString &path, const QEvent *event,

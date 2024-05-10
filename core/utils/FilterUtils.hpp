@@ -10,6 +10,21 @@ QT_BEGIN_NAMESPACE
 class QItemSelectionModel;
 QT_END_NAMESPACE
 
+namespace QtAda::core {
+enum class ChangeType {
+    Up = 0,
+    DblUp,
+    Down,
+    DblDown,
+    SingleStepAdd,
+    SingleStepSub,
+    PageStepAdd,
+    PageStepSub,
+    ToMinimum,
+    ToMaximum,
+};
+}
+
 namespace QtAda::core::utils {
 QString objectPath(const QObject *obj) noexcept;
 template <typename GuiComponent> QString objectPath(const GuiComponent *component) noexcept
@@ -26,8 +41,10 @@ inline QString keyToString(const int key) noexcept
 {
     return QKeySequence(static_cast<Qt::Key>(key)).toString();
 }
+QString changeTypeToString(const ChangeType type) noexcept;
 
 std::optional<Qt::MouseButton> mouseButtonFromString(const QString &mouseButton) noexcept;
+std::optional<ChangeType> changeTypeFromString(const QString &changeType) noexcept;
 
 template <typename GuiComponent>
 bool mouseEventCanBeFiltered(const GuiComponent *component, const QMouseEvent *event,
@@ -106,12 +123,6 @@ inline QString setValueStatement(const GuiComponent *component, const QString &v
 {
     CHECK_GUI_CLASS(GuiComponent);
     return QStringLiteral("setValue('%1', '%2');").arg(objectPath(component), value);
-}
-template <typename GuiComponent>
-inline QString changeValueStatement(const GuiComponent *component, const QString &type) noexcept
-{
-    CHECK_GUI_CLASS(GuiComponent);
-    return QStringLiteral("changeValue('%1', '%2');").arg(objectPath(component), type);
 }
 
 template <typename T, typename GuiComponent, typename Signal, typename Slot>

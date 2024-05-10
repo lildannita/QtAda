@@ -224,17 +224,17 @@ static QString qSliderFilter(const QWidget *widget, const QMouseEvent *event,
     //! если нет - то убрать эти типы из проверки
     switch (*extra.changeType) {
     case QAbstractSlider::SliderSingleStepAdd:
-        return utils::changeValueStatement(widget, "SingleStepAdd");
+        return changeValueStatement(widget, utils::changeTypeToString(ChangeType::SingleStepAdd));
     case QAbstractSlider::SliderSingleStepSub:
-        return utils::changeValueStatement(widget, "SingleStepSub");
+        return changeValueStatement(widget, utils::changeTypeToString(ChangeType::SingleStepSub));
     case QAbstractSlider::SliderPageStepAdd:
-        return utils::changeValueStatement(widget, "PageStepAdd");
+        return changeValueStatement(widget, utils::changeTypeToString(ChangeType::PageStepAdd));
     case QAbstractSlider::SliderPageStepSub:
-        return utils::changeValueStatement(widget, "PageStepSub");
+        return changeValueStatement(widget, utils::changeTypeToString(ChangeType::PageStepSub));
     case QAbstractSlider::SliderToMinimum:
-        return utils::changeValueStatement(widget, "ToMinimum");
+        return changeValueStatement(widget, utils::changeTypeToString(ChangeType::ToMinimum));
     case QAbstractSlider::SliderToMaximum:
-        return utils::changeValueStatement(widget, "ToMaximum");
+        return changeValueStatement(widget, utils::changeTypeToString(ChangeType::ToMaximum));
     case QAbstractSlider::SliderMove:
         return utils::setValueStatement(widget, slider->value());
     }
@@ -266,18 +266,17 @@ static QString qSpinBoxFilter(const QWidget *widget, const QMouseEvent *event,
     if (!extra.isContinuous) {
         const QRect upButtonRect(0, 0, widget->width(), widget->height() / 2);
         const QRect downButtonRect(0, widget->height() / 2, widget->width(), widget->height() / 2);
-        auto generate = [&](const QLatin1String &type) {
-            return utils::changeValueStatement(
-                widget, QStringLiteral("%1%2")
-                            .arg(event->type() == QEvent::MouseButtonDblClick ? "Dbl" : "")
-                            .arg(type));
-        };
-
         if (upButtonRect.contains(event->pos())) {
-            return generate(QLatin1String("Up"));
+            return changeValueStatement(
+                widget, utils::changeTypeToString(event->type() == QEvent::MouseButtonDblClick
+                                                      ? ChangeType::DblUp
+                                                      : ChangeType::Up));
         }
         else if (downButtonRect.contains(event->pos())) {
-            return generate(QLatin1String("Down"));
+            return changeValueStatement(
+                widget, utils::changeTypeToString(event->type() == QEvent::MouseButtonDblClick
+                                                      ? ChangeType::DblDown
+                                                      : ChangeType::Down));
         }
     }
 

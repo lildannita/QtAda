@@ -18,6 +18,19 @@ static const std::pair<Qt::MouseButton, QLatin1String> s_mouseButtons[] = {
     { Qt::ForwardButton, QLatin1String("Qt::ForwardButton") },
 };
 
+static const std::pair<ChangeType, QLatin1String> s_changeTypes[] = {
+    { ChangeType::Up, QLatin1String("Up") },
+    { ChangeType::DblUp, QLatin1String("DblUp") },
+    { ChangeType::Down, QLatin1String("Down") },
+    { ChangeType::DblDown, QLatin1String("DblDown") },
+    { ChangeType::SingleStepAdd, QLatin1String("SingleStepAdd") },
+    { ChangeType::SingleStepSub, QLatin1String("SingleStepSub") },
+    { ChangeType::PageStepAdd, QLatin1String("PageStepAdd") },
+    { ChangeType::PageStepSub, QLatin1String("PageStepSub") },
+    { ChangeType::ToMinimum, QLatin1String("ToMinimum") },
+    { ChangeType::ToMaximum, QLatin1String("ToMaximum") },
+};
+
 static const std::vector<std::pair<char, QString>> s_escapeReplacements
     = { { '\n', "\\n" }, { '\r', "\\r" }, { '\t', "\\t" }, { '\v', "\\v" } };
 
@@ -200,5 +213,25 @@ QString treeIndexPath(const QModelIndex &index) noexcept
         current = current.parent();
     }
     return QStringLiteral("[%1]").arg(path.join(", "));
+}
+
+QString changeTypeToString(const ChangeType type) noexcept
+{
+    for (const auto &pair : s_changeTypes) {
+        if (pair.first == type) {
+            return pair.second;
+        }
+    }
+    return QLatin1String("<unknown>");
+}
+
+std::optional<ChangeType> changeTypeFromString(const QString &changeType) noexcept
+{
+    for (const auto &pair : s_changeTypes) {
+        if (pair.second == changeType) {
+            return pair.first;
+        }
+    }
+    return std::nullopt;
 }
 } // namespace QtAda::core::utils

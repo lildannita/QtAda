@@ -214,19 +214,17 @@ static QString qSpinBoxFilter(const QQuickItem *item, const QMouseEvent *event,
         const auto upHovered = utils::getFromVariant<bool>(QQmlProperty::read(item, "up.hovered"));
         const auto downHovered
             = utils::getFromVariant<bool>(QQmlProperty::read(item, "down.hovered"));
-
-        auto generate = [&](const QLatin1String &type) {
-            return utils::changeValueStatement(
-                item, QStringLiteral("%1%2")
-                          .arg(event->type() == QEvent::MouseButtonDblClick ? "Dbl" : "")
-                          .arg(type));
-        };
-
         if (upHovered) {
-            return generate(QLatin1String("Up"));
+            return changeValueStatement(
+                item, utils::changeTypeToString(event->type() == QEvent::MouseButtonDblClick
+                                                    ? ChangeType::DblUp
+                                                    : ChangeType::Up));
         }
         else if (downHovered) {
-            return generate(QLatin1String("Down"));
+            return changeValueStatement(
+                item, utils::changeTypeToString(event->type() == QEvent::MouseButtonDblClick
+                                                    ? ChangeType::DblDown
+                                                    : ChangeType::Down));
         }
     }
 
