@@ -58,4 +58,12 @@ QString selectItemCommand(const QString &path, const QString &statement) noexcep
         .arg(path)
         .arg(statement);
 }
+
+QString setDelayProgressCommand(const QString &path, double progress) noexcept
+{
+    return QStringLiteral("%1setDelayProgress('%2', %3);")
+        .arg(SCRIPT_COMMAND_PREFIX)
+        .arg(path)
+        .arg(progress);
+}
 } // namespace QtAda::core::filters

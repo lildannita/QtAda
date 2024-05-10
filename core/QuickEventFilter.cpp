@@ -125,11 +125,9 @@ static QString qDelayButtonFilter(const QQuickItem *item, const QMouseEvent *eve
     const auto buttonRect = item->boundingRect();
     const auto clickPos = item->mapFromGlobal(event->globalPos());
     if (buttonRect.contains(clickPos)) {
-        const auto buttonProgress
-            = utils::getFromVariant<double>(QQmlProperty::read(item, "progress"));
-        return QStringLiteral("setDelayProgress('%1', %2);")
-            .arg(utils::objectPath(item))
-            .arg(buttonProgress);
+        return setDelayProgressCommand(
+            utils::objectPath(item),
+            utils::getFromVariant<double>(QQmlProperty::read(item, "progress")));
     }
 
     return qMouseEventHandler(item, event);

@@ -117,4 +117,5 @@ QString mouseAreaEventCommand(const QString &path, const QEvent *event,
 QString checkButtonCommand(const QString &path, bool isChecked, bool isDoubleCheck,
                            const QString &buttonText = QString()) noexcept;
 QString selectItemCommand(const QString &path, const QString &statement) noexcept;
+QString setDelayProgressCommand(const QString &path, double progress) noexcept;
 } // namespace QtAda::core::filters

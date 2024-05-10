@@ -37,6 +37,7 @@ public:
                               double rightValue) const noexcept;
     Q_INVOKABLE void setValue(const QString &path, const QString &value) const noexcept;
     Q_INVOKABLE void changeValue(const QString &path, const QString &type) const noexcept;
+    Q_INVOKABLE void setDelayProgress(const QString &path, double delay) const noexcept;
 
 signals:
     void scriptError(const QString &msg) const;

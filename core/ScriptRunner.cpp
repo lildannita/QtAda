@@ -815,4 +815,20 @@ void ScriptRunner::changeValue(const QString &path, const QString &type) const n
         engine_->throwError(QStringLiteral("This object doesn't support such a change type"));
     }
 }
+
+void ScriptRunner::setDelayProgress(const QString &path, double delay) const noexcept
+{
+    auto *object = findObjectByPath(path);
+    if (object == nullptr) {
+        return;
+    }
+
+    if (!object->inherits("QQuickDelayButton")) {
+        engine_->throwError(QStringLiteral("Passed object is not a delay button"));
+        return;
+    }
+
+    bool ok = writePropertyInGuiThread(object, "progress", delay);
+    assert(ok == true);
+}
 } // namespace QtAda::core
