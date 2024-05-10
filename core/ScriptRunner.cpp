@@ -227,6 +227,21 @@ void ScriptRunner::verify(const QString &path, const QString &property,
     }
 }
 
+void ScriptRunner::sleep(int sec)
+{
+    QThread::sleep(sec);
+}
+
+void ScriptRunner::msleep(int msec)
+{
+    QThread::msleep(msec);
+}
+
+void ScriptRunner::usleep(int usec)
+{
+    QThread::usleep(usec);
+}
+
 void ScriptRunner::mouseClick(const QString &path, const QString &mouseButtonStr, int x,
                               int y) const noexcept
 {

@@ -17,6 +17,9 @@ public:
 
     Q_INVOKABLE void verify(const QString &path, const QString &property,
                             const QString &value) const noexcept;
+    Q_INVOKABLE void sleep(int sec);
+    Q_INVOKABLE void msleep(int msec);
+    Q_INVOKABLE void usleep(int usec);
     Q_INVOKABLE void mouseClick(const QString &path, const QString &mouseButtonStr, int x,
                                 int y) const noexcept;
     Q_INVOKABLE void buttonClick(const QString &path) const noexcept;
