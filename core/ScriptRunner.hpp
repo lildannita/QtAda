@@ -38,6 +38,14 @@ public:
     Q_INVOKABLE void setValue(const QString &path, const QString &value) const noexcept;
     Q_INVOKABLE void changeValue(const QString &path, const QString &type) const noexcept;
     Q_INVOKABLE void setDelayProgress(const QString &path, double delay) const noexcept;
+    Q_INVOKABLE void selectTabItem(const QString &path, int index) const noexcept;
+    Q_INVOKABLE void selectTabItem(const QString &path, const QString &text) const noexcept;
+    Q_INVOKABLE void selectTabItem(const QString &path, const QString &text,
+                                   int index) const noexcept;
+    Q_INVOKABLE void expandDelegate(const QString &path,
+                                    const QList<int> &indexPath) const noexcept;
+    Q_INVOKABLE void collapseDelegate(const QString &path,
+                                      const QList<int> &indexPath) const noexcept;
 
 signals:
     void scriptError(const QString &msg) const;
@@ -69,6 +77,10 @@ private:
                                 const std::vector<QEvent::Type> events) const noexcept;
     void selectItemTemplate(const QString &path, int index, const QString &text,
                             TextIndexBehavior behavior) const noexcept;
+    void selectTabItemTemplate(const QString &path, int index, const QString &text,
+                               TextIndexBehavior behavior) const noexcept;
+    void treeViewTemplate(const QString &path, const QList<int> &indexPath,
+                          bool isExpand) const noexcept;
 
     void finishThread(bool isOk) noexcept;
 };

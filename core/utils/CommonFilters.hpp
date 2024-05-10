@@ -118,4 +118,7 @@ QString checkButtonCommand(const QString &path, bool isChecked, bool isDoubleChe
                            const QString &buttonText = QString()) noexcept;
 QString selectItemCommand(const QString &path, const QString &statement) noexcept;
 QString setDelayProgressCommand(const QString &path, double progress) noexcept;
+QString selectTabCommand(const QString &path, const QString &statement) noexcept;
+QString treeViewCommand(const QString &path, bool isExpand, const QString &indexPath,
+                        const QString &delegateText) noexcept;
 } // namespace QtAda::core::filters

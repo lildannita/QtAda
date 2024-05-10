@@ -66,4 +66,25 @@ QString setDelayProgressCommand(const QString &path, double progress) noexcept
         .arg(path)
         .arg(progress);
 }
+
+QString selectTabCommand(const QString &path, const QString &statement) noexcept
+{
+    return QStringLiteral("%1selectTabItem('%2', %3);")
+        .arg(SCRIPT_COMMAND_PREFIX)
+        .arg(path)
+        .arg(statement);
+}
+
+QString treeViewCommand(const QString &path, bool isExpand, const QString &indexPath,
+                        const QString &delegateText) noexcept
+{
+    return QStringLiteral("%1%2Delegate('%3', %4);%5")
+        .arg(SCRIPT_COMMAND_PREFIX)
+        .arg(isExpand ? "expand" : "collapse")
+        .arg(path)
+        .arg(indexPath)
+        .arg(delegateText.isEmpty()
+                 ? ""
+                 : QStringLiteral(" // Delegate text: '%1'").arg(delegateText.simplified()));
+}
 } // namespace QtAda::core::filters

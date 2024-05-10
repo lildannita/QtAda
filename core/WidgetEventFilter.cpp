@@ -405,14 +405,9 @@ static QString qTreeViewFilter(const QWidget *widget, const QMouseEvent *event,
     const auto currentItem = view->model()->data(extra.changeModelIndex);
     const auto currentItemText
         = currentItem.canConvert<QString>() ? currentItem.toString() : QString();
-    return QStringLiteral("%1Delegate('%2', %3);%4")
-        .arg(extra.changeType == ExtraInfoForDelayed::TreeViewExtra::Expanded ? "expand"
-                                                                              : "collapse")
-        .arg(utils::objectPath(widget))
-        .arg(utils::treeIndexPath(extra.changeModelIndex))
-        .arg(currentItemText.isEmpty()
-                 ? ""
-                 : QStringLiteral(" // Delegate text: '%1'").arg(currentItemText.simplified()));
+    return treeViewCommand(utils::objectPath(widget),
+                           extra.changeType == ExtraInfoForDelayed::TreeViewExtra::Expanded,
+                           utils::treeIndexPath(extra.changeModelIndex), currentItemText);
 }
 
 static QString qUndoViewFilter(const QWidget *widget, const QMouseEvent *event,
@@ -682,9 +677,9 @@ static QString qTabBarFilter(const QWidget *widget, const QMouseEvent *event,
     auto *tabBar = qobject_cast<const QTabBar *>(widget);
     assert(tabBar != nullptr);
     const auto index = tabBar->currentIndex();
-    return QStringLiteral("selectTabItem('%1', %2);")
-        .arg(utils::objectPath(widget))
-        .arg(utils::textIndexStatement(settings.textIndexBehavior, index, tabBar->tabText(index)));
+    return selectTabCommand(
+        utils::objectPath(widget),
+        utils::textIndexStatement(settings.textIndexBehavior, index, tabBar->tabText(index)));
 }
 
 static QString qTextFocusFilters(const QWidget *widget, const QMouseEvent *event,

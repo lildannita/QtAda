@@ -9,6 +9,9 @@
 #include <QJSEngine>
 #include <QQmlProperty>
 #include <QDateTime>
+#include <QModelIndex>
+#include <QAbstractItemView>
+#include <QAbstractItemModel>
 
 #include "utils/FilterUtils.hpp"
 #include "utils/Tools.hpp"
@@ -29,6 +32,16 @@ ScriptRunner::ScriptRunner(const RunSettings &settings, QObject *parent) noexcep
 //! TODO: большая проблема возникает из-за объектов графической оболочки -
 //! мы не можем проверять уникальность данных в pathToObject_ и objectToPath_,
 //! так как такие объекты могут быть разными указателями, но с одинаковыми путями.
+
+//! TODO: Для QtWidgets используется статический метод QQmlProperty::read/write,
+//! причем название класса говорит о том, что по идее он предназначен для QML,
+//! тем не менее он прекрасно работает и избавляет от нудных операций по типу:
+//!     const QMetaObject* metaObject = object->metaObject();
+//!     int propertyIndex = metaObject->indexOfProperty("....");
+//!     QMetaProperty metaProperty = metaObject->property(propertyIndex);
+//!     QVariant variant = metaProperty.read(object);
+//!     ....
+//! Но тем не менее нужно удостоверится, что все точно работает как надо.
 
 void ScriptRunner::registerObjectCreated(QObject *obj) noexcept
 {
@@ -827,8 +840,172 @@ void ScriptRunner::setDelayProgress(const QString &path, double delay) const noe
         engine_->throwError(QStringLiteral("Passed object is not a delay button"));
         return;
     }
+    if (!checkObjectAvailability(object, path)) {
+        return;
+    }
 
     bool ok = writePropertyInGuiThread(object, "progress", delay);
     assert(ok == true);
+}
+
+void ScriptRunner::selectTabItemTemplate(const QString &path, int index, const QString &text,
+                                         TextIndexBehavior behavior) const noexcept
+{
+    auto *object = findObjectByPath(path);
+    if (object == nullptr) {
+        return;
+    }
+
+    if (!object->inherits("QTabBar")) {
+        engine_->throwError(QStringLiteral("Passed object is not a tab widget"));
+        return;
+    }
+    if (!checkObjectAvailability(object, path)) {
+        return;
+    }
+
+    const auto count = utils::getFromVariant<int>(QQmlProperty::read(object, "count"));
+    if (count == 0) {
+        engine_->throwError(QStringLiteral("Passed object has no selectable items"));
+        return;
+    }
+
+    auto indexHandler = [&](int currentIndex) {
+        if (currentIndex >= count) {
+            engine_->throwError(
+                QStringLiteral("Index '%1' is out of range [0, %2)").arg(currentIndex).arg(count));
+            return;
+        }
+        bool ok = QMetaObject::invokeMethod(object, "setCurrentIndex", Qt::BlockingQueuedConnection,
+                                            Q_ARG(int, currentIndex));
+        assert(ok == true);
+    };
+
+    auto indexFromText = [&] {
+        for (int i = 0; i < count; i++) {
+            QString currentText;
+            bool ok = QMetaObject::invokeMethod(object, "tabText", Qt::BlockingQueuedConnection,
+                                                Q_RETURN_ARG(QString, currentText), Q_ARG(int, i));
+            assert(ok == true);
+            if (currentText == text) {
+                return i;
+            }
+        }
+        return -1;
+    };
+
+    switch (behavior) {
+    case TextIndexBehavior::OnlyIndex: {
+        indexHandler(index);
+        break;
+    }
+    case TextIndexBehavior::OnlyText: {
+        auto textIndex = indexFromText();
+        if (textIndex == -1) {
+            engine_->throwError(QStringLiteral("Tab with text '%1' does not exist").arg(text));
+            break;
+        }
+        indexHandler(textIndex);
+        break;
+    }
+    case TextIndexBehavior::TextIndex: {
+        auto textIndex = indexFromText();
+        if (textIndex == -1) {
+            emit scriptWarning(QStringLiteral("'%1': tab with text '%2' does not exist, "
+                                              "trying to use index '%3' instead")
+                                   .arg(path)
+                                   .arg(text)
+                                   .arg(index));
+            indexHandler(index);
+        }
+        else {
+            assert(textIndex < count);
+            indexHandler(textIndex);
+        }
+        break;
+    }
+    default:
+        Q_UNREACHABLE();
+    }
+}
+
+void ScriptRunner::selectTabItem(const QString &path, int index) const noexcept
+{
+    selectTabItemTemplate(path, index, QString(), TextIndexBehavior::OnlyIndex);
+}
+
+void ScriptRunner::selectTabItem(const QString &path, const QString &text) const noexcept
+{
+    selectTabItemTemplate(path, -1, path, TextIndexBehavior::OnlyText);
+}
+
+void ScriptRunner::selectTabItem(const QString &path, const QString &text, int index) const noexcept
+{
+    selectTabItemTemplate(path, index, path, TextIndexBehavior::TextIndex);
+}
+
+void ScriptRunner::treeViewTemplate(const QString &path, const QList<int> &indexPath,
+                                    bool isExpand) const noexcept
+{
+    auto *object = findObjectByPath(path);
+    if (object == nullptr) {
+        return;
+    }
+
+    if (!object->inherits("QTreeView")) {
+        engine_->throwError(QStringLiteral("Passed object is not a tree"));
+        return;
+    }
+    if (!checkObjectAvailability(object, path)) {
+        return;
+    }
+
+    auto *view = qobject_cast<QAbstractItemView *>(object);
+    assert(view != nullptr);
+    auto *model = view->model();
+
+    if (model == nullptr) {
+        engine_->throwError(QStringLiteral("Object model is not accessible"));
+        return;
+    }
+
+    QModelIndex lastIndex;
+    for (const auto &row : indexPath) {
+        QModelIndex index;
+        if (lastIndex.isValid()) {
+            index = model->index(row, 0, lastIndex);
+        }
+        else {
+            index = model->index(row, 0);
+        }
+
+        if (!index.isValid()) {
+            engine_->throwError(QStringLiteral("Can't get accesible model index from path"));
+            return;
+        }
+
+        if (isExpand) {
+            bool ok = QMetaObject::invokeMethod(object, "expand", Qt::BlockingQueuedConnection,
+                                                Q_ARG(QModelIndex, index));
+            assert(ok == true);
+        }
+        lastIndex = index;
+    }
+
+    if (!isExpand) {
+        bool ok = QMetaObject::invokeMethod(object, "collapse", Qt::BlockingQueuedConnection,
+                                            Q_ARG(QModelIndex, lastIndex));
+        assert(ok == true);
+    }
+}
+
+void ScriptRunner::expandDelegate(const QString &path, const QList<int> &indexPath) const noexcept
+{
+    treeViewTemplate(path, indexPath, true);
+}
+
+void ScriptRunner::collapseDelegate(const QString &path, const QList<int> &indexPath) const noexcept
+{
+    treeViewTemplate(path, indexPath, false);
 }
 } // namespace QtAda::core
