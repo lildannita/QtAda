@@ -217,7 +217,7 @@ static QString qSliderFilter(const QWidget *widget, const QMouseEvent *event,
     // Рассматриваем отдельно, так как любое зарегестрированное нажатие
     // на QDial приводит к установке значения "под курсором"
     if (qobject_cast<const QDial *>(widget)) {
-        return utils::setValueStatement(widget, slider->value());
+        return setValueStatement(widget, slider->value());
     }
 
     //! TODO: надо удостовериться, возможно ли вызвать SliderSingleStepAdd(Sub) нажатием мыши,
@@ -236,7 +236,7 @@ static QString qSliderFilter(const QWidget *widget, const QMouseEvent *event,
     case QAbstractSlider::SliderToMaximum:
         return changeValueStatement(widget, utils::changeTypeToString(ChangeType::ToMaximum));
     case QAbstractSlider::SliderMove:
-        return utils::setValueStatement(widget, slider->value());
+        return setValueStatement(widget, slider->value());
     }
     Q_UNREACHABLE();
 }
@@ -254,13 +254,13 @@ static QString qSpinBoxFilter(const QWidget *widget, const QMouseEvent *event,
     }
 
     if (auto *dateEdit = qobject_cast<const QDateEdit *>(widget)) {
-        return utils::setValueStatement(widget, dateEdit->date().toString(Qt::ISODate));
+        return setValueStatement(widget, dateEdit->date().toString(Qt::ISODate));
     }
     else if (auto *timeEdit = qobject_cast<const QTimeEdit *>(widget)) {
-        return utils::setValueStatement(widget, timeEdit->time().toString(Qt::ISODate));
+        return setValueStatement(widget, timeEdit->time().toString(Qt::ISODate));
     }
     else if (auto *dateTimeEdit = qobject_cast<const QDateTimeEdit *>(widget)) {
-        return utils::setValueStatement(widget, dateTimeEdit->dateTime().toString(Qt::ISODate));
+        return setValueStatement(widget, dateTimeEdit->dateTime().toString(Qt::ISODate));
     }
 
     if (!extra.isContinuous) {
@@ -281,10 +281,10 @@ static QString qSpinBoxFilter(const QWidget *widget, const QMouseEvent *event,
     }
 
     if (auto *spinBox = qobject_cast<const QSpinBox *>(widget)) {
-        return utils::setValueStatement(widget, spinBox->value());
+        return setValueStatement(widget, spinBox->value());
     }
     else if (auto *doubleSpinBox = qobject_cast<const QDoubleSpinBox *>(widget)) {
-        return utils::setValueStatement(widget, doubleSpinBox->value());
+        return setValueStatement(widget, doubleSpinBox->value());
     }
     else {
         Q_UNREACHABLE();
@@ -376,8 +376,8 @@ static QString qCalendarFilter(const QWidget *widget, const QMouseEvent *event,
 
     return QStringLiteral("%1%2")
         .arg(dateChanged ? "" : "// Looks like this date was not selected\n// ")
-        .arg(utils::setValueStatement(qobject_cast<const QWidget *>(calendar),
-                                      currentDate.toString(Qt::ISODate)));
+        .arg(setValueStatement(qobject_cast<const QWidget *>(calendar),
+                               currentDate.toString(Qt::ISODate)));
 }
 
 static QString qTreeViewFilter(const QWidget *widget, const QMouseEvent *event,

@@ -158,8 +158,8 @@ static QString qSliderFilter(const QQuickItem *item, const QMouseEvent *event,
         return QString();
     }
 
-    return utils::setValueStatement(
-        currentItem, utils::getFromVariant<double>(QQmlProperty::read(item, "value")));
+    return setValueStatement(currentItem,
+                             utils::getFromVariant<double>(QQmlProperty::read(item, "value")));
 }
 
 static QString qRangeSliderFilter(const QQuickItem *item, const QMouseEvent *event,
@@ -178,7 +178,7 @@ static QString qRangeSliderFilter(const QQuickItem *item, const QMouseEvent *eve
     const auto firstValue = utils::getFromVariant<double>(QQmlProperty::read(item, "first.value"));
     const auto secondValue
         = utils::getFromVariant<double>(QQmlProperty::read(item, "second.value"));
-    return utils::setValueStatement(item, firstValue, std::make_optional(secondValue));
+    return setValueStatement(item, firstValue, std::make_optional(secondValue));
 }
 
 static QString qScrollBarFilter(const QQuickItem *item, const QMouseEvent *event,
@@ -194,8 +194,8 @@ static QString qScrollBarFilter(const QQuickItem *item, const QMouseEvent *event
         return QString();
     }
 
-    return utils::setValueStatement(
-        item, utils::getFromVariant<double>(QQmlProperty::read(item, "position")));
+    return setValueStatement(item,
+                             utils::getFromVariant<double>(QQmlProperty::read(item, "position")));
 }
 
 static QString qSpinBoxFilter(const QQuickItem *item, const QMouseEvent *event,
@@ -232,17 +232,16 @@ static QString qSpinBoxFilter(const QQuickItem *item, const QMouseEvent *event,
     QVariant varValue;
     QMetaObject::invokeMethod(const_cast<QQuickItem *>(item), "textFromValue",
                               Q_RETURN_ARG(QVariant, varValue), Q_ARG(int, value));
-    QString setValueStatement;
     if (varValue.canConvert<double>()) {
-        return utils::setValueStatement(item, utils::getFromVariant<double>(varValue));
+        return setValueStatement(item, utils::getFromVariant<double>(varValue));
     }
     else if (varValue.canConvert<int>()) {
-        return utils::setValueStatement(item, utils::getFromVariant<int>(varValue));
+        return setValueStatement(item, utils::getFromVariant<int>(varValue));
     }
     else if (varValue.canConvert<QString>()) {
-        return utils::setValueStatement(item, utils::getFromVariant<QString>(varValue));
+        return setValueStatement(item, utils::getFromVariant<QString>(varValue));
     }
-    return utils::setValueStatement(item, value);
+    return setValueStatement(item, value);
 }
 
 static QString qComboBoxContainerFilter(const QQuickItem *item, const QMouseEvent *event,

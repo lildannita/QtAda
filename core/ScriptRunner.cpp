@@ -8,6 +8,7 @@
 #include <QTextStream>
 #include <QJSEngine>
 #include <QQmlProperty>
+#include <QDateTime>
 
 #include "utils/FilterUtils.hpp"
 #include "utils/Tools.hpp"
@@ -548,6 +549,134 @@ void ScriptRunner::selectItem(const QString &path, const QString &text) const no
 void ScriptRunner::selectItem(const QString &path, const QString &text, int index) const noexcept
 {
     selectItemTemplate(path, index, text, TextIndexBehavior::TextIndex);
+}
+
+void ScriptRunner::setValue(const QString &path, double value) const noexcept
+{
+    auto *object = findObjectByPath(path);
+    const auto isIntRequiringWidget
+        = object->inherits("QAbstractSlider") || object->inherits("QSpinBox");
+    const auto isDoubleRequiringWidget = object->inherits("QDoubleSpinBox");
+    const auto isQuickSlider = object->inherits("QQuickSlider");
+    const auto isQuickScrollBar = object->inherits("QQuickScrollBar");
+    const auto isQuickSpinBox = object->inherits("QQuickSpinBox");
+
+    if (!isIntRequiringWidget && !isDoubleRequiringWidget && !isQuickSlider && !isQuickScrollBar
+        && !isQuickSpinBox) {
+        engine_->throwError(QStringLiteral("This function doesn't support such an object"));
+        return;
+    }
+    if (!checkObjectAvailability(object, path)) {
+        return;
+    }
+
+    if (isIntRequiringWidget) {
+        bool ok = QMetaObject::invokeMethod(object, "setValue", Qt::BlockingQueuedConnection,
+                                            Q_ARG(int, value));
+        assert(ok == true);
+    }
+    else if (isDoubleRequiringWidget) {
+        bool ok = QMetaObject::invokeMethod(object, "setValue", Qt::BlockingQueuedConnection,
+                                            Q_ARG(double, value));
+        assert(ok == true);
+    }
+    else if (isQuickSlider) {
+        bool ok = writePropertyInGuiThread(object, "value", value);
+        assert(ok == true);
+    }
+    else if (isQuickScrollBar) {
+        bool ok = writePropertyInGuiThread(object, "position", value);
+        assert(ok == true);
+    }
+    else if (isQuickSpinBox) {
+        int intValue;
+        bool ok = QMetaObject::invokeMethod(object, "valueFromText", Qt::BlockingQueuedConnection,
+                                            Q_RETURN_ARG(int, intValue),
+                                            Q_ARG(QString, QString::number(value)));
+        assert(ok == true);
+        ok = writePropertyInGuiThread(object, "value", intValue);
+        assert(ok == true);
+    }
+    else {
+        Q_UNREACHABLE();
+    }
+}
+
+void ScriptRunner::setValue(const QString &path, double leftValue, double rightValue) const noexcept
+{
+    auto *object = findObjectByPath(path);
+
+    if (!object->inherits("QQuickRangeSlider")) {
+        engine_->throwError(QStringLiteral("Passed object is not a range slider"));
+        return;
+    }
+    if (!checkObjectAvailability(object, path)) {
+        return;
+    }
+
+    bool ok = QMetaObject::invokeMethod(object, "setValues", Qt::BlockingQueuedConnection,
+                                        Q_ARG(double, leftValue), Q_ARG(double, leftValue));
+    assert(ok == true);
+}
+
+void ScriptRunner::setValue(const QString &path, const QString &value) const noexcept
+{
+    auto *object = findObjectByPath(path);
+
+    const auto isWidgetCalendar = object->inherits("QCalendarView");
+    const auto isWidgetEdit = object->inherits("QDateTimeEdit");
+    const auto isQuickSpinBox = object->inherits("QQuickSpinBox");
+    if (!isWidgetCalendar && !isWidgetEdit && !isQuickSpinBox) {
+        engine_->throwError(QStringLiteral("This function doesn't support such an object"));
+        return;
+    }
+    if (!checkObjectAvailability(object, path)) {
+        return;
+    }
+
+    if (isWidgetEdit) {
+        const auto dateTime = QDateTime::fromString(value, Qt::ISODate);
+        if (dateTime.isNull() || dateTime.isValid()) {
+            engine_->throwError(QStringLiteral("Can't convert '%1' to QDateTime").arg(value));
+            return;
+        }
+
+        bool ok = false;
+        if (dateTime.date().isNull()) {
+            ok = QMetaObject::invokeMethod(object, "setTime", Qt::BlockingQueuedConnection,
+                                           Q_ARG(QTime, dateTime.time()));
+        }
+        else if (dateTime.time().isNull()) {
+            ok = QMetaObject::invokeMethod(object, "setDate", Qt::BlockingQueuedConnection,
+                                           Q_ARG(QDate, dateTime.date()));
+        }
+        else {
+            ok = QMetaObject::invokeMethod(object, "setDateTime", Qt::BlockingQueuedConnection,
+                                           Q_ARG(QDateTime, dateTime));
+        }
+        assert(ok == true);
+    }
+    else if (isWidgetCalendar) {
+        const auto date = QDate::fromString(value, Qt::ISODate);
+        if (date.isNull() || date.isValid()) {
+            engine_->throwError(QStringLiteral("Can't convert '%1' to QDate").arg(value));
+            return;
+        }
+        bool ok = QMetaObject::invokeMethod(object, "setSelectedDate", Qt::BlockingQueuedConnection,
+                                            Q_ARG(QDate, date));
+        assert(ok == true);
+    }
+    else if (isQuickSpinBox) {
+        int intValue;
+        bool ok = QMetaObject::invokeMethod(object, "valueFromText", Qt::BlockingQueuedConnection,
+                                            Q_RETURN_ARG(int, intValue), Q_ARG(QString, value));
+        assert(ok == true);
+        ok = writePropertyInGuiThread(object, "value", intValue);
+        assert(ok == true);
+    }
+    else {
+        Q_UNREACHABLE();
+    }
 }
 
 void ScriptRunner::changeValue(const QString &path, const QString &type) const noexcept

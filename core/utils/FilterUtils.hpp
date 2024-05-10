@@ -107,24 +107,6 @@ searchSpecificComponent(const GuiComponent *component,
     return searchSpecificComponentWithIteration(component, classDesignation).first;
 }
 
-template <typename GuiComponent, typename DigitType>
-inline QString setValueStatement(const GuiComponent *component, DigitType value,
-                                 std::optional<DigitType> secondValue = std::nullopt) noexcept
-{
-    CHECK_GUI_CLASS(GuiComponent);
-    static_assert(std::is_arithmetic<DigitType>::value, "Type T must be a digit");
-    return QStringLiteral("setValue('%1', %2);")
-        .arg(objectPath(component))
-        .arg(secondValue.has_value() ? QStringLiteral("%1, %2").arg(value).arg(*secondValue)
-                                     : QString::number(value));
-}
-template <typename GuiComponent>
-inline QString setValueStatement(const GuiComponent *component, const QString &value) noexcept
-{
-    CHECK_GUI_CLASS(GuiComponent);
-    return QStringLiteral("setValue('%1', '%2');").arg(objectPath(component), value);
-}
-
 template <typename T, typename GuiComponent, typename Signal, typename Slot>
 QMetaObject::Connection connectIfType(const GuiComponent *sender, Signal signal,
                                       const QObject *reciever, Slot slot)
