@@ -1014,4 +1014,35 @@ void ScriptRunner::undoCommand(const QString &path, int index) const noexcept
     emit scriptWarning(QStringLiteral("In this QtAda version function 'undoCommand' is unstable, "
                                       "so it is better to use 'delegateClick' function"));
 }
+
+void ScriptRunner::selectViewItem(const QString &path, int index) const noexcept
+{
+    auto *object = findObjectByPath(path);
+    if (object == nullptr) {
+        return;
+    }
+    const auto test = object->metaObject()->className();
+
+    if (!object->inherits("QQuickPathView") && !object->inherits("QQuickSwipeView")) {
+        engine_->throwError(QStringLiteral("Passed object is not a path or swipe view"));
+        return;
+    }
+    if (!checkObjectAvailability(object, path)) {
+        return;
+    }
+
+    const auto count = utils::getFromVariant<int>(QQmlProperty::read(object, "count"));
+    if (count == 0) {
+        engine_->throwError(QStringLiteral("Passed object has no selectable items"));
+        return;
+    }
+
+    if (index >= count) {
+        engine_->throwError(
+            QStringLiteral("Index '%1' is out of range [0, %2)").arg(index).arg(count));
+        return;
+    }
+    bool ok = writePropertyInGuiThread(object, "currentIndex", index);
+    assert(ok == true);
+}
 } // namespace QtAda::core

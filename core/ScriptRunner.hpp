@@ -47,6 +47,7 @@ public:
     Q_INVOKABLE void collapseDelegate(const QString &path,
                                       const QList<int> &indexPath) const noexcept;
     Q_INVOKABLE void undoCommand(const QString &path, int index) const noexcept;
+    Q_INVOKABLE void selectViewItem(const QString &path, int index) const noexcept;
 
 signals:
     void scriptError(const QString &msg) const;

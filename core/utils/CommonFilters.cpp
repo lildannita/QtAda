@@ -98,4 +98,12 @@ QString undoCommand(const QString &path, int index, const QString &delegateText)
                  ? ""
                  : QStringLiteral(" // Delegate text: '%1'").arg(delegateText.simplified()));
 }
+
+QString selectViewItemCommand(const QString &path, int index) noexcept
+{
+    return QStringLiteral("%1selectViewItem('%2', %3);")
+        .arg(SCRIPT_COMMAND_PREFIX)
+        .arg(path)
+        .arg(index);
+}
 } // namespace QtAda::core::filters

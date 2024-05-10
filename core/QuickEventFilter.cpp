@@ -359,7 +359,7 @@ static QString qPathViewFilter(const QQuickItem *item, const QMouseEvent *event,
     const auto index = utils::getFromVariant<int>(QQmlProperty::read(item, "currentIndex"));
     const auto count = utils::getFromVariant<int>(QQmlProperty::read(item, "count"));
     assert(index < count);
-    return QStringLiteral("selectViewItem('%1', %2);").arg(utils::objectPath(item)).arg(index);
+    return selectViewItemCommand(utils::objectPath(item), index);
 }
 
 static QString qSwipeViewFilter(const QQuickItem *item, const QMouseEvent *event,
@@ -382,9 +382,8 @@ static QString qSwipeViewFilter(const QQuickItem *item, const QMouseEvent *event
     const auto index = utils::getFromVariant<int>(QQmlProperty::read(item, "currentIndex"));
     const auto count = utils::getFromVariant<int>(QQmlProperty::read(item, "count"));
     assert(index < count);
-    return QStringLiteral("// It's better to checkout setted index.\nselectViewItem('%1', %2)")
-        .arg(utils::objectPath(item))
-        .arg(index);
+    return QStringLiteral("// It's better to checkout setted index.\n%1")
+        .arg(selectViewItemCommand(utils::objectPath(item), index));
 }
 
 static QString qTextFocusFilters(const QQuickItem *item, const QMouseEvent *event,
