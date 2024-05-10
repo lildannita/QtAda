@@ -179,10 +179,9 @@ static QString qComboBoxFilter(const QWidget *widget, const QMouseEvent *event,
 
     if (containerRect.contains(clickPos)) {
         const auto index = comboBoxView->currentIndex().row();
-        return QStringLiteral("selectItem('%1', %2);")
-            .arg(utils::objectPath(widget))
-            .arg(utils::textIndexStatement(settings.textIndexBehavior, index,
-                                           comboBox->itemText(index)));
+        return selectItemCommand(utils::objectPath(widget),
+                                 utils::textIndexStatement(settings.textIndexBehavior, index,
+                                                           comboBox->itemText(index)));
     }
     /*
      * Отпускание мыши не приведет к закрытию QListView, и если мы зарегестрируем событие

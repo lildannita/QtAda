@@ -50,4 +50,12 @@ QString checkButtonCommand(const QString &path, bool isChecked, bool isDoubleChe
         return generate(isChecked);
     }
 }
+
+QString selectItemCommand(const QString &path, const QString &statement) noexcept
+{
+    return QStringLiteral("%1selectItem('%2', %3);")
+        .arg(SCRIPT_COMMAND_PREFIX)
+        .arg(path)
+        .arg(statement);
+}
 } // namespace QtAda::core::filters

@@ -26,6 +26,9 @@ public:
     Q_INVOKABLE void mouseAreaDblClick(const QString &path) const noexcept;
     Q_INVOKABLE void mouseAreaPress(const QString &path) const noexcept;
     Q_INVOKABLE void checkButton(const QString &path, bool isChecked) const noexcept;
+    Q_INVOKABLE void selectItem(const QString &path, int index) const noexcept;
+    Q_INVOKABLE void selectItem(const QString &path, const QString &text) const noexcept;
+    Q_INVOKABLE void selectItem(const QString &path, const QString &text, int index) const noexcept;
 
 signals:
     void scriptError(const QString &msg) const;
@@ -48,10 +51,15 @@ private:
     const RunSettings runSettings_;
     QJSEngine *engine_ = nullptr;
 
+    bool writePropertyInGuiThread(QObject *object, const QString &propertyName,
+                                  const QVariant &value) const noexcept;
+
     QObject *findObjectByPath(const QString &path) const noexcept;
     bool checkObjectAvailability(const QObject *object, const QString &path) const noexcept;
     void mouseAreaEventTemplate(const QString &path,
                                 const std::vector<QEvent::Type> events) const noexcept;
+    void selectItemTemplate(const QString &path, int index, const QString &text,
+                            TextIndexBehavior behavior) const noexcept;
 
     void finishThread(bool isOk) noexcept;
 };

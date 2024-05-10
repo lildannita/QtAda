@@ -288,10 +288,9 @@ static QString qComboBoxFilter(const QQuickItem *item, const QMouseEvent *event,
     QString textValue;
     QMetaObject::invokeMethod(const_cast<QQuickItem *>(item), "textAt",
                               Q_RETURN_ARG(QString, textValue), Q_ARG(int, *extra.changeIndex));
-    return QStringLiteral("selectItem('%1', %2);")
-        .arg(utils::objectPath(item))
-        .arg(utils::textIndexStatement(extra.recordSettings.textIndexBehavior, *extra.changeIndex,
-                                       textValue));
+    return selectItemCommand(utils::objectPath(item),
+                             utils::textIndexStatement(extra.recordSettings.textIndexBehavior,
+                                                       *extra.changeIndex, textValue));
 }
 
 static QString qTumblerFilter(const QQuickItem *item, const QMouseEvent *event,
@@ -313,13 +312,13 @@ static QString qTumblerFilter(const QQuickItem *item, const QMouseEvent *event,
     //! текстового описания элементов.
     const auto currentIndex = utils::getFromVariant<int>(QQmlProperty::read(item, "currentIndex"));
     const auto textIndexBehavior = settings.textIndexBehavior;
-    return QStringLiteral("%1selectItem('%2', %3);")
+    return QStringLiteral("%1%2")
         .arg(textIndexBehavior == TextIndexBehavior::OnlyText
                      || textIndexBehavior == TextIndexBehavior::TextIndex
                  ? "// This QtAda version can't take text from this GUI component\n"
                  : "")
-        .arg(utils::objectPath(item))
-        .arg(utils::textIndexStatement(textIndexBehavior, currentIndex));
+        .arg(selectItemCommand(utils::objectPath(item),
+                               utils::textIndexStatement(textIndexBehavior, currentIndex)));
 }
 
 static QString qItemViewFilter(const QQuickItem *item, const QMouseEvent *event,

@@ -114,6 +114,15 @@ void ScriptRunner::finishThread(bool isOk) noexcept
     emit aboutToClose(isOk ? 0 : 1);
 }
 
+bool ScriptRunner::writePropertyInGuiThread(QObject *object, const QString &propertyName,
+                                            const QVariant &value) const noexcept
+{
+    assert(object != nullptr);
+    auto func
+        = [object, propertyName, value]() { QQmlProperty::write(object, propertyName, value); };
+    return QMetaObject::invokeMethod(object, func, Qt::BlockingQueuedConnection);
+}
+
 QObject *ScriptRunner::findObjectByPath(const QString &path) const noexcept
 {
     QElapsedTimer timer;
@@ -402,4 +411,127 @@ void ScriptRunner::checkButton(const QString &path, bool isChecked) const noexce
     }
 }
 
+void ScriptRunner::selectItemTemplate(const QString &path, int index, const QString &text,
+                                      TextIndexBehavior behavior) const noexcept
+{
+    auto *object = findObjectByPath(path);
+
+    const auto isWidgetComboBox = object->inherits("QComboBox");
+    const auto isQuickComboBox = object->inherits("QQuickComboBox");
+    const auto isQuickTumbler = object->inherits("QQuickTumbler");
+
+    if (!isWidgetComboBox && !isQuickComboBox && !isQuickTumbler) {
+        engine_->throwError(QStringLiteral("'%1': is not a combo box or tumbler").arg(path));
+        return;
+    }
+    if (!checkObjectAvailability(object, path)) {
+        return;
+    }
+
+    const auto count = utils::getFromVariant<int>(QQmlProperty::read(object, "count"));
+    if (count == 0) {
+        engine_->throwError(QStringLiteral("'%1': has no selectable items").arg(path));
+        return;
+    }
+
+    auto indexHandler = [&](int currentIndex) {
+        if (currentIndex >= count) {
+            engine_->throwError(QStringLiteral("'%1': index '%2' is out of range [0, %3)")
+                                    .arg(path)
+                                    .arg(currentIndex)
+                                    .arg(count));
+            return;
+        }
+        if (isWidgetComboBox) {
+            bool ok = QMetaObject::invokeMethod(
+                object, "setCurrentIndex", Qt::BlockingQueuedConnection, Q_ARG(int, currentIndex));
+            assert(ok == true);
+        }
+        else if (isQuickComboBox || isQuickTumbler) {
+            bool ok = writePropertyInGuiThread(object, "currentIndex", currentIndex);
+            assert(ok == true);
+        }
+        else {
+            Q_UNREACHABLE();
+        }
+    };
+
+    auto indexFromText = [&] {
+        int textIndex = -1;
+        if (isWidgetComboBox) {
+            bool ok = QMetaObject::invokeMethod(object, "findText", Qt::BlockingQueuedConnection,
+                                                Q_RETURN_ARG(int, textIndex), Q_ARG(QString, text));
+            assert(ok == true);
+        }
+        else if (isQuickComboBox) {
+            bool ok = QMetaObject::invokeMethod(object, "find", Qt::BlockingQueuedConnection,
+                                                Q_RETURN_ARG(int, textIndex), Q_ARG(QString, text));
+            assert(ok == true);
+        }
+        else {
+            Q_UNREACHABLE();
+        }
+        return textIndex;
+    };
+
+    switch (behavior) {
+    case TextIndexBehavior::OnlyIndex: {
+        indexHandler(index);
+        break;
+    }
+    case TextIndexBehavior::OnlyText:
+    case TextIndexBehavior::TextIndex: {
+        if (isQuickTumbler) {
+            engine_->throwError(
+                QStringLiteral(
+                    "'%1': this QtAda version can't handle with text from this GUI component")
+                    .arg(path));
+            return;
+        }
+
+        auto textIndex = indexFromText();
+        if (textIndex == -1) {
+            switch (behavior) {
+            case TextIndexBehavior::OnlyText: {
+                engine_->throwError(
+                    QStringLiteral("'%1': Item with text '%2' does not exist").arg(path).arg(text));
+                break;
+            }
+            case TextIndexBehavior::TextIndex: {
+                emit scriptWarning(QStringLiteral("'%1': Item with text '%2' does not exist, "
+                                                  "trying to use index '%3' instead")
+                                       .arg(path)
+                                       .arg(text)
+                                       .arg(index));
+                indexHandler(index);
+                break;
+            }
+            default:
+                Q_UNREACHABLE();
+            }
+            return;
+        }
+        assert(textIndex < count);
+        indexHandler(textIndex);
+        break;
+    }
+    default:
+        Q_UNREACHABLE();
+    }
+}
+
+void ScriptRunner::selectItem(const QString &path, int index) const noexcept
+{
+    selectItemTemplate(path, index, QString(), TextIndexBehavior::OnlyIndex);
+}
+
+void ScriptRunner::selectItem(const QString &path, const QString &text) const noexcept
+{
+    selectItemTemplate(path, -1, text, TextIndexBehavior::OnlyText);
+}
+
+void ScriptRunner::selectItem(const QString &path, const QString &text, int index) const noexcept
+{
+    selectItemTemplate(path, index, text, TextIndexBehavior::TextIndex);
+}
 } // namespace QtAda::core

@@ -84,4 +84,5 @@ QString mouseAreaEventCommand(const QString &path, const QEvent *event,
                               bool isReleaseInside) noexcept;
 QString checkButtonCommand(const QString &path, bool isChecked, bool isDoubleCheck,
                            const QString &buttonText = QString()) noexcept;
+QString selectItemCommand(const QString &path, const QString &statement) noexcept;
 } // namespace QtAda::core::filters
