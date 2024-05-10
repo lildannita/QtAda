@@ -410,6 +410,7 @@ static QString qTreeViewFilter(const QWidget *widget, const QMouseEvent *event,
                            utils::treeIndexPath(extra.changeModelIndex), currentItemText);
 }
 
+//! TODO: работает странно, скорее всего достаточно только delegateClick
 static QString qUndoViewFilter(const QWidget *widget, const QMouseEvent *event,
                                const ExtraInfoForDelayed &extra) noexcept
 {
@@ -436,12 +437,7 @@ static QString qUndoViewFilter(const QWidget *widget, const QMouseEvent *event,
         const auto currentItem = model->data(model->index(index, 0));
         const auto currentItemText
             = currentItem.canConvert<QString>() ? currentItem.toString() : QString();
-        result += QStringLiteral("undoCommand('%1', %2);%3")
-                      .arg(utils::objectPath(widget))
-                      .arg(index)
-                      .arg(currentItemText.isEmpty() ? ""
-                                                     : QStringLiteral(" // Delegate text: '%1'")
-                                                           .arg(currentItemText.simplified()));
+        result += undoCommand(utils::objectPath(widget), index, currentItemText);
     }
     assert(!result.isEmpty());
     return result;

@@ -121,4 +121,5 @@ QString setDelayProgressCommand(const QString &path, double progress) noexcept;
 QString selectTabCommand(const QString &path, const QString &statement) noexcept;
 QString treeViewCommand(const QString &path, bool isExpand, const QString &indexPath,
                         const QString &delegateText) noexcept;
+QString undoCommand(const QString &path, int index, const QString &delegateText) noexcept;
 } // namespace QtAda::core::filters

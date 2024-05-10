@@ -87,4 +87,15 @@ QString treeViewCommand(const QString &path, bool isExpand, const QString &index
                  ? ""
                  : QStringLiteral(" // Delegate text: '%1'").arg(delegateText.simplified()));
 }
+
+QString undoCommand(const QString &path, int index, const QString &delegateText) noexcept
+{
+    return QStringLiteral("%1undoCommand('%2', %3);%4")
+        .arg(SCRIPT_COMMAND_PREFIX)
+        .arg(path)
+        .arg(index)
+        .arg(delegateText.isEmpty()
+                 ? ""
+                 : QStringLiteral(" // Delegate text: '%1'").arg(delegateText.simplified()));
+}
 } // namespace QtAda::core::filters

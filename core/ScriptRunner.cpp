@@ -1008,4 +1008,10 @@ void ScriptRunner::collapseDelegate(const QString &path, const QList<int> &index
 {
     treeViewTemplate(path, indexPath, false);
 }
+
+void ScriptRunner::undoCommand(const QString &path, int index) const noexcept
+{
+    emit scriptWarning(QStringLiteral("In this QtAda version function 'undoCommand' is unstable, "
+                                      "so it is better to use 'delegateClick' function"));
+}
 } // namespace QtAda::core
