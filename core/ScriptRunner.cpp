@@ -178,6 +178,9 @@ void ScriptRunner::verify(const QString &path, const QString &property,
                           const QString &value) const noexcept
 {
     auto *object = findObjectByPath(path);
+    if (object == nullptr) {
+        return;
+    }
 
     QElapsedTimer timer;
     timer.start();
@@ -247,6 +250,10 @@ void ScriptRunner::mouseClick(const QString &path, const QString &mouseButtonStr
                               int y) const noexcept
 {
     auto *object = findObjectByPath(path);
+    if (object == nullptr) {
+        return;
+    }
+
     const auto mouseButton = utils::mouseButtonFromString(mouseButtonStr);
     if (!mouseButton.has_value()) {
         engine_->throwError(QStringLiteral("Unknown mouse button: '%1'").arg(mouseButtonStr));
@@ -291,8 +298,12 @@ void ScriptRunner::mouseClick(const QString &path, const QString &mouseButtonStr
 void ScriptRunner::buttonClick(const QString &path) const noexcept
 {
     auto *object = findObjectByPath(path);
+    if (object == nullptr) {
+        return;
+    }
+
     if (!object->inherits("QAbstractButton") && !object->inherits("QQuickAbstractButton")) {
-        engine_->throwError(QStringLiteral("'%1': is not a button").arg(path));
+        engine_->throwError(QStringLiteral("Passed object is not a button"));
         return;
     }
     if (!checkObjectAvailability(object, path)) {
@@ -306,11 +317,15 @@ void ScriptRunner::buttonClick(const QString &path) const noexcept
 void ScriptRunner::buttonDblClick(const QString &path) const noexcept
 {
     auto *object = findObjectByPath(path);
+    if (object == nullptr) {
+        return;
+    }
+
     const auto isWidgetButton = object->inherits("QAbstractButton");
     const auto isQuickButton = object->inherits("QQuickAbstractButton");
 
     if (!isWidgetButton && !isQuickButton) {
-        engine_->throwError(QStringLiteral("'%1': is not a button").arg(path));
+        engine_->throwError(QStringLiteral("Passed object is not a button"));
         return;
     }
     if (!checkObjectAvailability(object, path)) {
@@ -337,11 +352,15 @@ void ScriptRunner::buttonDblClick(const QString &path) const noexcept
 void ScriptRunner::buttonPress(const QString &path) const noexcept
 {
     auto *object = findObjectByPath(path);
+    if (object == nullptr) {
+        return;
+    }
+
     const auto isWidgetButton = object->inherits("QAbstractButton");
     const auto isQuickButton = object->inherits("QQuickAbstractButton");
 
     if (!isWidgetButton && !isQuickButton) {
-        engine_->throwError(QStringLiteral("'%1': is not a button").arg(path));
+        engine_->throwError(QStringLiteral("Passed object is not a button"));
         return;
     }
     if (!checkObjectAvailability(object, path)) {
@@ -368,9 +387,12 @@ void ScriptRunner::mouseAreaEventTemplate(const QString &path,
                                           const std::vector<QEvent::Type> events) const noexcept
 {
     auto *object = findObjectByPath(path);
+    if (object == nullptr) {
+        return;
+    }
 
     if (!object->inherits("QQuickMouseArea")) {
-        engine_->throwError(QStringLiteral("'%1': is not a mouse area").arg(path));
+        engine_->throwError(QStringLiteral("Passed object is not a mouse area"));
         return;
     }
     if (!checkObjectAvailability(object, path)) {
@@ -403,13 +425,16 @@ void ScriptRunner::mouseAreaPress(const QString &path) const noexcept
 void ScriptRunner::checkButton(const QString &path, bool isChecked) const noexcept
 {
     auto *object = findObjectByPath(path);
+    if (object == nullptr) {
+        return;
+    }
 
     if (!object->inherits("QAbstractButton") && !object->inherits("QQuickAbstractButton")) {
-        engine_->throwError(QStringLiteral("'%1': is not a button").arg(path));
+        engine_->throwError(QStringLiteral("Passed object is not a button"));
         return;
     }
     if (!utils::getFromVariant<bool>(QQmlProperty::read(object, "checkable"))) {
-        engine_->throwError(QStringLiteral("'%1': button is not checkable").arg(path));
+        engine_->throwError(QStringLiteral("Button is not checkable"));
         return;
     }
 
@@ -418,8 +443,9 @@ void ScriptRunner::checkButton(const QString &path, bool isChecked) const noexce
     }
 
     if (utils::getFromVariant<bool>(QQmlProperty::read(object, "checked")) == isChecked) {
-        emit scriptWarning(
-            QStringLiteral("'%1': button already has state %2").arg(isChecked ? "true" : "false"));
+        emit scriptWarning(QStringLiteral("'%1': button already has state '%2'")
+                               .arg(path)
+                               .arg(isChecked ? "true" : "false"));
     }
     else {
         bool ok = QMetaObject::invokeMethod(object, "toggle", Qt::BlockingQueuedConnection);
@@ -431,13 +457,16 @@ void ScriptRunner::selectItemTemplate(const QString &path, int index, const QStr
                                       TextIndexBehavior behavior) const noexcept
 {
     auto *object = findObjectByPath(path);
+    if (object == nullptr) {
+        return;
+    }
 
     const auto isWidgetComboBox = object->inherits("QComboBox");
     const auto isQuickComboBox = object->inherits("QQuickComboBox");
     const auto isQuickTumbler = object->inherits("QQuickTumbler");
 
     if (!isWidgetComboBox && !isQuickComboBox && !isQuickTumbler) {
-        engine_->throwError(QStringLiteral("'%1': is not a combo box or tumbler").arg(path));
+        engine_->throwError(QStringLiteral("Passed object is not a combobox or tumbler"));
         return;
     }
     if (!checkObjectAvailability(object, path)) {
@@ -446,16 +475,14 @@ void ScriptRunner::selectItemTemplate(const QString &path, int index, const QStr
 
     const auto count = utils::getFromVariant<int>(QQmlProperty::read(object, "count"));
     if (count == 0) {
-        engine_->throwError(QStringLiteral("'%1': has no selectable items").arg(path));
+        engine_->throwError(QStringLiteral("Passed object has no selectable items"));
         return;
     }
 
     auto indexHandler = [&](int currentIndex) {
         if (currentIndex >= count) {
-            engine_->throwError(QStringLiteral("'%1': index '%2' is out of range [0, %3)")
-                                    .arg(path)
-                                    .arg(currentIndex)
-                                    .arg(count));
+            engine_->throwError(
+                QStringLiteral("Index '%1' is out of range [0, %2)").arg(currentIndex).arg(count));
             return;
         }
         if (isWidgetComboBox) {
@@ -498,10 +525,8 @@ void ScriptRunner::selectItemTemplate(const QString &path, int index, const QStr
     case TextIndexBehavior::OnlyText:
     case TextIndexBehavior::TextIndex: {
         if (isQuickTumbler) {
-            engine_->throwError(
-                QStringLiteral(
-                    "'%1': this QtAda version can't handle with text from this GUI component")
-                    .arg(path));
+            engine_->throwError(QStringLiteral(
+                "This QtAda version can't handle with text from this GUI component"));
             return;
         }
 
@@ -509,12 +534,11 @@ void ScriptRunner::selectItemTemplate(const QString &path, int index, const QStr
         if (textIndex == -1) {
             switch (behavior) {
             case TextIndexBehavior::OnlyText: {
-                engine_->throwError(
-                    QStringLiteral("'%1': Item with text '%2' does not exist").arg(path).arg(text));
+                engine_->throwError(QStringLiteral("Item with text '%1' does not exist").arg(text));
                 break;
             }
             case TextIndexBehavior::TextIndex: {
-                emit scriptWarning(QStringLiteral("'%1': Item with text '%2' does not exist, "
+                emit scriptWarning(QStringLiteral("'%1': item with text '%2' does not exist, "
                                                   "trying to use index '%3' instead")
                                        .arg(path)
                                        .arg(text)
@@ -554,6 +578,10 @@ void ScriptRunner::selectItem(const QString &path, const QString &text, int inde
 void ScriptRunner::setValue(const QString &path, double value) const noexcept
 {
     auto *object = findObjectByPath(path);
+    if (object == nullptr) {
+        return;
+    }
+
     const auto isIntRequiringWidget
         = object->inherits("QAbstractSlider") || object->inherits("QSpinBox");
     const auto isDoubleRequiringWidget = object->inherits("QDoubleSpinBox");
@@ -605,6 +633,9 @@ void ScriptRunner::setValue(const QString &path, double value) const noexcept
 void ScriptRunner::setValue(const QString &path, double leftValue, double rightValue) const noexcept
 {
     auto *object = findObjectByPath(path);
+    if (object == nullptr) {
+        return;
+    }
 
     if (!object->inherits("QQuickRangeSlider")) {
         engine_->throwError(QStringLiteral("Passed object is not a range slider"));
@@ -622,6 +653,9 @@ void ScriptRunner::setValue(const QString &path, double leftValue, double rightV
 void ScriptRunner::setValue(const QString &path, const QString &value) const noexcept
 {
     auto *object = findObjectByPath(path);
+    if (object == nullptr) {
+        return;
+    }
 
     const auto isWidgetCalendar = object->inherits("QCalendarView");
     const auto isWidgetEdit = object->inherits("QDateTimeEdit");
@@ -682,6 +716,10 @@ void ScriptRunner::setValue(const QString &path, const QString &value) const noe
 void ScriptRunner::changeValue(const QString &path, const QString &type) const noexcept
 {
     auto *object = findObjectByPath(path);
+    if (object == nullptr) {
+        return;
+    }
+
     const auto changeType = utils::changeTypeFromString(type);
     if (!changeType.has_value()) {
         engine_->throwError(QStringLiteral("Unknown change type: '%1'").arg(type));
@@ -692,8 +730,7 @@ void ScriptRunner::changeValue(const QString &path, const QString &type) const n
     const auto isWidgetSpinBox = object->inherits("QSpinBox") || object->inherits("QDoubleSpinBox");
     const auto isQuickSpinBox = object->inherits("QQuickSpinBox");
     if (!isWidgetSlider && !isWidgetSpinBox && !isQuickSpinBox) {
-        engine_->throwError(
-            QStringLiteral("'%1': this function doesn't support such an object").arg(path));
+        engine_->throwError(QStringLiteral("This function doesn't support such an object"));
         return;
     }
     if (!checkObjectAvailability(object, path)) {
@@ -775,8 +812,7 @@ void ScriptRunner::changeValue(const QString &path, const QString &type) const n
         break;
     }
     default:
-        engine_->throwError(
-            QStringLiteral("'%1': this object doesn't support such a change type").arg(path));
+        engine_->throwError(QStringLiteral("This object doesn't support such a change type"));
     }
 }
 } // namespace QtAda::core
