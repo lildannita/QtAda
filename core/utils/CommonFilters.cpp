@@ -106,4 +106,19 @@ QString selectViewItemCommand(const QString &path, int index) noexcept
         .arg(path)
         .arg(index);
 }
+
+QString actionCommand(const QString &path, const QString &text, bool isSeparator, bool isMenu,
+                      std::optional<bool> checked) noexcept
+{
+    return QStringLiteral("%1%2triggerAction('%3'%4);%5")
+        .arg(isSeparator ? "// Looks like useless separator click\n// "
+                         : (isMenu ? "// Looks like useless menu click\n// " : ""))
+        .arg(SCRIPT_COMMAND_PREFIX)
+        .arg(path)
+        .arg(checked.has_value()
+                 // На момент нажатия check box еще не поменяет свое состояние
+                 ? QStringLiteral(", %1").arg(*checked ? "false" : "true")
+                 : "")
+        .arg(text.isEmpty() ? "" : QStringLiteral(" // Action text: '%1'").arg(text.simplified()));
+}
 } // namespace QtAda::core::filters

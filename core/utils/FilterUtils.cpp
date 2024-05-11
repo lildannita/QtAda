@@ -10,12 +10,12 @@
 
 namespace QtAda::core::utils {
 static const std::pair<Qt::MouseButton, QLatin1String> s_mouseButtons[] = {
-    { Qt::NoButton, QLatin1String("Qt::NoButton") },
-    { Qt::LeftButton, QLatin1String("Qt::LeftButton") },
-    { Qt::RightButton, QLatin1String("Qt::RightButton") },
-    { Qt::MiddleButton, QLatin1String("Qt::MiddleButton") },
-    { Qt::BackButton, QLatin1String("Qt::BackButton") },
-    { Qt::ForwardButton, QLatin1String("Qt::ForwardButton") },
+    { Qt::NoButton, QLatin1String("NoButton") },
+    { Qt::LeftButton, QLatin1String("LeftButton") },
+    { Qt::RightButton, QLatin1String("RightButton") },
+    { Qt::MiddleButton, QLatin1String("MiddleButton") },
+    { Qt::BackButton, QLatin1String("BackButton") },
+    { Qt::ForwardButton, QLatin1String("ForwardButton") },
 };
 
 static const std::pair<ChangeType, QLatin1String> s_changeTypes[] = {

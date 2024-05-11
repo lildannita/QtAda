@@ -171,15 +171,16 @@ QObject *ScriptRunner::findObjectByPath(const QString &path) const noexcept
     return nullptr;
 }
 
-bool ScriptRunner::checkObjectAvailability(const QObject *object,
-                                           const QString &path) const noexcept
+bool ScriptRunner::checkObjectAvailability(const QObject *object, const QString &path,
+                                           bool shouldBeVisible) const noexcept
 {
     if (!utils::getFromVariant<bool>(QQmlProperty::read(object, "enabled"))) {
         emit scriptWarning(
             QStringLiteral("'%1': action on object ignored due to its disabled state").arg(path));
         return false;
     }
-    else if (!utils::getFromVariant<bool>(QQmlProperty::read(object, "visible"))) {
+    else if (shouldBeVisible
+             && !utils::getFromVariant<bool>(QQmlProperty::read(object, "visible"))) {
         emit scriptWarning(
             QStringLiteral("'%1': action on object ignored due to its invisibility").arg(path));
         return false;
@@ -360,6 +361,8 @@ void ScriptRunner::buttonDblClick(const QString &path) const noexcept
     else {
         Q_UNREACHABLE();
     }
+    //! TODO: см. ScriptRunner::mouseClick
+    QThread::msleep(10);
 }
 
 void ScriptRunner::buttonPress(const QString &path) const noexcept
@@ -394,6 +397,8 @@ void ScriptRunner::buttonPress(const QString &path) const noexcept
     else {
         Q_UNREACHABLE();
     }
+    //! TODO: см. ScriptRunner::mouseClick
+    QThread::msleep(10);
 }
 
 void ScriptRunner::mouseAreaEventTemplate(const QString &path,
@@ -418,6 +423,8 @@ void ScriptRunner::mouseAreaEventTemplate(const QString &path,
     for (const auto &event : events) {
         QGuiApplication::postEvent(object, simpleMouseEvent(event, pos));
     }
+    //! TODO: см. ScriptRunner::mouseClick
+    QThread::msleep(10);
 }
 
 void ScriptRunner::mouseAreaClick(const QString &path) const noexcept
@@ -1021,7 +1028,6 @@ void ScriptRunner::selectViewItem(const QString &path, int index) const noexcept
     if (object == nullptr) {
         return;
     }
-    const auto test = object->metaObject()->className();
 
     if (!object->inherits("QQuickPathView") && !object->inherits("QQuickSwipeView")) {
         engine_->throwError(QStringLiteral("Passed object is not a path or swipe view"));
@@ -1044,5 +1050,52 @@ void ScriptRunner::selectViewItem(const QString &path, int index) const noexcept
     }
     bool ok = writePropertyInGuiThread(object, "currentIndex", index);
     assert(ok == true);
+}
+
+void ScriptRunner::actionTemplate(const QString &path, std::optional<bool> isChecked) const noexcept
+{
+    auto *object = findObjectByPath(path);
+    if (object == nullptr) {
+        return;
+    }
+
+    if (!object->inherits("QAction")) {
+        engine_->throwError(QStringLiteral("Passed object is not an action"));
+        return;
+    }
+    if (!checkObjectAvailability(object, path, false)) {
+        return;
+    }
+
+    if (!isChecked.has_value()) {
+        bool ok = QMetaObject::invokeMethod(object, "trigger", Qt::BlockingQueuedConnection);
+        assert(ok == true);
+        return;
+    }
+
+    if (!utils::getFromVariant<bool>(QQmlProperty::read(object, "checkable"))) {
+        engine_->throwError(QStringLiteral("Action is not checkable"));
+        return;
+    }
+
+    if (utils::getFromVariant<bool>(QQmlProperty::read(object, "checked")) == *isChecked) {
+        emit scriptWarning(QStringLiteral("'%1': button already has state '%2'")
+                               .arg(path)
+                               .arg(*isChecked ? "true" : "false"));
+    }
+    else {
+        bool ok = QMetaObject::invokeMethod(object, "toggle", Qt::BlockingQueuedConnection);
+        assert(ok == true);
+    }
+}
+
+void ScriptRunner::triggerAction(const QString &path) const noexcept
+{
+    actionTemplate(path, std::nullopt);
+}
+
+void ScriptRunner::triggerAction(const QString &path, bool isChecked) const noexcept
+{
+    actionTemplate(path, isChecked);
 }
 } // namespace QtAda::core

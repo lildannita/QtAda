@@ -123,4 +123,6 @@ QString treeViewCommand(const QString &path, bool isExpand, const QString &index
                         const QString &delegateText) noexcept;
 QString undoCommand(const QString &path, int index, const QString &delegateText) noexcept;
 QString selectViewItemCommand(const QString &path, int index) noexcept;
+QString actionCommand(const QString &path, const QString &text, bool isSeparator, bool isMenu,
+                      std::optional<bool> checked) noexcept;
 } // namespace QtAda::core::filters

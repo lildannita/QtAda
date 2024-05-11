@@ -598,26 +598,10 @@ static QString qMenuBarFilter(const QWidget *widget, const QMouseEvent *event,
         return QString();
     }
 
-    const auto *menu = action->menu();
-    if (menu == nullptr) {
-        return QStringLiteral("%1activateMenuAction('%2', %3%4);")
-            .arg(action->isSeparator() ? "// Looks like QMenu::Separator clicked\n// " : "")
-            .arg(utils::objectPath(widget))
-            .arg(utils::textIndexStatement(settings.textIndexBehavior,
-                                           menuBar->actions().indexOf(action), action->text()))
-            .arg(action->isCheckable()
-                     ? QStringLiteral(", %1").arg(action->isChecked() ? "false" : "true")
-                     : "");
-    }
-    else {
-        const auto menuText = menu->title();
-        auto *menuWidget = qobject_cast<const QWidget *>(menu);
-        return QStringLiteral("activateMenu('%1');%2")
-            .arg(utils::objectPath(menuWidget))
-            .arg(menuText.isEmpty()
-                     ? ""
-                     : QStringLiteral(" // Menu title: '%1'").arg(menuText.simplified()));
-    }
+    return actionCommand(utils::objectPath(qobject_cast<QObject *>(action)), action->text(),
+                         action->isSeparator(), action->menu() != nullptr,
+                         action->isCheckable() ? std::make_optional(action->isChecked())
+                                               : std::nullopt);
 }
 
 static QString qMenuFilter(const QWidget *widget, const QMouseEvent *event,
@@ -638,23 +622,18 @@ static QString qMenuFilter(const QWidget *widget, const QMouseEvent *event,
     const auto clickPos = widget->mapFromGlobal(event->globalPos());
     auto *action = menu->actionAt(clickPos);
 
-    if (action == nullptr) {
-        const auto menuText = menu->title();
-        return QStringLiteral("activateMenu('%1');%2")
-            .arg(utils::objectPath(widget))
-            .arg(menuText.isEmpty()
-                     ? ""
-                     : QStringLiteral(" // Menu title: '%1'").arg(menuText.simplified()));
+    if (action != nullptr) {
+        return actionCommand(utils::objectPath(qobject_cast<QObject *>(action)), action->text(),
+                             action->isSeparator(), action->menu() != nullptr,
+                             action->isCheckable() ? std::make_optional(action->isChecked())
+                                                   : std::nullopt);
     }
     else {
-        return QStringLiteral("%1activateMenuAction('%2', %3%4);")
-            .arg(action->isSeparator() ? " // Looks like QMenu::Separator clicked\n// " : "")
-            .arg(utils::objectPath(widget))
-            .arg(utils::textIndexStatement(settings.textIndexBehavior,
-                                           menu->actions().indexOf(action), action->text()))
-            .arg(action->isCheckable()
-                     ? QStringLiteral(", %1").arg(action->isChecked() ? "false" : "true")
-                     : "");
+        auto *menuAction = menu->menuAction();
+        return actionCommand(utils::objectPath(qobject_cast<QObject *>(menuAction)),
+                             menuAction->text(), menuAction->isSeparator(), true,
+                             menuAction->isCheckable() ? std::make_optional(menuAction->isChecked())
+                                                       : std::nullopt);
     }
 }
 
