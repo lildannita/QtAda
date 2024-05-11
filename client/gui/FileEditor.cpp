@@ -149,7 +149,7 @@ void Editor::wheelEvent(QWheelEvent *event) noexcept
         font.setPointSize(currentFontSize + 1);
     }
     else if (event->angleDelta().y() < 0) {
-        font.setPointSize(currentFontSize - 1);
+        font.setPointSize(std::max(1, currentFontSize - 1));
     }
     this->setFont(font);
     this->update();
