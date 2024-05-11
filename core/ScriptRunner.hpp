@@ -86,8 +86,12 @@ private:
     const RunSettings runSettings_;
     QJSEngine *engine_ = nullptr;
 
-    bool writePropertyInGuiThread(QObject *object, const QString &propertyName,
+    void writePropertyInGuiThread(QObject *object, const QString &propertyName,
                                   const QVariant &value) const noexcept;
+    void invokeNonBlockMethod(QObject *object, const char *method,
+                              QGenericArgument val0 = QGenericArgument(nullptr),
+                              QGenericArgument val1 = QGenericArgument()) const noexcept;
+    void postEvents(QObject *object, std::vector<QEvent *> events) const noexcept;
 
     QObject *findObjectByPath(const QString &path) const noexcept;
     bool checkObjectAvailability(const QObject *object, const QString &path,
@@ -95,7 +99,7 @@ private:
     void mouseClickTemplate(const QString &path, const QString &mouseButtonStr, int x, int y,
                             bool isDouble) const noexcept;
     void mouseAreaEventTemplate(const QString &path,
-                                const std::vector<QEvent::Type> events) const noexcept;
+                                const std::vector<QEvent::Type> eventTypes) const noexcept;
     void selectItemTemplate(const QString &path, int index, const QString &text,
                             TextIndexBehavior behavior) const noexcept;
     void selectTabItemTemplate(const QString &path, int index, const QString &text,

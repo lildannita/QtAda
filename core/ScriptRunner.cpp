@@ -12,7 +12,6 @@
 #include <QModelIndex>
 #include <QAbstractItemView>
 #include <QAbstractItemModel>
-#include <QMainWindow>
 
 #include "utils/FilterUtils.hpp"
 #include "utils/Tools.hpp"
@@ -226,13 +225,54 @@ void ScriptRunner::finishThread(bool isOk) noexcept
     emit aboutToClose(isOk ? 0 : 1);
 }
 
-bool ScriptRunner::writePropertyInGuiThread(QObject *object, const QString &propertyName,
+//! TODO: Хоть эта функция вызывается только для Quick компонентов, для которых
+//! по идее не должно быть проблемы с блокировкой текущего потока, нужно все равно
+//! проверить, что проблем не будет
+void ScriptRunner::writePropertyInGuiThread(QObject *object, const QString &propertyName,
                                             const QVariant &value) const noexcept
 {
     assert(object != nullptr);
     auto func
         = [object, propertyName, value]() { QQmlProperty::write(object, propertyName, value); };
-    return QMetaObject::invokeMethod(object, func, Qt::BlockingQueuedConnection);
+    bool ok = QMetaObject::invokeMethod(object, func, Qt::BlockingQueuedConnection);
+    assert(ok == true);
+}
+
+//! TODO: желательно отправлять события аналогично тому, как работает
+//! QMetaObject::invokeMethod(..., Qt::BlockingQueuedConnection);
+//! чтобы точно все "события" выполнялись по очереди. Но пока непонятно
+//! как это делать с обычными событиями, поэтому используем небольшую
+//! задержку: QThread::msleep(10);
+//!
+//! Проблема в том, что мы и не всегда можем использовать Qt::BlockingQueuedConnection,
+//! а если быть точнее, практически никогда. Проблема в том, что пользователь может
+//! запихнуть в обработку того или иного события что угодно. Самый простой пример:
+//! по нажатию кнопки открывать диалог, из-за чего запускается "бесконечный" цикл,
+//! который не закончится, пока пользователь не закроет диалог, а значит, что и не
+//! закончится ожидание выполнения этого метода, и, следовательно, мы не сможем перейти
+//! к выполнению следующей команды скрипта.
+//! По идее, можно было бы оставить по умолчанию исользование блокировки потока и добавить
+//! некоторые опции к функциям или глобальные опции, которые отключают блокировку потока,
+//! но это было бы слишком "муторно" для пользователя, поэтому пока просто используем
+//! небольшие задержки в тех методах, где нам не нужно дожидаться возврата какого-либо
+//! аргумента.
+
+void ScriptRunner::invokeNonBlockMethod(QObject *object, const char *method, QGenericArgument val0,
+                                        QGenericArgument val1) const noexcept
+{
+    assert(object != nullptr);
+    bool ok = QMetaObject::invokeMethod(object, method, val0, val1);
+    assert(ok == true);
+    QThread::msleep(10);
+}
+
+void ScriptRunner::postEvents(QObject *object, std::vector<QEvent *> events) const noexcept
+{
+    assert(object != nullptr);
+    for (auto *event : events) {
+        QGuiApplication::postEvent(object, event);
+    }
+    QThread::msleep(10);
 }
 
 QObject *ScriptRunner::findObjectByPath(const QString &path) const noexcept
@@ -375,36 +415,20 @@ void ScriptRunner::mouseClickTemplate(const QString &path, const QString &mouseB
     const auto pos = QPoint(x, y);
     if (isDouble) {
         if (object->inherits("QQuickItem")) {
-            QGuiApplication::postEvent(
-                object, simpleMouseEvent(QEvent::MouseButtonDblClick, pos, *mouseButton));
+            postEvents(object,
+                       { simpleMouseEvent(QEvent::MouseButtonDblClick, pos, *mouseButton) });
         }
         else {
-            QGuiApplication::postEvent(
-                object, simpleMouseEvent(QEvent::MouseButtonPress, pos, *mouseButton));
-            QGuiApplication::postEvent(
-                object, simpleMouseEvent(QEvent::MouseButtonRelease, pos, *mouseButton));
-            QGuiApplication::postEvent(
-                object, simpleMouseEvent(QEvent::MouseButtonDblClick, pos, *mouseButton));
-            QGuiApplication::postEvent(
-                object, simpleMouseEvent(QEvent::MouseButtonRelease, pos, *mouseButton));
+            postEvents(object, { simpleMouseEvent(QEvent::MouseButtonPress, pos, *mouseButton),
+                                 simpleMouseEvent(QEvent::MouseButtonRelease, pos, *mouseButton),
+                                 simpleMouseEvent(QEvent::MouseButtonDblClick, pos, *mouseButton),
+                                 simpleMouseEvent(QEvent::MouseButtonRelease, pos, *mouseButton) });
         }
     }
     else {
-        QGuiApplication::postEvent(object,
-                                   simpleMouseEvent(QEvent::MouseButtonPress, pos, *mouseButton));
-        QGuiApplication::postEvent(object,
-                                   simpleMouseEvent(QEvent::MouseButtonRelease, pos, *mouseButton));
+        postEvents(object, { simpleMouseEvent(QEvent::MouseButtonPress, pos, *mouseButton),
+                             simpleMouseEvent(QEvent::MouseButtonRelease, pos, *mouseButton) });
     }
-
-    //! TODO: желательно отправлять события аналогично тому, как работает
-    //! QMetaObject::invokeMethod(..., Qt::BlockingQueuedConnection);
-    //! чтобы точно все "события" выполнялись по очереди. Но пока непонятно
-    //! как это делать с обычными событиями, поэтому используем небольшую
-    //! задержку:
-    QThread::msleep(10);
-    //! UPD: Можно определить собственный класс под такие события, который при
-    //! "реализации" события, остановит QEventLoop, который был бы запущен сразу
-    //! после очередного postEvent.
 }
 
 void ScriptRunner::mouseClick(const QString &path, const QString &mouseButtonStr, int x,
@@ -456,9 +480,7 @@ void ScriptRunner::buttonClick(const QString &path) const noexcept
     }
 
     // Не для всех кнопок в QtWidgets click == toggle, поэтому для QtWidgets предпочитаем click
-    bool ok = QMetaObject::invokeMethod(object, isWidgetButton ? "click" : "toggle",
-                                        Qt::BlockingQueuedConnection);
-    assert(ok == true);
+    invokeNonBlockMethod(object, isWidgetButton ? "click" : "toggle");
 }
 
 void ScriptRunner::buttonDblClick(const QString &path) const noexcept
@@ -483,19 +505,17 @@ void ScriptRunner::buttonDblClick(const QString &path) const noexcept
     const auto width = utils::getFromVariant<double>(QQmlProperty::read(object, "width"));
     const auto pos = QPoint(width / 2, height / 2);
     if (isQuickButton) {
-        QGuiApplication::postEvent(object, simpleMouseEvent(QEvent::MouseButtonDblClick, pos));
+        postEvents(object, { simpleMouseEvent(QEvent::MouseButtonDblClick, pos) });
     }
     else if (isWidgetButton) {
-        QGuiApplication::postEvent(object, simpleMouseEvent(QEvent::MouseButtonPress, pos));
-        QGuiApplication::postEvent(object, simpleMouseEvent(QEvent::MouseButtonRelease, pos));
-        QGuiApplication::postEvent(object, simpleMouseEvent(QEvent::MouseButtonDblClick, pos));
-        QGuiApplication::postEvent(object, simpleMouseEvent(QEvent::MouseButtonRelease, pos));
+        postEvents(object, { simpleMouseEvent(QEvent::MouseButtonPress, pos),
+                             simpleMouseEvent(QEvent::MouseButtonRelease, pos),
+                             simpleMouseEvent(QEvent::MouseButtonDblClick, pos),
+                             simpleMouseEvent(QEvent::MouseButtonRelease, pos) });
     }
     else {
         Q_UNREACHABLE();
     }
-    //! TODO: см. ScriptRunner::mouseClick
-    QThread::msleep(10);
 }
 
 void ScriptRunner::buttonPress(const QString &path) const noexcept
@@ -520,22 +540,19 @@ void ScriptRunner::buttonPress(const QString &path) const noexcept
     const auto width = utils::getFromVariant<double>(QQmlProperty::read(object, "width"));
     const auto pos = QPoint(width / 2, height / 2);
     if (isQuickButton) {
-        QGuiApplication::postEvent(object, simpleMouseEvent(QEvent::MouseButtonPress, pos));
+        postEvents(object, { simpleMouseEvent(QEvent::MouseButtonPress, pos) });
     }
     else if (isWidgetButton) {
-        QGuiApplication::postEvent(object, simpleMouseEvent(QEvent::MouseButtonPress, pos));
-        QGuiApplication::postEvent(object,
-                                   simpleMouseEvent(QEvent::MouseButtonRelease, QPoint(-10, -10)));
+        postEvents(object, { simpleMouseEvent(QEvent::MouseButtonPress, pos),
+                             simpleMouseEvent(QEvent::MouseButtonRelease, QPoint(-10, -10)) });
     }
     else {
         Q_UNREACHABLE();
     }
-    //! TODO: см. ScriptRunner::mouseClick
-    QThread::msleep(10);
 }
 
 void ScriptRunner::mouseAreaEventTemplate(const QString &path,
-                                          const std::vector<QEvent::Type> events) const noexcept
+                                          const std::vector<QEvent::Type> eventTypes) const noexcept
 {
     auto *object = findObjectByPath(path);
     if (object == nullptr) {
@@ -553,11 +570,11 @@ void ScriptRunner::mouseAreaEventTemplate(const QString &path,
     const auto height = utils::getFromVariant<double>(QQmlProperty::read(object, "height"));
     const auto width = utils::getFromVariant<double>(QQmlProperty::read(object, "width"));
     const auto pos = QPoint(width / 2, height / 2);
-    for (const auto &event : events) {
-        QGuiApplication::postEvent(object, simpleMouseEvent(event, pos));
+    std::vector<QEvent *> events;
+    for (const auto &event : eventTypes) {
+        events.push_back(simpleMouseEvent(event, pos));
     }
-    //! TODO: см. ScriptRunner::mouseClick
-    QThread::msleep(10);
+    postEvents(object, events);
 }
 
 void ScriptRunner::mouseAreaClick(const QString &path) const noexcept
@@ -601,8 +618,7 @@ void ScriptRunner::checkButton(const QString &path, bool isChecked) const noexce
                                .arg(isChecked ? "true" : "false"));
     }
     else {
-        bool ok = QMetaObject::invokeMethod(object, "toggle", Qt::BlockingQueuedConnection);
-        assert(ok == true);
+        invokeNonBlockMethod(object, "toggle");
     }
 }
 
@@ -639,13 +655,10 @@ void ScriptRunner::selectItemTemplate(const QString &path, int index, const QStr
             return;
         }
         if (isWidgetComboBox) {
-            bool ok = QMetaObject::invokeMethod(
-                object, "setCurrentIndex", Qt::BlockingQueuedConnection, Q_ARG(int, currentIndex));
-            assert(ok == true);
+            invokeNonBlockMethod(object, "setCurrentIndex", Q_ARG(int, currentIndex));
         }
         else if (isQuickComboBox || isQuickTumbler) {
-            bool ok = writePropertyInGuiThread(object, "currentIndex", currentIndex);
-            assert(ok == true);
+            writePropertyInGuiThread(object, "currentIndex", currentIndex);
         }
         else {
             Q_UNREACHABLE();
@@ -752,22 +765,16 @@ void ScriptRunner::setValue(const QString &path, double value) const noexcept
     }
 
     if (isIntRequiringWidget) {
-        bool ok = QMetaObject::invokeMethod(object, "setValue", Qt::BlockingQueuedConnection,
-                                            Q_ARG(int, value));
-        assert(ok == true);
+        invokeNonBlockMethod(object, "setValue", Q_ARG(int, value));
     }
     else if (isDoubleRequiringWidget) {
-        bool ok = QMetaObject::invokeMethod(object, "setValue", Qt::BlockingQueuedConnection,
-                                            Q_ARG(double, value));
-        assert(ok == true);
+        invokeNonBlockMethod(object, "setValue", Q_ARG(double, value));
     }
     else if (isQuickSlider) {
-        bool ok = writePropertyInGuiThread(object, "value", value);
-        assert(ok == true);
+        writePropertyInGuiThread(object, "value", value);
     }
     else if (isQuickScrollBar) {
-        bool ok = writePropertyInGuiThread(object, "position", value);
-        assert(ok == true);
+        writePropertyInGuiThread(object, "position", value);
     }
     else if (isQuickSpinBox) {
         int intValue;
@@ -775,8 +782,7 @@ void ScriptRunner::setValue(const QString &path, double value) const noexcept
                                             Q_RETURN_ARG(int, intValue),
                                             Q_ARG(QString, QString::number(value)));
         assert(ok == true);
-        ok = writePropertyInGuiThread(object, "value", intValue);
-        assert(ok == true);
+        writePropertyInGuiThread(object, "value", intValue);
     }
     else {
         Q_UNREACHABLE();
@@ -797,10 +803,7 @@ void ScriptRunner::setValue(const QString &path, double leftValue, double rightV
     if (!checkObjectAvailability(object, path)) {
         return;
     }
-
-    bool ok = QMetaObject::invokeMethod(object, "setValues", Qt::BlockingQueuedConnection,
-                                        Q_ARG(double, leftValue), Q_ARG(double, leftValue));
-    assert(ok == true);
+    invokeNonBlockMethod(object, "setValues", Q_ARG(double, leftValue), Q_ARG(double, rightValue));
 }
 
 void ScriptRunner::setValue(const QString &path, const QString &value) const noexcept
@@ -828,20 +831,15 @@ void ScriptRunner::setValue(const QString &path, const QString &value) const noe
             return;
         }
 
-        bool ok = false;
         if (dateTime.date().isNull()) {
-            ok = QMetaObject::invokeMethod(object, "setTime", Qt::BlockingQueuedConnection,
-                                           Q_ARG(QTime, dateTime.time()));
+            invokeNonBlockMethod(object, "setTime", Q_ARG(QTime, dateTime.time()));
         }
         else if (dateTime.time().isNull()) {
-            ok = QMetaObject::invokeMethod(object, "setDate", Qt::BlockingQueuedConnection,
-                                           Q_ARG(QDate, dateTime.date()));
+            invokeNonBlockMethod(object, "setDate", Q_ARG(QDate, dateTime.date()));
         }
         else {
-            ok = QMetaObject::invokeMethod(object, "setDateTime", Qt::BlockingQueuedConnection,
-                                           Q_ARG(QDateTime, dateTime));
+            invokeNonBlockMethod(object, "setDateTime", Q_ARG(QDateTime, dateTime));
         }
-        assert(ok == true);
     }
     else if (isWidgetCalendar) {
         const auto date = QDate::fromString(value, Qt::ISODate);
@@ -849,17 +847,14 @@ void ScriptRunner::setValue(const QString &path, const QString &value) const noe
             engine_->throwError(QStringLiteral("Can't convert '%1' to QDate").arg(value));
             return;
         }
-        bool ok = QMetaObject::invokeMethod(object, "setSelectedDate", Qt::BlockingQueuedConnection,
-                                            Q_ARG(QDate, date));
-        assert(ok == true);
+        invokeNonBlockMethod(object, "setSelectedDate", Q_ARG(QDate, date));
     }
     else if (isQuickSpinBox) {
         int intValue;
         bool ok = QMetaObject::invokeMethod(object, "valueFromText", Qt::BlockingQueuedConnection,
                                             Q_RETURN_ARG(int, intValue), Q_ARG(QString, value));
         assert(ok == true);
-        ok = writePropertyInGuiThread(object, "value", intValue);
-        assert(ok == true);
+        writePropertyInGuiThread(object, "value", intValue);
     }
     else {
         Q_UNREACHABLE();
@@ -926,23 +921,17 @@ void ScriptRunner::changeValue(const QString &path, const QString &type) const n
             Q_UNREACHABLE();
         }
 
-        bool ok = QMetaObject::invokeMethod(object, "setValue", Qt::BlockingQueuedConnection,
-                                            Q_ARG(int, value));
-        assert(ok == true);
+        invokeNonBlockMethod(object, "setValue", Q_ARG(int, value));
         return;
     }
 
     auto up = [&] {
         assert(isWidgetSpinBox == true || isQuickSpinBox == true);
-        bool ok = QMetaObject::invokeMethod(object, isWidgetSpinBox ? "stepUp" : "increase",
-                                            Qt::BlockingQueuedConnection);
-        assert(ok == true);
+        invokeNonBlockMethod(object, isWidgetSpinBox ? "stepUp" : "increase");
     };
     auto down = [&] {
         assert(isWidgetSpinBox == true || isQuickSpinBox == true);
-        bool ok = QMetaObject::invokeMethod(object, isWidgetSpinBox ? "stepDown" : "decrease",
-                                            Qt::BlockingQueuedConnection);
-        assert(ok == true);
+        invokeNonBlockMethod(object, isWidgetSpinBox ? "stepDown" : "decrease");
     };
 
     switch (*changeType) {
@@ -983,9 +972,7 @@ void ScriptRunner::setDelayProgress(const QString &path, double delay) const noe
     if (!checkObjectAvailability(object, path)) {
         return;
     }
-
-    bool ok = writePropertyInGuiThread(object, "progress", delay);
-    assert(ok == true);
+    writePropertyInGuiThread(object, "progress", delay);
 }
 
 void ScriptRunner::selectTabItemTemplate(const QString &path, int index, const QString &text,
@@ -1016,9 +1003,7 @@ void ScriptRunner::selectTabItemTemplate(const QString &path, int index, const Q
                 QStringLiteral("Index '%1' is out of range [0, %2)").arg(currentIndex).arg(count));
             return;
         }
-        bool ok = QMetaObject::invokeMethod(object, "setCurrentIndex", Qt::BlockingQueuedConnection,
-                                            Q_ARG(int, currentIndex));
-        assert(ok == true);
+        invokeNonBlockMethod(object, "setCurrentIndex", Q_ARG(int, currentIndex));
     };
 
     auto indexFromText = [&] {
@@ -1125,17 +1110,13 @@ void ScriptRunner::treeViewTemplate(const QString &path, const QList<int> &index
         }
 
         if (isExpand) {
-            bool ok = QMetaObject::invokeMethod(object, "expand", Qt::BlockingQueuedConnection,
-                                                Q_ARG(QModelIndex, index));
-            assert(ok == true);
+            invokeNonBlockMethod(object, "expand", Q_ARG(QModelIndex, index));
         }
         lastIndex = index;
     }
 
     if (!isExpand) {
-        bool ok = QMetaObject::invokeMethod(object, "collapse", Qt::BlockingQueuedConnection,
-                                            Q_ARG(QModelIndex, lastIndex));
-        assert(ok == true);
+        invokeNonBlockMethod(object, "collapse", Q_ARG(QModelIndex, lastIndex));
     }
 }
 
@@ -1181,8 +1162,7 @@ void ScriptRunner::selectViewItem(const QString &path, int index) const noexcept
             QStringLiteral("Index '%1' is out of range [0, %2)").arg(index).arg(count));
         return;
     }
-    bool ok = writePropertyInGuiThread(object, "currentIndex", index);
-    assert(ok == true);
+    writePropertyInGuiThread(object, "currentIndex", index);
 }
 
 void ScriptRunner::actionTemplate(const QString &path, std::optional<bool> isChecked) const noexcept
@@ -1201,8 +1181,7 @@ void ScriptRunner::actionTemplate(const QString &path, std::optional<bool> isChe
     }
 
     if (!isChecked.has_value()) {
-        bool ok = QMetaObject::invokeMethod(object, "trigger", Qt::BlockingQueuedConnection);
-        assert(ok == true);
+        invokeNonBlockMethod(object, "trigger");
         return;
     }
 
@@ -1217,8 +1196,7 @@ void ScriptRunner::actionTemplate(const QString &path, std::optional<bool> isChe
                                .arg(*isChecked ? "true" : "false"));
     }
     else {
-        bool ok = QMetaObject::invokeMethod(object, "toggle", Qt::BlockingQueuedConnection);
-        assert(ok == true);
+        invokeNonBlockMethod(object, "toggle");
     }
 }
 
@@ -1275,14 +1253,12 @@ void ScriptRunner::delegateTemplate(const QString &path, int index, bool isDoubl
     const auto pos = QPoint(width / 2, height / 2);
 
     if (isDouble) {
-        QGuiApplication::postEvent(item, simpleMouseEvent(QEvent::MouseButtonDblClick, pos));
+        postEvents(item, { simpleMouseEvent(QEvent::MouseButtonDblClick, pos) });
     }
     else {
-        QGuiApplication::postEvent(item, simpleMouseEvent(QEvent::MouseButtonPress, pos));
-        QGuiApplication::postEvent(item, simpleMouseEvent(QEvent::MouseButtonRelease, pos));
+        postEvents(item, { simpleMouseEvent(QEvent::MouseButtonPress, pos),
+                           simpleMouseEvent(QEvent::MouseButtonRelease, pos) });
     }
-    //! TODO: см. ScriptRunner::mouseClick
-    QThread::msleep(10);
 }
 
 void ScriptRunner::delegateClick(const QString &path, int index) const noexcept
@@ -1371,14 +1347,16 @@ void ScriptRunner::delegateTemplate(const QString &path, std::optional<QList<int
 
     const auto pos = rect.center();
     auto *viewport = view->viewport();
-    QGuiApplication::postEvent(viewport, simpleMouseEvent(QEvent::MouseButtonPress, pos));
-    QGuiApplication::postEvent(viewport, simpleMouseEvent(QEvent::MouseButtonRelease, pos));
+    assert(viewport != nullptr);
+
+    std::vector<QEvent *> events;
+    events.push_back(simpleMouseEvent(QEvent::MouseButtonPress, pos));
+    events.push_back(simpleMouseEvent(QEvent::MouseButtonRelease, pos));
     if (isDouble) {
-        QGuiApplication::postEvent(viewport, simpleMouseEvent(QEvent::MouseButtonDblClick, pos));
-        QGuiApplication::postEvent(viewport, simpleMouseEvent(QEvent::MouseButtonRelease, pos));
+        events.push_back(simpleMouseEvent(QEvent::MouseButtonDblClick, pos));
+        events.push_back(simpleMouseEvent(QEvent::MouseButtonRelease, pos));
     }
-    //! TODO: см. ScriptRunner::mouseClick
-    QThread::msleep(10);
+    postEvents(viewport, events);
 }
 
 void ScriptRunner::delegateClick(const QString &path, QList<int> indexPath) const noexcept
@@ -1438,9 +1416,7 @@ void ScriptRunner::setSelection(const QString &path, const QJSValue &selectionDa
     }
 
     QItemSelection selection;
-    bool cleared
-        = QMetaObject::invokeMethod(selectionModel, "clearSelection", Qt::BlockingQueuedConnection);
-    assert(cleared == true);
+    invokeNonBlockMethod(selectionModel, "clearSelection");
     //! TODO: слишком много дублирования кода, нужно будет переписать
     for (const auto &pair : data) {
         const auto &rawRow = pair.first;
@@ -1490,10 +1466,8 @@ void ScriptRunner::setSelection(const QString &path, const QJSValue &selectionDa
             Q_UNREACHABLE();
         }
     }
-    bool selected = QMetaObject::invokeMethod(
-        selectionModel, "select", Qt::BlockingQueuedConnection, Q_ARG(QItemSelection, selection),
-        Q_ARG(QItemSelectionModel::SelectionFlags, QItemSelectionModel::Select));
-    assert(selected == true);
+    invokeNonBlockMethod(selectionModel, "select", Q_ARG(QItemSelection, selection),
+                         Q_ARG(QItemSelectionModel::SelectionFlags, QItemSelectionModel::Select));
 }
 
 void ScriptRunner::clearSelection(const QString &path) const noexcept
@@ -1518,9 +1492,7 @@ void ScriptRunner::clearSelection(const QString &path) const noexcept
         engine_->throwError(QStringLiteral("Object selection model is not accessible"));
         return;
     }
-    bool ok
-        = QMetaObject::invokeMethod(selectionModel, "clearSelection", Qt::BlockingQueuedConnection);
-    assert(ok == true);
+    invokeNonBlockMethod(selectionModel, "clearSelection");
 }
 
 void ScriptRunner::closeDialog(const QString &path) const noexcept
@@ -1533,10 +1505,7 @@ void ScriptRunner::closeDialog(const QString &path) const noexcept
         engine_->throwError(QStringLiteral("Passed object is not a dialog"));
         return;
     }
-
-    QGuiApplication::postEvent(object, new QCloseEvent());
-    //! TODO: см. ScriptRunner::mouseClick
-    QThread::msleep(10);
+    postEvents(object, { new QCloseEvent() });
 }
 
 void ScriptRunner::closeWindow(const QString &path) const noexcept
@@ -1556,14 +1525,10 @@ void ScriptRunner::closeWindow(const QString &path) const noexcept
     if (isWidgetWindow) {
         //! TODO: Почему-то именно для QMainWindow не работает
         //! QGuiApplication::postEvent(object, new QCloseEvent());
-        auto *window = qobject_cast<QMainWindow *>(object);
-        assert(window != nullptr);
-        QMetaObject::invokeMethod(window, "close", Qt::BlockingQueuedConnection);
+        invokeNonBlockMethod(object, "close");
     }
     else if (isQuickWindow) {
-        QGuiApplication::postEvent(object, new QCloseEvent());
-        //! TODO: см. ScriptRunner::mouseClick
-        QThread::msleep(10);
+        postEvents(object, { new QCloseEvent() });
     }
 }
 } // namespace QtAda::core
