@@ -27,7 +27,8 @@ public:
 
     void setMousePressFilter(const QObject *obj, const QEvent *event) noexcept override;
     void handleKeyEvent(const QObject *obj, const QEvent *event) noexcept override;
-    QString handleCloseEvent(const QObject *obj, const QEvent *event) noexcept override;
+    std::optional<QString> handleCloseEvent(const QObject *obj,
+                                            const QEvent *event) noexcept override;
 
 signals:
     void newScriptKeyLine(const QString &line) const;

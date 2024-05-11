@@ -12,6 +12,7 @@
 #include <QModelIndex>
 #include <QAbstractItemView>
 #include <QAbstractItemModel>
+#include <QMainWindow>
 
 #include "utils/FilterUtils.hpp"
 #include "utils/Tools.hpp"
@@ -443,7 +444,10 @@ void ScriptRunner::buttonClick(const QString &path) const noexcept
         return;
     }
 
-    if (!object->inherits("QAbstractButton") && !object->inherits("QQuickAbstractButton")) {
+    bool isWidgetButton = object->inherits("QAbstractButton");
+    bool isQuickButton = object->inherits("QQuickAbstractButton");
+
+    if (!isWidgetButton && !isQuickButton) {
         engine_->throwError(QStringLiteral("Passed object is not a button"));
         return;
     }
@@ -451,7 +455,9 @@ void ScriptRunner::buttonClick(const QString &path) const noexcept
         return;
     }
 
-    bool ok = QMetaObject::invokeMethod(object, "toggle", Qt::BlockingQueuedConnection);
+    // Не для всех кнопок в QtWidgets click == toggle, поэтому для QtWidgets предпочитаем click
+    bool ok = QMetaObject::invokeMethod(object, isWidgetButton ? "click" : "toggle",
+                                        Qt::BlockingQueuedConnection);
     assert(ok == true);
 }
 
@@ -1515,5 +1521,49 @@ void ScriptRunner::clearSelection(const QString &path) const noexcept
     bool ok
         = QMetaObject::invokeMethod(selectionModel, "clearSelection", Qt::BlockingQueuedConnection);
     assert(ok == true);
+}
+
+void ScriptRunner::closeDialog(const QString &path) const noexcept
+{
+    auto *object = findObjectByPath(path);
+    if (object == nullptr) {
+        return;
+    }
+    if (!object->inherits("QDialog")) {
+        engine_->throwError(QStringLiteral("Passed object is not a dialog"));
+        return;
+    }
+
+    QGuiApplication::postEvent(object, new QCloseEvent());
+    //! TODO: см. ScriptRunner::mouseClick
+    QThread::msleep(10);
+}
+
+void ScriptRunner::closeWindow(const QString &path) const noexcept
+{
+    auto *object = findObjectByPath(path);
+    if (object == nullptr) {
+        return;
+    }
+
+    const auto isWidgetWindow = object->inherits("QMainWindow");
+    const auto isQuickWindow = object->inherits("QQuickWindow");
+    if (!isWidgetWindow && !isQuickWindow) {
+        engine_->throwError(QStringLiteral("Passed object is not a window"));
+        return;
+    }
+
+    if (isWidgetWindow) {
+        //! TODO: Почему-то именно для QMainWindow не работает
+        //! QGuiApplication::postEvent(object, new QCloseEvent());
+        auto *window = qobject_cast<QMainWindow *>(object);
+        assert(window != nullptr);
+        QMetaObject::invokeMethod(window, "close", Qt::BlockingQueuedConnection);
+    }
+    else if (isQuickWindow) {
+        QGuiApplication::postEvent(object, new QCloseEvent());
+        //! TODO: см. ScriptRunner::mouseClick
+        QThread::msleep(10);
+    }
 }
 } // namespace QtAda::core

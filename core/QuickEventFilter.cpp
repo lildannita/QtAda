@@ -711,7 +711,8 @@ void QuickEventFilter::processKeyEvent(const QString &text) noexcept
     keyWatchDog_.clear();
 }
 
-QString QuickEventFilter::handleCloseEvent(const QObject *obj, const QEvent *event) noexcept
+std::optional<QString> QuickEventFilter::handleCloseEvent(const QObject *obj,
+                                                          const QEvent *event) noexcept
 {
     if (obj == nullptr || event == nullptr
         || (event != nullptr && event->type() != QEvent::Close)) {
@@ -720,9 +721,9 @@ QString QuickEventFilter::handleCloseEvent(const QObject *obj, const QEvent *eve
 
     if (utils::metaObjectWatcher(obj->metaObject(),
                                  filters::s_quickMetaMap.at(QuickClass::Window).first)) {
-        return QStringLiteral("closeWindow('%1');").arg(utils::objectPath(obj));
+        return filters::closeCommand(utils::objectPath(obj));
     }
     //! TODO: Временная заглушка, см. WidgetEventFilter::handleCloseEvent()
-    return QStringLiteral("// close('%1');").arg(utils::objectPath(obj));
+    return std::nullopt;
 }
 } // namespace QtAda::core

@@ -62,6 +62,8 @@ public:
     Q_INVOKABLE void setSelection(const QString &path,
                                   const QJSValue &selectionData) const noexcept;
     Q_INVOKABLE void clearSelection(const QString &path) const noexcept;
+    Q_INVOKABLE void closeDialog(const QString &path) const noexcept;
+    Q_INVOKABLE void closeWindow(const QString &path) const noexcept;
 
 signals:
     void scriptError(const QString &msg) const;

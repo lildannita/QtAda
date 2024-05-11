@@ -88,7 +88,9 @@ public:
     }
 
     virtual void handleKeyEvent(const QObject *obj, const QEvent *event) noexcept = 0;
-    virtual QString handleCloseEvent(const QObject *obj, const QEvent *event) noexcept = 0;
+    virtual std::optional<QString> handleCloseEvent(const QObject *obj,
+                                                    const QEvent *event) noexcept
+        = 0;
 
 signals:
     // Для MouseEvent имеется потребность "откладывать" сгенерированную строку, поэтому используем

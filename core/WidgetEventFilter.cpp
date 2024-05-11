@@ -1020,7 +1020,8 @@ void WidgetEventFilter::processKeyEvent(const QString &text) noexcept
     keyWatchDog_.clear();
 }
 
-QString WidgetEventFilter::handleCloseEvent(const QObject *obj, const QEvent *event) noexcept
+std::optional<QString> WidgetEventFilter::handleCloseEvent(const QObject *obj,
+                                                           const QEvent *event) noexcept
 {
     if (obj == nullptr || event == nullptr
         || (event != nullptr && event->type() != QEvent::Close)) {
@@ -1032,12 +1033,12 @@ QString WidgetEventFilter::handleCloseEvent(const QObject *obj, const QEvent *ev
 
     if (utils::searchSpecificComponent(widget, filters::s_widgetMetaMap.at(WidgetClass::Dialog))
         != nullptr) {
-        return QStringLiteral("closeDialog('%1');").arg(utils::objectPath(widget));
+        return filters::closeCommand(utils::objectPath(widget), true);
     }
     else if (utils::searchSpecificComponent(widget,
                                             filters::s_widgetMetaMap.at(WidgetClass::Window))
              != nullptr) {
-        return QStringLiteral("closeWindow('%1');").arg(utils::objectPath(widget));
+        return filters::closeCommand(utils::objectPath(widget));
     }
     //! TODO: Это событие для QMenu генерируется и при выборе какого-либо QAction, причем
     //! событие мыши, которое привело к закрытию QMenu, не генерируется (в отличие от
@@ -1047,6 +1048,6 @@ QString WidgetEventFilter::handleCloseEvent(const QObject *obj, const QEvent *ev
     //!
     //! UPD: Как оказалось, такое генерируется и не только для QMenu, но и для QToolBar.
     //! Поэтому пока что делаем заглушку для всех остальных случаев:
-    return QStringLiteral("// close('%1');").arg(utils::objectPath(widget));
+    return std::nullopt;
 }
 } // namespace QtAda::core

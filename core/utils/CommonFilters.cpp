@@ -160,4 +160,12 @@ QString clearSelectionCommand(const QString &path) noexcept
 {
     return QStringLiteral("%1clearSelection('%2');").arg(SCRIPT_COMMAND_PREFIX).arg(path);
 }
+
+QString closeCommand(const QString &path, bool isDialog) noexcept
+{
+    return QStringLiteral("%1close%2('%3');")
+        .arg(SCRIPT_COMMAND_PREFIX)
+        .arg(isDialog ? "Dialog" : "Window")
+        .arg(path);
+}
 } // namespace QtAda::core::filters

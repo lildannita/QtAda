@@ -129,5 +129,6 @@ QString delegateClickCommand(const QString &path, const QString &statement, bool
                              const QString &text = QString()) noexcept;
 QString setSelectionCommand(const QString &path, const QString &selection) noexcept;
 QString clearSelectionCommand(const QString &path) noexcept;
+QString closeCommand(const QString &path, bool isDialog = false) noexcept;
 
 } // namespace QtAda::core::filters
