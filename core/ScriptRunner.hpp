@@ -22,6 +22,8 @@ public:
     Q_INVOKABLE void usleep(int usec);
     Q_INVOKABLE void mouseClick(const QString &path, const QString &mouseButtonStr, int x,
                                 int y) const noexcept;
+    Q_INVOKABLE void mouseDblClick(const QString &path, const QString &mouseButtonStr, int x,
+                                   int y) const noexcept;
     Q_INVOKABLE void buttonClick(const QString &path) const noexcept;
     Q_INVOKABLE void buttonDblClick(const QString &path) const noexcept;
     Q_INVOKABLE void buttonPress(const QString &path) const noexcept;
@@ -50,6 +52,8 @@ public:
     Q_INVOKABLE void selectViewItem(const QString &path, int index) const noexcept;
     Q_INVOKABLE void triggerAction(const QString &path) const noexcept;
     Q_INVOKABLE void triggerAction(const QString &path, bool isChecked) const noexcept;
+    Q_INVOKABLE void delegateClick(const QString &path, int index) const noexcept;
+    Q_INVOKABLE void delegateDblClick(const QString &path, int index) const noexcept;
 
 signals:
     void scriptError(const QString &msg) const;
@@ -78,6 +82,8 @@ private:
     QObject *findObjectByPath(const QString &path) const noexcept;
     bool checkObjectAvailability(const QObject *object, const QString &path,
                                  bool shouldBeVisible = true) const noexcept;
+    void mouseClickTemplate(const QString &path, const QString &mouseButtonStr, int x, int y,
+                            bool isDouble) const noexcept;
     void mouseAreaEventTemplate(const QString &path,
                                 const std::vector<QEvent::Type> events) const noexcept;
     void selectItemTemplate(const QString &path, int index, const QString &text,
@@ -87,6 +93,7 @@ private:
     void treeViewTemplate(const QString &path, const QList<int> &indexPath,
                           bool isExpand) const noexcept;
     void actionTemplate(const QString &path, std::optional<bool> isChecked) const noexcept;
+    void delegateTemplate(const QString &path, int index, bool isDouble) const noexcept;
 
     void finishThread(bool isOk) noexcept;
 };

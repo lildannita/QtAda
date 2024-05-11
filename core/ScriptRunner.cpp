@@ -260,8 +260,8 @@ void ScriptRunner::usleep(int usec)
     QThread::usleep(usec);
 }
 
-void ScriptRunner::mouseClick(const QString &path, const QString &mouseButtonStr, int x,
-                              int y) const noexcept
+void ScriptRunner::mouseClickTemplate(const QString &path, const QString &mouseButtonStr, int x,
+                                      int y, bool isDouble) const noexcept
 {
     auto *object = findObjectByPath(path);
     if (object == nullptr) {
@@ -275,10 +275,28 @@ void ScriptRunner::mouseClick(const QString &path, const QString &mouseButtonStr
     }
 
     const auto pos = QPoint(x, y);
-    QGuiApplication::postEvent(object,
-                               simpleMouseEvent(QEvent::MouseButtonPress, pos, *mouseButton));
-    QGuiApplication::postEvent(object,
-                               simpleMouseEvent(QEvent::MouseButtonRelease, pos, *mouseButton));
+    if (isDouble) {
+        if (object->inherits("QQuickItem")) {
+            QGuiApplication::postEvent(
+                object, simpleMouseEvent(QEvent::MouseButtonDblClick, pos, *mouseButton));
+        }
+        else {
+            QGuiApplication::postEvent(
+                object, simpleMouseEvent(QEvent::MouseButtonPress, pos, *mouseButton));
+            QGuiApplication::postEvent(
+                object, simpleMouseEvent(QEvent::MouseButtonRelease, pos, *mouseButton));
+            QGuiApplication::postEvent(
+                object, simpleMouseEvent(QEvent::MouseButtonDblClick, pos, *mouseButton));
+            QGuiApplication::postEvent(
+                object, simpleMouseEvent(QEvent::MouseButtonRelease, pos, *mouseButton));
+        }
+    }
+    else {
+        QGuiApplication::postEvent(object,
+                                   simpleMouseEvent(QEvent::MouseButtonPress, pos, *mouseButton));
+        QGuiApplication::postEvent(object,
+                                   simpleMouseEvent(QEvent::MouseButtonRelease, pos, *mouseButton));
+    }
 
     //! TODO: желательно отправлять события аналогично тому, как работает
     //! QMetaObject::invokeMethod(..., Qt::BlockingQueuedConnection);
@@ -289,6 +307,18 @@ void ScriptRunner::mouseClick(const QString &path, const QString &mouseButtonStr
     //! UPD: Можно определить собственный класс под такие события, который при
     //! "реализации" события, остановит QEventLoop, который был бы запущен сразу
     //! после очередного postEvent.
+}
+
+void ScriptRunner::mouseClick(const QString &path, const QString &mouseButtonStr, int x,
+                              int y) const noexcept
+{
+    mouseClickTemplate(path, mouseButtonStr, x, y, false);
+}
+
+void ScriptRunner::mouseDblClick(const QString &path, const QString &mouseButtonStr, int x,
+                                 int y) const noexcept
+{
+    mouseClickTemplate(path, mouseButtonStr, x, y, true);
 }
 
 /*
@@ -1097,5 +1127,68 @@ void ScriptRunner::triggerAction(const QString &path) const noexcept
 void ScriptRunner::triggerAction(const QString &path, bool isChecked) const noexcept
 {
     actionTemplate(path, isChecked);
+}
+
+void ScriptRunner::delegateTemplate(const QString &path, int index, bool isDouble) const noexcept
+{
+    auto *object = findObjectByPath(path);
+    if (object == nullptr) {
+        return;
+    }
+
+    if (!object->inherits("QQuickItemView")) {
+        engine_->throwError(QStringLiteral("Passed object is not an item view"));
+        return;
+    }
+    if (!checkObjectAvailability(object, path, false)) {
+        return;
+    }
+
+    const auto count = utils::getFromVariant<int>(QQmlProperty::read(object, "count"));
+    if (count == 0) {
+        engine_->throwError(QStringLiteral("Passed object has no delegates"));
+        return;
+    }
+
+    if (index >= count) {
+        engine_->throwError(
+            QStringLiteral("Index '%1' is out of range [0, %2)").arg(index).arg(count));
+        return;
+    }
+
+    QQuickItem *item = nullptr;
+    bool ok = QMetaObject::invokeMethod(object, "itemAtIndex", Qt::BlockingQueuedConnection,
+                                        Q_RETURN_ARG(QQuickItem *, item), Q_ARG(int, index));
+    assert(ok == true);
+
+    if (item == nullptr) {
+        engine_->throwError(
+            QStringLiteral("Delegate with index '%1' is not accessible").arg(index));
+        return;
+    }
+
+    const auto height = utils::getFromVariant<double>(QQmlProperty::read(object, "height"));
+    const auto width = utils::getFromVariant<double>(QQmlProperty::read(object, "width"));
+    const auto pos = QPoint(width / 2, height / 2);
+
+    if (isDouble) {
+        QGuiApplication::postEvent(item, simpleMouseEvent(QEvent::MouseButtonDblClick, pos));
+    }
+    else {
+        QGuiApplication::postEvent(item, simpleMouseEvent(QEvent::MouseButtonPress, pos));
+        QGuiApplication::postEvent(item, simpleMouseEvent(QEvent::MouseButtonRelease, pos));
+    }
+    //! TODO: см. ScriptRunner::mouseClick
+    QThread::msleep(10);
+}
+
+void ScriptRunner::delegateClick(const QString &path, int index) const noexcept
+{
+    delegateTemplate(path, index, false);
+}
+
+void ScriptRunner::delegateDblClick(const QString &path, int index) const noexcept
+{
+    delegateTemplate(path, index, true);
 }
 } // namespace QtAda::core
