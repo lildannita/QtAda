@@ -7,6 +7,7 @@
 
 QT_BEGIN_NAMESPACE
 class QJSEngine;
+class QJSValue;
 QT_END_NAMESPACE
 
 namespace QtAda::core {
@@ -58,6 +59,9 @@ public:
     Q_INVOKABLE void delegateDblClick(const QString &path, QList<int> indexPath) const noexcept;
     Q_INVOKABLE void delegateClick(const QString &path, int row, int column) const noexcept;
     Q_INVOKABLE void delegateDblClick(const QString &path, int row, int column) const noexcept;
+    Q_INVOKABLE void setSelection(const QString &path,
+                                  const QJSValue &selectionData) const noexcept;
+    Q_INVOKABLE void clearSelection(const QString &path) const noexcept;
 
 signals:
     void scriptError(const QString &msg) const;

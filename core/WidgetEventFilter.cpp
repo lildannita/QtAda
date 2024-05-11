@@ -533,7 +533,7 @@ static QString qItemViewFilter(const QWidget *widget, const QMouseEvent *event,
         const auto selectionMode = view->selectionMode();
         if (selectionMode == QAbstractItemView::ExtendedSelection
             || selectionMode == QAbstractItemView::ContiguousSelection) {
-            return QStringLiteral("clearSelection('%1');").arg(utils::objectPath(widget));
+            return clearSelectionCommand(utils::objectPath(widget));
         }
         return QString();
     }
@@ -567,10 +567,12 @@ static QString qItemViewSelectionFilter(const QWidget *widget, const QMouseEvent
 
     const auto selectedCellsData = utils::selectedCellsData(view->selectionModel());
     return selectedCellsData.isEmpty()
-               ? QStringLiteral("clearSelection('%1');").arg(utils::objectPath(widget))
-               : QStringLiteral("let selectionData = [%1];\nsetSelection('%2', selectionData);")
-                     .arg(selectedCellsData)
-                     .arg(utils::objectPath(widget));
+               ? clearSelectionCommand(utils::objectPath(widget))
+               //! TODO: Бывает так, что вместо прямого пути к View-элементу, получаем
+               //! путь к ../View/QHeaderView, но тем не менее при воспроизведении скрипта
+               //! даже этот объект можно преобразовать к View-элементу. Однако все равно
+               //! лучше убрать QHeaderView из пути, чтобы не "смущать" пользователя.
+               : setSelectionCommand(utils::objectPath(widget), selectedCellsData);
 }
 
 static QString qMenuBarFilter(const QWidget *widget, const QMouseEvent *event,

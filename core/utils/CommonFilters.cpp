@@ -133,4 +133,31 @@ QString delegateClickCommand(const QString &path, const QString &statement, bool
         .arg(text.isEmpty() ? ""
                             : QStringLiteral(" // Delegate text: '%1'").arg(text.simplified()));
 }
+
+QString setSelectionCommand(const QString &path, const QString &selection) noexcept
+{
+    //! TODO: При "обновлении" скрипта может все-равно получиться конфликт имен.
+    //! В будущем нужно будет придумать как самим решать эту проблему. Сейчас можно
+    //! было бы оставить это на пользователя, но в ущерб "краткости" кода и в пользу
+    //! надежности было решено передавать selectionData сразу в виде аргумента.
+    //! static uint selectionDataCount = 0;
+    //! const auto selectionLet
+    //!     = QStringLiteral("selectionData%1")
+    //!           .arg(selectionDataCount > 0 ? QString::number(selectionDataCount) : "");
+    //! selectionDataCount++;
+    //! return QStringLiteral("let %1 = [%2];\n%3setSelection('%4', %1);")
+    //!     .arg(selectionLet)
+    //!     .arg(selection)
+    //!     .arg(SCRIPT_COMMAND_PREFIX)
+    //!     .arg(path);
+    return QStringLiteral("%1setSelection('%2', [%3]);")
+        .arg(SCRIPT_COMMAND_PREFIX)
+        .arg(path)
+        .arg(selection);
+}
+
+QString clearSelectionCommand(const QString &path) noexcept
+{
+    return QStringLiteral("%1clearSelection('%2');").arg(SCRIPT_COMMAND_PREFIX).arg(path);
+}
 } // namespace QtAda::core::filters

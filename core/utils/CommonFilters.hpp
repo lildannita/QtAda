@@ -127,4 +127,7 @@ QString actionCommand(const QString &path, const QString &text, bool isSeparator
                       std::optional<bool> checked) noexcept;
 QString delegateClickCommand(const QString &path, const QString &statement, bool isDouble,
                              const QString &text = QString()) noexcept;
+QString setSelectionCommand(const QString &path, const QString &selection) noexcept;
+QString clearSelectionCommand(const QString &path) noexcept;
+
 } // namespace QtAda::core::filters

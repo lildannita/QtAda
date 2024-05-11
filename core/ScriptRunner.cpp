@@ -23,6 +23,103 @@ static QMouseEvent *simpleMouseEvent(const QEvent::Type type, const QPoint &pos,
     return new QMouseEvent(type, pos, button, button, Qt::NoModifier);
 }
 
+static std::vector<std::pair<QVariant, QVariant>> parseSelectionData(const QJSValue &selectionData,
+                                                                     bool &isOk, int rowCount,
+                                                                     int columnCount,
+                                                                     QJSEngine *engine)
+{
+    std::vector<std::pair<QVariant, QVariant>> parsedData;
+
+    if (!selectionData.isArray()) {
+        isOk = false;
+        engine->throwError(QStringLiteral("Passed selection data is not an array"));
+        return parsedData;
+    }
+
+    const auto length = selectionData.property("length").toInt();
+    if (length == 0) {
+        isOk = false;
+        engine->throwError(QStringLiteral("Passed selection data is empty"));
+        return parsedData;
+    }
+
+    for (int i = 0; i < length; i++) {
+        const auto entry = selectionData.property(i);
+        QVariant rowVar, columnVar;
+        const auto rowValue = entry.property("row").toString();
+        const auto columnRawValue = entry.property("column");
+
+        if (rowValue == "ALL") {
+            rowVar = true;
+        }
+        else {
+            bool ok;
+            const auto row = rowValue.toInt(&ok);
+            if (!ok) {
+                isOk = false;
+                engine->throwError(QStringLiteral("Passed selection data is invalid"));
+                return parsedData;
+            }
+            else if (row < 0 || row >= rowCount) {
+                isOk = false;
+                engine->throwError(
+                    QStringLiteral("Passed row index '%1' is out of row range [0, %2)")
+                        .arg(row)
+                        .arg(rowCount));
+                return parsedData;
+            }
+            rowVar = row;
+        }
+
+        if (columnRawValue.toString() == "ALL") {
+            columnVar = true;
+        }
+        else if (columnRawValue.isArray() || columnRawValue.isNumber()) {
+            const auto isSingleDigit = columnRawValue.isNumber();
+            QList<int> columns;
+            const auto columnLength = isSingleDigit ? 1 : columnRawValue.property("length").toInt();
+            if (columnLength == 0) {
+                isOk = false;
+                engine->throwError(QStringLiteral("Passed selection data is invalid"));
+                return parsedData;
+            }
+
+            for (int j = 0; j < columnLength; j++) {
+                bool ok;
+                int column = -1;
+                if (isSingleDigit) {
+                    column = columnRawValue.toString().toInt(&ok);
+                }
+                else {
+                    column = columnRawValue.property(j).toString().toInt(&ok);
+                }
+                if (!ok) {
+                    isOk = false;
+                    engine->throwError(QStringLiteral("Passed selection data is invalid"));
+                    return parsedData;
+                }
+                else if (column < 0 || column >= columnCount) {
+                    isOk = false;
+                    engine->throwError(
+                        QStringLiteral("Passed column index '%1' is out of column range [0, %2)")
+                            .arg(column)
+                            .arg(columnCount));
+                    return parsedData;
+                }
+                columns.append(column);
+            }
+            columnVar = QVariant::fromValue(columns);
+        }
+        else {
+            isOk = false;
+            engine->throwError(QStringLiteral("Passed selection data is invalid"));
+            return parsedData;
+        }
+        parsedData.push_back(std::make_pair(rowVar, columnVar));
+    }
+    return parsedData;
+}
+
 ScriptRunner::ScriptRunner(const RunSettings &settings, QObject *parent) noexcept
     : QObject{ parent }
     , runSettings_{ settings }
@@ -530,7 +627,7 @@ void ScriptRunner::selectItemTemplate(const QString &path, int index, const QStr
     }
 
     auto indexHandler = [&](int currentIndex) {
-        if (currentIndex >= count) {
+        if (currentIndex < 0 || currentIndex >= count) {
             engine_->throwError(
                 QStringLiteral("Index '%1' is out of range [0, %2)").arg(currentIndex).arg(count));
             return;
@@ -908,7 +1005,7 @@ void ScriptRunner::selectTabItemTemplate(const QString &path, int index, const Q
     }
 
     auto indexHandler = [&](int currentIndex) {
-        if (currentIndex >= count) {
+        if (currentIndex < 0 || currentIndex >= count) {
             engine_->throwError(
                 QStringLiteral("Index '%1' is out of range [0, %2)").arg(currentIndex).arg(count));
             return;
@@ -1073,7 +1170,7 @@ void ScriptRunner::selectViewItem(const QString &path, int index) const noexcept
         return;
     }
 
-    if (index >= count) {
+    if (index < 0 || index >= count) {
         engine_->throwError(
             QStringLiteral("Index '%1' is out of range [0, %2)").arg(index).arg(count));
         return;
@@ -1150,7 +1247,7 @@ void ScriptRunner::delegateTemplate(const QString &path, int index, bool isDoubl
         return;
     }
 
-    if (index >= count) {
+    if (index < 0 || index >= count) {
         engine_->throwError(
             QStringLiteral("Index '%1' is out of range [0, %2)").arg(index).arg(count));
         return;
@@ -1296,5 +1393,127 @@ void ScriptRunner::delegateClick(const QString &path, int row, int column) const
 void ScriptRunner::delegateDblClick(const QString &path, int row, int column) const noexcept
 {
     delegateTemplate(path, std::nullopt, std::make_pair(row, column), true);
+}
+
+void ScriptRunner::setSelection(const QString &path, const QJSValue &selectionData) const noexcept
+{
+    auto *object = findObjectByPath(path);
+    if (object == nullptr) {
+        return;
+    }
+
+    if (!object->inherits("QAbstractItemView")) {
+        engine_->throwError(QStringLiteral("Passed object is not a view"));
+        return;
+    }
+    if (!checkObjectAvailability(object, path)) {
+        return;
+    }
+
+    auto *view = qobject_cast<QAbstractItemView *>(object);
+    assert(view != nullptr);
+    auto *model = view->model();
+    if (model == nullptr) {
+        engine_->throwError(QStringLiteral("Object model is not accessible"));
+        return;
+    }
+    auto *selectionModel = view->selectionModel();
+    if (selectionModel == nullptr) {
+        engine_->throwError(QStringLiteral("Object selection model is not accessible"));
+        return;
+    }
+
+    bool isOk = true;
+    const auto rowCount = model->rowCount();
+    const auto columnCount = model->columnCount();
+    const auto data = parseSelectionData(selectionData, isOk, rowCount, columnCount, engine_);
+    if (!isOk) {
+        return;
+    }
+
+    QItemSelection selection;
+    bool cleared
+        = QMetaObject::invokeMethod(selectionModel, "clearSelection", Qt::BlockingQueuedConnection);
+    assert(cleared == true);
+    //! TODO: слишком много дублирования кода, нужно будет переписать
+    for (const auto &pair : data) {
+        const auto &rawRow = pair.first;
+        const auto &rawColumn = pair.second;
+        const auto rawRowType = rawRow.type();
+        const auto rawColumnType = rawColumn.type();
+
+        if (rawRowType == QVariant::Bool) {
+            if (rawColumnType == QVariant::Bool) {
+                for (int r = 0; r < rowCount; r++) {
+                    for (int c = 0; c < columnCount; c++) {
+                        auto index = model->index(r, c);
+                        selection.select(index, index);
+                    }
+                }
+                break;
+            }
+            else {
+                const auto cols = rawColumn.value<QList<int>>();
+                assert(!cols.isEmpty());
+                for (int r = 0; r < rowCount; r++) {
+                    for (const auto &c : cols) {
+                        auto index = model->index(r, c);
+                        selection.select(index, index);
+                    }
+                }
+            }
+        }
+        else if (rawRowType == QVariant::Int) {
+            const auto row = rawRow.toInt();
+            if (rawColumnType == QVariant::Bool) {
+                for (int c = 0; c < columnCount; c++) {
+                    auto index = model->index(row, c);
+                    selection.select(index, index);
+                }
+            }
+            else {
+                const auto cols = rawColumn.value<QList<int>>();
+                assert(!cols.isEmpty());
+                for (const auto &c : cols) {
+                    auto index = model->index(row, c);
+                    selection.select(index, index);
+                }
+            }
+        }
+        else {
+            Q_UNREACHABLE();
+        }
+    }
+    bool selected = QMetaObject::invokeMethod(
+        selectionModel, "select", Qt::BlockingQueuedConnection, Q_ARG(QItemSelection, selection),
+        Q_ARG(QItemSelectionModel::SelectionFlags, QItemSelectionModel::Select));
+    assert(selected == true);
+}
+
+void ScriptRunner::clearSelection(const QString &path) const noexcept
+{
+    auto *object = findObjectByPath(path);
+    if (object == nullptr) {
+        return;
+    }
+
+    if (!object->inherits("QAbstractItemView")) {
+        engine_->throwError(QStringLiteral("Passed object is not a view"));
+        return;
+    }
+    if (!checkObjectAvailability(object, path)) {
+        return;
+    }
+
+    auto *view = qobject_cast<QAbstractItemView *>(object);
+    assert(view != nullptr);
+    auto *selectionModel = view->selectionModel();
+    if (selectionModel == nullptr) {
+        engine_->throwError(QStringLiteral("Object selection model is not accessible"));
+        return;
+    }
+    bool ok
+        = QMetaObject::invokeMethod(selectionModel, "clearSelection", Qt::BlockingQueuedConnection);
+    assert(ok == true);
 }
 } // namespace QtAda::core

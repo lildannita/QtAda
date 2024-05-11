@@ -11,7 +11,8 @@ namespace QtAda {
 static int countScriptLines(const QString &filePath)
 {
     QFile file(filePath);
-    assert(file.open(QIODevice::ReadOnly | QIODevice::Text));
+    const auto opened = file.open(QIODevice::ReadOnly | QIODevice::Text);
+    assert(opened == true);
 
     QTextStream in(&file);
     int lineCount = 0;
