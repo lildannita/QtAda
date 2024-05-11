@@ -121,4 +121,16 @@ QString actionCommand(const QString &path, const QString &text, bool isSeparator
                  : "")
         .arg(text.isEmpty() ? "" : QStringLiteral(" // Action text: '%1'").arg(text.simplified()));
 }
+
+QString delegateClickCommand(const QString &path, const QString &statement, bool isDouble,
+                             const QString &text) noexcept
+{
+    return QStringLiteral("%1delegate%2Click('%3', %4);%5")
+        .arg(SCRIPT_COMMAND_PREFIX)
+        .arg(isDouble ? "Dbl" : "")
+        .arg(path)
+        .arg(statement)
+        .arg(text.isEmpty() ? ""
+                            : QStringLiteral(" // Delegate text: '%1'").arg(text.simplified()));
+}
 } // namespace QtAda::core::filters

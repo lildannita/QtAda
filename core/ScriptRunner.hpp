@@ -54,6 +54,10 @@ public:
     Q_INVOKABLE void triggerAction(const QString &path, bool isChecked) const noexcept;
     Q_INVOKABLE void delegateClick(const QString &path, int index) const noexcept;
     Q_INVOKABLE void delegateDblClick(const QString &path, int index) const noexcept;
+    Q_INVOKABLE void delegateClick(const QString &path, QList<int> indexPath) const noexcept;
+    Q_INVOKABLE void delegateDblClick(const QString &path, QList<int> indexPath) const noexcept;
+    Q_INVOKABLE void delegateClick(const QString &path, int row, int column) const noexcept;
+    Q_INVOKABLE void delegateDblClick(const QString &path, int row, int column) const noexcept;
 
 signals:
     void scriptError(const QString &msg) const;
@@ -94,6 +98,8 @@ private:
                           bool isExpand) const noexcept;
     void actionTemplate(const QString &path, std::optional<bool> isChecked) const noexcept;
     void delegateTemplate(const QString &path, int index, bool isDouble) const noexcept;
+    void delegateTemplate(const QString &path, std::optional<QList<int>> indexPath,
+                          std::optional<std::pair<int, int>> index, bool isDouble) const noexcept;
 
     void finishThread(bool isOk) noexcept;
 };

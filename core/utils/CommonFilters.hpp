@@ -125,4 +125,6 @@ QString undoCommand(const QString &path, int index, const QString &delegateText)
 QString selectViewItemCommand(const QString &path, int index) noexcept;
 QString actionCommand(const QString &path, const QString &text, bool isSeparator, bool isMenu,
                       std::optional<bool> checked) noexcept;
+QString delegateClickCommand(const QString &path, const QString &statement, bool isDouble,
+                             const QString &text = QString()) noexcept;
 } // namespace QtAda::core::filters

@@ -466,13 +466,9 @@ static QString qItemViewClickFilter(const QAbstractItemView *view,
             = qobject_cast<const QTreeView *>(view) != nullptr
                   ? utils::treeIndexPath(currentIndex)
                   : QStringLiteral("%1, %2").arg(currentIndex.row()).arg(currentIndex.column());
-        return QStringLiteral("delegate%1Click('%2', %3);%4")
-            .arg(event->type() == QEvent::MouseButtonDblClick ? "Dbl" : "")
-            .arg(utils::objectPath(qobject_cast<const QWidget *>(view)))
-            .arg(indexPath)
-            .arg(currentItemText.isEmpty()
-                     ? ""
-                     : QStringLiteral(" // Delegate text: '%1'").arg(currentItemText.simplified()));
+        return delegateClickCommand(utils::objectPath(qobject_cast<const QWidget *>(view)),
+                                    indexPath, event->type() == QEvent::MouseButtonDblClick,
+                                    currentItemText);
     }
 
     return QString();

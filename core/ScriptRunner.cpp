@@ -1191,4 +1191,110 @@ void ScriptRunner::delegateDblClick(const QString &path, int index) const noexce
 {
     delegateTemplate(path, index, true);
 }
+
+void ScriptRunner::delegateTemplate(const QString &path, std::optional<QList<int>> indexPath,
+                                    std::optional<std::pair<int, int>> index,
+                                    bool isDouble) const noexcept
+{
+    auto *object = findObjectByPath(path);
+    if (object == nullptr) {
+        return;
+    }
+
+    bool isTreeView = false;
+    bool isUsualView = false;
+
+    if (indexPath.has_value()) {
+        assert(!index.has_value());
+        isTreeView = object->inherits("QTreeView");
+    }
+    else if (index.has_value()) {
+        assert(!indexPath.has_value());
+        isUsualView = object->inherits("QAbstractItemView");
+    }
+    else {
+        Q_UNREACHABLE();
+    }
+
+    if (!isTreeView && !isUsualView) {
+        engine_->throwError(QStringLiteral("Passed object is not a %1")
+                                .arg(indexPath.has_value() ? "tree" : "view"));
+        return;
+    }
+    if (!checkObjectAvailability(object, path)) {
+        return;
+    }
+
+    auto *view = qobject_cast<QAbstractItemView *>(object);
+    assert(view != nullptr);
+    auto *model = view->model();
+
+    if (model == nullptr) {
+        engine_->throwError(QStringLiteral("Object model is not accessible"));
+        return;
+    }
+
+    QModelIndex lastIndex;
+    if (isTreeView) {
+        assert(!index.has_value());
+        for (const auto &row : *indexPath) {
+            QModelIndex index;
+            if (lastIndex.isValid()) {
+                index = model->index(row, 0, lastIndex);
+            }
+            else {
+                index = model->index(row, 0);
+            }
+
+            if (!index.isValid()) {
+                engine_->throwError(QStringLiteral("Can't get accesible model index from path"));
+                return;
+            }
+            lastIndex = index;
+        }
+    }
+    else if (isUsualView) {
+        lastIndex = model->index(index->first, index->second);
+    }
+    else {
+        Q_UNREACHABLE();
+    }
+
+    const auto rect = view->visualRect(lastIndex);
+    if (rect.isEmpty() || rect.isNull()) {
+        engine_->throwError(QStringLiteral("Delegate is not accessible"));
+        return;
+    }
+
+    const auto pos = rect.center();
+    auto *viewport = view->viewport();
+    QGuiApplication::postEvent(viewport, simpleMouseEvent(QEvent::MouseButtonPress, pos));
+    QGuiApplication::postEvent(viewport, simpleMouseEvent(QEvent::MouseButtonRelease, pos));
+    if (isDouble) {
+        QGuiApplication::postEvent(viewport, simpleMouseEvent(QEvent::MouseButtonDblClick, pos));
+        QGuiApplication::postEvent(viewport, simpleMouseEvent(QEvent::MouseButtonRelease, pos));
+    }
+    //! TODO: см. ScriptRunner::mouseClick
+    QThread::msleep(10);
+}
+
+void ScriptRunner::delegateClick(const QString &path, QList<int> indexPath) const noexcept
+{
+    delegateTemplate(path, indexPath, std::nullopt, false);
+}
+
+void ScriptRunner::delegateDblClick(const QString &path, QList<int> indexPath) const noexcept
+{
+    delegateTemplate(path, indexPath, std::nullopt, true);
+}
+
+void ScriptRunner::delegateClick(const QString &path, int row, int column) const noexcept
+{
+    delegateTemplate(path, std::nullopt, std::make_pair(row, column), false);
+}
+
+void ScriptRunner::delegateDblClick(const QString &path, int row, int column) const noexcept
+{
+    delegateTemplate(path, std::nullopt, std::make_pair(row, column), true);
+}
 } // namespace QtAda::core

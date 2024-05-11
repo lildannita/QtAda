@@ -337,10 +337,8 @@ static QString qItemViewFilter(const QQuickItem *item, const QMouseEvent *event,
         return qMouseEventHandler(item, event);
     }
 
-    return QStringLiteral("delegate%1Click('%2', %3);")
-        .arg(event->type() == QEvent::MouseButtonDblClick ? "Dbl" : "")
-        .arg(utils::objectPath(item))
-        .arg(index);
+    return delegateClickCommand(utils::objectPath(item), QString::number(index),
+                                event->type() == QEvent::MouseButtonDblClick);
 }
 
 static QString qPathViewFilter(const QQuickItem *item, const QMouseEvent *event,
