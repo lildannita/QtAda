@@ -163,7 +163,12 @@ void ScriptWriter::handleNewLine(const QString &scriptLine) noexcept
             }
             const auto bracketIndex = line.indexOf('(');
             assert(bracketIndex != -1);
-            emit newScriptCommandDetected(line.left(bracketIndex));
+            const auto pointIndex = line.indexOf('.');
+            assert(pointIndex != -1);
+            const auto startPos = pointIndex + 1;
+            const auto commandLength = bracketIndex - startPos;
+            assert(commandLength > 0);
+            emit newScriptCommandDetected(line.mid(startPos, commandLength));
             break;
         }
     }
