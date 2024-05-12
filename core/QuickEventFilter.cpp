@@ -454,8 +454,7 @@ std::pair<QString, bool> QuickEventFilter::callMouseFilters(const QObject *obj, 
         return empty;
     }
 
-    // Считаем, что любое нажатие мышью или какое-либо специальное событие
-    // обозначает конец редактирования текста.
+    // Считаем, что любое нажатие мышью обозначает конец редактирования текста
     callKeyFilters();
 
     auto *mouseEvent = static_cast<const QMouseEvent *>(event);
@@ -704,10 +703,8 @@ void QuickEventFilter::processKeyEvent(const QString &text) noexcept
     //! TODO: Как и для QtWidgets, для QtQuick желательно учитывать, если текстовый
     //! элемент находится в View компоненте, но так как для делегатов "трудно" получать
     //! родителя, то пока откладываем.
-    const auto keyLine = QStringLiteral("setText('%1', '%3');")
-                             .arg(utils::objectPath(keyWatchDog_.component))
-                             .arg(utils::escapeText(std::move(text)));
-    flushKeyEvent(std::move(keyLine));
+    flushKeyEvent(filters::setTextCommand(utils::objectPath(keyWatchDog_.component),
+                                          utils::escapeText(std::move(text))));
     keyWatchDog_.clear();
 }
 

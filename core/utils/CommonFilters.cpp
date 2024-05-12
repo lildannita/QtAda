@@ -161,6 +161,15 @@ QString clearSelectionCommand(const QString &path) noexcept
     return QStringLiteral("%1clearSelection('%2');").arg(SCRIPT_COMMAND_PREFIX).arg(path);
 }
 
+QString setTextCommand(const QString &path, const QString &text, const QString &indexPath) noexcept
+{
+    return QStringLiteral("%1setText('%2'%3, '%4');")
+        .arg(SCRIPT_COMMAND_PREFIX)
+        .arg(path)
+        .arg(indexPath.isEmpty() ? "" : QStringLiteral(", %1").arg(indexPath))
+        .arg(text);
+}
+
 QString closeCommand(const QString &path, bool isDialog) noexcept
 {
     return QStringLiteral("%1close%2('%3');")

@@ -1504,6 +1504,44 @@ void ScriptRunner::clearSelection(const QString &path) const noexcept
     invokeNonBlockMethod(selectionModel, "clearSelection");
 }
 
+void ScriptRunner::setText(const QString &path, const QString &text) const noexcept
+{
+    auto *object = findObjectByPath(path);
+    if (object == nullptr) {
+        return;
+    }
+
+    const auto isQuickTextEdit
+        = object->inherits("QQuickTextEdit") || object->inherits("QQuickTextInput");
+    const auto isWidgetTextEdit = object->inherits("QTextEdit") || object->inherits("QLineEdit");
+    const auto isWidgetPlainTextEdit = object->inherits("QPlainTextEdit");
+    const auto isWidgetKeySeqEdit = object->inherits("QPlainTextEdit");
+
+    if (!isQuickTextEdit && !isWidgetTextEdit && !isWidgetPlainTextEdit && !isWidgetKeySeqEdit) {
+        engine_->throwError(QStringLiteral("Passed object is not an text edit"));
+        return;
+    }
+    if (!checkObjectAvailability(object, path)) {
+        return;
+    }
+
+    if (isQuickTextEdit) {
+        writePropertyInGuiThread(object, "text", text);
+    }
+    else if (isWidgetTextEdit) {
+        invokeNonBlockMethod(object, "setText", Q_ARG(QString, text));
+    }
+    else if (isWidgetPlainTextEdit) {
+        invokeNonBlockMethod(object, "setPlainText", Q_ARG(QString, text));
+    }
+    else if (isWidgetKeySeqEdit) {
+        invokeNonBlockMethod(object, "setPlainText", Q_ARG(QKeySequence, QKeySequence(text)));
+    }
+    else {
+        Q_UNREACHABLE();
+    }
+}
+
 void ScriptRunner::closeDialog(const QString &path) const noexcept
 {
     auto *object = findObjectByPath(path);

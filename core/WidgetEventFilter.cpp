@@ -739,8 +739,7 @@ std::pair<QString, bool> WidgetEventFilter::callMouseFilters(const QObject *obj,
         return empty;
     }
 
-    // Считаем, что любое нажатие мышью или какое-либо специальное событие
-    // обозначает конец редактирования текста.
+    // Считаем, что любое нажатие мышью обозначает конец редактирования текста
     callKeyFilters();
 
     if (delayedWatchDog_.specificResultCanBeShown(widget)) {
@@ -909,6 +908,8 @@ void WidgetEventFilter::handleKeyEvent(const QObject *obj, const QEvent *event) 
     //! TODO: Почему-то среди всех текстовых элементов в QtWidgets только для QKeySequenceEdit
     //! найден очень удобный сигнал editingFinished. Для остальных приходится строить систему
     //! из отслеживания фокуса и таймера. Однако может стоит придумать более надежный вариант.
+    //!
+    //! UPD: Работает плохо, нужно будет переделать
     if (auto *keySeqWidget = utils::searchSpecificComponent(
             keyWatchDog_.component, filters::s_widgetMetaMap.at(WidgetClass::KeySequenceEdit))) {
         if (keySeqWidget == keyWatchDog_.component && keyWatchDog_.connection) {
@@ -1009,14 +1010,9 @@ void WidgetEventFilter::processKeyEvent(const QString &text) noexcept
             }
         }
     }
-
-    const auto keyLine
-        = QStringLiteral("setText('%1'%2, '%3');")
-              .arg(utils::objectPath(index.isValid() ? viewWidget : keyWatchDog_.component))
-              .arg(indexPath.isEmpty() ? "" : QStringLiteral(", %1").arg(indexPath))
-              .arg(utils::escapeText(std::move(text)));
-    flushKeyEvent(std::move(keyLine));
-
+    flushKeyEvent(filters::setTextCommand(
+        utils::objectPath(index.isValid() ? viewWidget : keyWatchDog_.component),
+        utils::escapeText(std::move(text)), indexPath));
     keyWatchDog_.clear();
 }
 

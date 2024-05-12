@@ -171,6 +171,9 @@ bool UserEventFilter::eventFilter(QObject *obj, QEvent *event) noexcept
         break;
     }
     case QEvent::Wheel: {
+        //! TODO: При этом событии не всегда происходит FocusAboutToChange,
+        //! поэтому скорее всего придется тут вызывать:
+        //! currentFilter_->handleKeyEvent(obj, event);
         const auto path = utils::objectPath(obj);
         if (lastWheelEvent_.registerEvent(path, event)) {
             flushScriptLine(filters::qWheelEventHandler(obj, event, std::move(path)));
