@@ -10,6 +10,11 @@ QtAda is a tool designed for testing Graphical User Interface (GUI) applications
   - [Introduction](#introduction)
   - [Table of Contents](#table-of-contents)
   - [Features](#features)
+  - [Requirements](#requirements)
+    - [Operating System](#operating-system)
+    - [Software Dependencies](#software-dependencies)
+    - [Additional Tools](#additional-tools)
+    - [Optional Dependencies](#optional-dependencies)
   - [Installation](#installation)
   - [Usage](#usage)
     - [Console Usage](#console-usage)
@@ -28,9 +33,6 @@ QtAda is a tool designed for testing Graphical User Interface (GUI) applications
     - [Value Manipulation](#value-manipulation)
     - [Text Manipulation](#text-manipulation)
     - [Close Commands](#close-commands)
-  - [Configuration](#configuration)
-  - [Troubleshooting](#troubleshooting)
-  - [Contributors](#contributors)
   - [License](#license)
 
 ## Features
@@ -43,9 +45,40 @@ QtAda's core functionality revolves around automating the recording and saving o
 
 **Note:** QtAda is currently in early development stages and may be prone to various errors. Please proceed with caution.
 
+## Requirements
+
+To use QtAda effectively, your system must meet the following requirements:
+
+### Operating System
+- **Linux:** Specifically tested on Manjaro Linux 23.1.4. While QtAda may work on other Linux distributions, functionality is only guaranteed for Manjaro Linux as tested.
+
+### Software Dependencies
+To build and run QtAda, ensure the following software is installed:
+
+- **CMake:** Version 3.17 or higher.
+- **Compiler:** GCC or Clang.
+- **Qt 5.15:** Minimum version 5.15.2. It is crucial to have the following Qt modules installed:
+  - `QtCore`
+  - `QtQuick`
+  - `QtWidgets`
+  - `QtRemoteObjects`
+
+### Additional Tools
+- **Git:** Necessary for cloning and managing the project repository.
+
+### Optional Dependencies
+- **ELF Libraries:** Required for utilizing features that depend on reading ELF headers. Ensure that your system includes paths contain `elf.h` or `sys/elf.h`.
+
 ## Installation
 
-_Coming soon._
+To install QtAda on your system, follow these commands:
+```
+cd existing_repo
+git clone https://gitlab.com/lildannita/qtada.git
+cd ./qtada
+./install.sh
+source ~/.bashrc
+```
 
 ## Usage
 
@@ -305,18 +338,6 @@ _Note: These are not auto-generated and should be used as needed._
 
 _Remember to add the `QtAda.` prefix when using these commands in your scripts._
 
-## Configuration
-
-_Coming soon._
-
-## Troubleshooting
-
-_Coming soon._
-
-## Contributors
-
-_Coming soon._
-
 ## License
 
-_Coming soon._
+QtAda is licensed under the GNU GENERAL PUBLIC LICENSE Version 3, dated 29 June 2007. This license allows you to run, study, share, and modify the software freely as long as your modifications and derivatives also comply with the same license terms. A copy of the GNU GPL Version 3 can be found in the LICENSE file within the project repository, or online at [GNU.org](https://www.gnu.org/licenses/gpl-3.0.html).
