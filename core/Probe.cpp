@@ -128,6 +128,8 @@ Probe::Probe(const LaunchType launchType, const std::optional<RecordSettings> &r
                 &ScriptRunner::registerObjectReparented, Qt::DirectConnection);
         connect(scriptRunner_, &ScriptRunner::scriptError, inprocessController_.get(),
                 &InprocessControllerReplica::sendScriptRunError);
+        connect(scriptRunner_, &ScriptRunner::scriptWarning, inprocessController_.get(),
+                &InprocessControllerReplica::sendScriptRunWarning);
         connect(scriptRunner_, &ScriptRunner::scriptLog, inprocessController_.get(),
                 &InprocessControllerReplica::sendScriptRunLog);
 

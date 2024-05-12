@@ -40,6 +40,7 @@ signals:
     void scriptRunService(const QString &msg);
     void scriptRunResult(const QString &msg);
     void scriptRunError(const QString &msg);
+    void scriptRunWarning(const QString &msg);
     void scriptRunLog(const QString &msg);
 
 private slots:

@@ -34,6 +34,10 @@ public Q_SLOTS:
     {
         emit this->scriptRunError(msg);
     }
+    void sendScriptRunWarning(const QString &msg) override
+    {
+        emit this->scriptRunWarning(msg);
+    }
     void sendScriptRunLog(const QString &msg) override
     {
         emit this->scriptRunLog(msg);
@@ -49,6 +53,7 @@ Q_SIGNALS:
 
     // ScriptRunner -> InprocessRunner
     void scriptRunError(const QString &msg);
+    void scriptRunWarning(const QString &msg);
     void scriptRunLog(const QString &msg);
 };
 } // namespace QtAda::inprocess

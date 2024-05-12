@@ -37,6 +37,7 @@ Launcher::Launcher(const UserLaunchOptions &userOptions, bool fromGui, QObject *
         }
         case LaunchType::Run: {
             connect(this, &Launcher::scriptRunError, printScriptErrorMessage);
+            connect(this, &Launcher::scriptRunWarning, printScriptWarningMessage);
             connect(this, &Launcher::scriptRunLog, printScriptOutMessage);
             connect(this, &Launcher::scriptRunService, printScriptOutMessage);
             connect(this, &Launcher::scriptRunResult, printScriptOutMessage);
@@ -190,6 +191,8 @@ bool Launcher::launch() noexcept
                     &Launcher::applicationStarted);
             connect(inprocessRunner_, &inprocess::InprocessRunner::scriptRunError, this,
                     &Launcher::scriptRunError);
+            connect(inprocessRunner_, &inprocess::InprocessRunner::scriptRunWarning, this,
+                    &Launcher::scriptRunWarning);
             connect(inprocessRunner_, &inprocess::InprocessRunner::scriptRunLog, this,
                     &Launcher::scriptRunLog);
         }

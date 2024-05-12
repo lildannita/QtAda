@@ -19,6 +19,7 @@ signals:
     void applicationStarted();
 
     void scriptRunError(const QString &msg);
+    void scriptRunWarning(const QString &msg);
     void scriptRunLog(const QString &msg);
 
 private slots:

@@ -19,6 +19,7 @@ class InprocessController
 
     // ScriptRunner -> InprocessRunner
     SLOT(sendScriptRunError(const QString &msg))
+    SLOT(sendScriptRunWarning(const QString &msg))
     SLOT(sendScriptRunLog(const QString &msg))
 
     // InprocessDialog -> UserEventFilter signals:

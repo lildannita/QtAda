@@ -1644,6 +1644,7 @@ void MainGui::startupScriptRunnerLauncher(const QStringList &scripts) noexcept
     connect(launcher_, &Launcher::launcherErrMessage, this, &MainGui::writeQtAdaErrMessage);
     connect(launcher_, &Launcher::launcherOutMessage, this, &MainGui::writeQtAdaOutMessage);
     connect(launcher_, &Launcher::scriptRunError, this, &MainGui::writeQtAdaErrMessage);
+    connect(launcher_, &Launcher::scriptRunWarning, this, &MainGui::writeQtAdaWarnMessage);
     connect(launcher_, &Launcher::scriptRunLog, this, &MainGui::writeQtAdaOutMessage);
     connect(launcher_, &Launcher::scriptRunService, this, &MainGui::writeScriptServiceMessage);
     connect(launcher_, &Launcher::scriptRunResult, this, &MainGui::writeScriptResultMessage);
@@ -1696,6 +1697,11 @@ void MainGui::writeColoredMessage(bool isForQtAdaLog, const QString &msg, const 
 void MainGui::writeQtAdaErrMessage(const QString &msg) noexcept
 {
     writeColoredMessage(true, msg, GUI_ERROR_LOG_COLOR);
+}
+
+void MainGui::writeQtAdaWarnMessage(const QString &msg) noexcept
+{
+    writeColoredMessage(true, msg, GUI_WARN_LOG_COLOR);
 }
 
 void MainGui::writeQtAdaOutMessage(const QString &msg) noexcept

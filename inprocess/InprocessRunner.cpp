@@ -15,6 +15,8 @@ InprocessRunner::InprocessRunner(QObject *parent) noexcept
             &InprocessRunner::handleApplicationStateChanged);
     connect(inprocessController_, &InprocessController::scriptRunError, this,
             &InprocessRunner::scriptRunError);
+    connect(inprocessController_, &InprocessController::scriptRunWarning, this,
+            &InprocessRunner::scriptRunWarning);
     connect(inprocessController_, &InprocessController::scriptRunLog, this,
             &InprocessRunner::scriptRunLog);
     inprocessHost_->enableRemoting(inprocessController_);

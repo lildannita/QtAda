@@ -64,6 +64,7 @@ private slots:
     void startupScriptRunnerLauncher(const QStringList &scripts) noexcept;
 
     void writeQtAdaErrMessage(const QString &msg) noexcept;
+    void writeQtAdaWarnMessage(const QString &msg) noexcept;
     void writeQtAdaOutMessage(const QString &msg) noexcept;
     void writeAppOutMessage(const QString &msg) noexcept;
     void writeScriptServiceMessage(const QString &msg) noexcept;
