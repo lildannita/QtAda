@@ -25,6 +25,8 @@ public:
                                 int y) const noexcept;
     Q_INVOKABLE void mouseDblClick(const QString &path, const QString &mouseButtonStr, int x,
                                    int y) const noexcept;
+    Q_INVOKABLE void keyEvent(const QString &path, const QString &keyText) const noexcept;
+    Q_INVOKABLE void wheelEvent(const QString &path, int dx, int dy) const noexcept;
     Q_INVOKABLE void buttonClick(const QString &path) const noexcept;
     Q_INVOKABLE void buttonDblClick(const QString &path) const noexcept;
     Q_INVOKABLE void buttonPress(const QString &path) const noexcept;

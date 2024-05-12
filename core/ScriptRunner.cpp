@@ -1531,4 +1531,35 @@ void ScriptRunner::closeWindow(const QString &path) const noexcept
         postEvents(object, { new QCloseEvent() });
     }
 }
+
+void ScriptRunner::keyEvent(const QString &path, const QString &keyText) const noexcept
+{
+    auto *object = findObjectByPath(path);
+    if (object == nullptr) {
+        return;
+    }
+    if (!checkObjectAvailability(object, path)) {
+        return;
+    }
+    //! TODO: Пока непонятно, что делать с keyEvent и нужен ли он вообще. Сейчас он
+    //! точно не важен, поэтому сделал "тестовый" вариант, но учитывая, что из-за
+    //! "модификаторов" куча других действий могут потребовать правок (с учетом
+    //! модификаторов обычные нажатия могут приводить к другим результатам).
+    emit scriptWarning(QStringLiteral("In this QtAda version function 'keyEvent' is unstable, "
+                                      "so be attentive to use it"));
+    QKeySequence keySequence(keyText);
+    const auto key = keySequence[0];
+    const auto modifiers = Qt::KeyboardModifiers(keySequence[0] & Qt::KeyboardModifierMask);
+    postEvents(object, { new QKeyEvent(QEvent::KeyPress, key, modifiers, keyText),
+                         new QKeyEvent(QEvent::KeyRelease, key, modifiers, keyText) });
+}
+
+void ScriptRunner::wheelEvent(const QString &path, int dx, int dy) const noexcept
+{
+    //! TODO: Не получается повторить QWheelEvent. Причем пробовал передавать
+    //! вообще все аргументы, которые касаются события - все равно события не
+    //! происходило. Сейчас оно далеко не в приоритете, поэтому откладываем.
+    emit scriptWarning(QStringLiteral("In this QtAda version function 'wheelEvent' is unstable, "
+                                      "so it is better to use 'mouseClick' if it is possible"));
+}
 } // namespace QtAda::core
