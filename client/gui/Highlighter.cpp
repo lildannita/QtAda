@@ -41,6 +41,13 @@ Highlighter::Highlighter(QTextDocument *parent) noexcept
     rule.format = functionFormat;
     rules.append(rule);
 
+    QTextCharFormat classFormat;
+    classFormat.setForeground(QColor("#136F63"));
+    classFormat.setFontWeight(QFont::Bold);
+    rule.pattern = QRegularExpression("\\bQtAda(?=\\.)");
+    rule.format = classFormat;
+    rules.append(rule);
+
     QTextCharFormat verifyFormat;
     verifyFormat.setForeground(QColor("#FF8080"));
     verifyFormat.setFontWeight(QFont::Bold);
