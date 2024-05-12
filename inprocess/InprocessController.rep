@@ -11,16 +11,16 @@ class InprocessController
     PROP(bool applicationRunning = false)
 
     // UserEventFilter -> InprocessDialog slots:
-    SLOT(sendNewScriptLine(const QString &line))
+    SLOT(void sendNewScriptLine(const QString &line))
 
     // UserVerificationFilter -> PropertiesWatcher slots:
-    SLOT(sendNewFramedRootObjectData(const QVariantMap &model, const QList<QVariantMap> &rootMetaData))
-    SLOT(sendNewMetaPropertyData(const QList<QVariantMap> &metaData))
+    SLOT(void sendNewFramedRootObjectData(const QVariantMap &model, const QList<QVariantMap> &rootMetaData))
+    SLOT(void sendNewMetaPropertyData(const QList<QVariantMap> &metaData))
 
     // ScriptRunner -> InprocessRunner
-    SLOT(sendScriptRunError(const QString &msg))
-    SLOT(sendScriptRunWarning(const QString &msg))
-    SLOT(sendScriptRunLog(const QString &msg))
+    SLOT(void sendScriptRunError(const QString &msg))
+    SLOT(void sendScriptRunWarning(const QString &msg))
+    SLOT(void sendScriptRunLog(const QString &msg))
 
     // InprocessDialog -> UserEventFilter signals:
     SIGNAL(scriptFinished())
