@@ -65,6 +65,10 @@ public:
                                   const QJSValue &selectionData) const noexcept;
     Q_INVOKABLE void clearSelection(const QString &path) const noexcept;
     Q_INVOKABLE void setText(const QString &path, const QString &text) const noexcept;
+    Q_INVOKABLE void setText(const QString &path, int row, int column,
+                             const QString &text) const noexcept;
+    Q_INVOKABLE void setText(const QString &path, QList<int> indexPath,
+                             const QString &text) const noexcept;
     Q_INVOKABLE void closeDialog(const QString &path) const noexcept;
     Q_INVOKABLE void closeWindow(const QString &path) const noexcept;
 
@@ -89,16 +93,20 @@ private:
     const RunSettings runSettings_;
     QJSEngine *engine_ = nullptr;
 
+    void finishThread(bool isOk) noexcept;
+
     void writePropertyInGuiThread(QObject *object, const QString &propertyName,
                                   const QVariant &value) const noexcept;
     void invokeNonBlockMethod(QObject *object, const char *method,
                               QGenericArgument val0 = QGenericArgument(nullptr),
-                              QGenericArgument val1 = QGenericArgument()) const noexcept;
+                              QGenericArgument val1 = QGenericArgument(),
+                              QGenericArgument val2 = QGenericArgument()) const noexcept;
     void postEvents(QObject *object, std::vector<QEvent *> events) const noexcept;
 
     QObject *findObjectByPath(const QString &path) const noexcept;
     bool checkObjectAvailability(const QObject *object, const QString &path,
                                  bool shouldBeVisible = true) const noexcept;
+
     void mouseClickTemplate(const QString &path, const QString &mouseButtonStr, int x, int y,
                             bool isDouble) const noexcept;
     void mouseAreaEventTemplate(const QString &path,
@@ -113,7 +121,8 @@ private:
     void delegateTemplate(const QString &path, int index, bool isDouble) const noexcept;
     void delegateTemplate(const QString &path, std::optional<QList<int>> indexPath,
                           std::optional<std::pair<int, int>> index, bool isDouble) const noexcept;
-
-    void finishThread(bool isOk) noexcept;
+    void setTextTemplate(const QString &path, std::optional<QList<int>> indexPath,
+                         std::optional<std::pair<int, int>> index,
+                         const QString &text) const noexcept;
 };
 } // namespace QtAda::core

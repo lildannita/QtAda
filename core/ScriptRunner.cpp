@@ -258,10 +258,10 @@ void ScriptRunner::writePropertyInGuiThread(QObject *object, const QString &prop
 //! аргумента.
 
 void ScriptRunner::invokeNonBlockMethod(QObject *object, const char *method, QGenericArgument val0,
-                                        QGenericArgument val1) const noexcept
+                                        QGenericArgument val1, QGenericArgument val2) const noexcept
 {
     assert(object != nullptr);
-    bool ok = QMetaObject::invokeMethod(object, method, val0, val1);
+    bool ok = QMetaObject::invokeMethod(object, method, val0, val1, val2);
     assert(ok == true);
     QThread::msleep(10);
 }
@@ -1540,6 +1540,89 @@ void ScriptRunner::setText(const QString &path, const QString &text) const noexc
     else {
         Q_UNREACHABLE();
     }
+}
+
+void ScriptRunner::setTextTemplate(const QString &path, std::optional<QList<int>> indexPath,
+                                   std::optional<std::pair<int, int>> index,
+                                   const QString &text) const noexcept
+{
+    auto *object = findObjectByPath(path);
+    if (object == nullptr) {
+        return;
+    }
+
+    bool isTreeView = false;
+    bool isUsualView = false;
+
+    if (indexPath.has_value()) {
+        assert(!index.has_value());
+        isTreeView = object->inherits("QTreeView");
+    }
+    else if (index.has_value()) {
+        assert(!indexPath.has_value());
+        isUsualView = object->inherits("QAbstractItemView");
+    }
+    else {
+        Q_UNREACHABLE();
+    }
+
+    if (!isTreeView && !isUsualView) {
+        engine_->throwError(QStringLiteral("Passed object is not a %1")
+                                .arg(indexPath.has_value() ? "tree" : "view"));
+        return;
+    }
+    if (!checkObjectAvailability(object, path)) {
+        return;
+    }
+
+    auto *view = qobject_cast<QAbstractItemView *>(object);
+    assert(view != nullptr);
+    auto *model = view->model();
+
+    if (model == nullptr) {
+        engine_->throwError(QStringLiteral("Object model is not accessible"));
+        return;
+    }
+
+    QModelIndex lastIndex;
+    if (isTreeView) {
+        assert(!index.has_value());
+        for (const auto &row : *indexPath) {
+            QModelIndex index;
+            if (lastIndex.isValid()) {
+                index = model->index(row, 0, lastIndex);
+            }
+            else {
+                index = model->index(row, 0);
+            }
+
+            if (!index.isValid()) {
+                engine_->throwError(QStringLiteral("Can't get accesible model index from path"));
+                return;
+            }
+            lastIndex = index;
+        }
+    }
+    else if (isUsualView) {
+        lastIndex = model->index(index->first, index->second);
+    }
+    else {
+        Q_UNREACHABLE();
+    }
+    invokeNonBlockMethod(model, "setData", Q_ARG(QModelIndex, lastIndex),
+                         Q_ARG(QVariant, QVariant(text)), Q_ARG(int, Qt::EditRole));
+}
+
+void ScriptRunner::setText(const QString &path, int row, int column,
+                           const QString &text) const noexcept
+{
+    setTextTemplate(path, std::nullopt, std::make_pair(row, column), text);
+}
+
+void ScriptRunner::setText(const QString &path, QList<int> indexPath,
+                           const QString &text) const noexcept
+{
+    setTextTemplate(path, indexPath, std::nullopt, text);
 }
 
 void ScriptRunner::closeDialog(const QString &path) const noexcept
