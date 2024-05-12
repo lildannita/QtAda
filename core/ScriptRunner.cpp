@@ -1515,7 +1515,7 @@ void ScriptRunner::setText(const QString &path, const QString &text) const noexc
         = object->inherits("QQuickTextEdit") || object->inherits("QQuickTextInput");
     const auto isWidgetTextEdit = object->inherits("QTextEdit") || object->inherits("QLineEdit");
     const auto isWidgetPlainTextEdit = object->inherits("QPlainTextEdit");
-    const auto isWidgetKeySeqEdit = object->inherits("QPlainTextEdit");
+    const auto isWidgetKeySeqEdit = object->inherits("QKeySequenceEdit");
 
     if (!isQuickTextEdit && !isWidgetTextEdit && !isWidgetPlainTextEdit && !isWidgetKeySeqEdit) {
         engine_->throwError(QStringLiteral("Passed object is not an text edit"));
@@ -1535,7 +1535,7 @@ void ScriptRunner::setText(const QString &path, const QString &text) const noexc
         invokeNonBlockMethod(object, "setPlainText", Q_ARG(QString, text));
     }
     else if (isWidgetKeySeqEdit) {
-        invokeNonBlockMethod(object, "setPlainText", Q_ARG(QKeySequence, QKeySequence(text)));
+        invokeNonBlockMethod(object, "setKeySequence", Q_ARG(QKeySequence, QKeySequence(text)));
     }
     else {
         Q_UNREACHABLE();
