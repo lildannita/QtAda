@@ -1073,7 +1073,7 @@ margin-left: 5px;</string>
    </property>
    <widget class="QMenu" name="menuFile">
     <property name="title">
-     <string>File</string>
+     <string>Project</string>
     </property>
     <addaction name="actionNewProject"/>
     <addaction name="separator"/>

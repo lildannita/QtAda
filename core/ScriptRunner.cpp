@@ -813,7 +813,7 @@ void ScriptRunner::setValue(const QString &path, const QString &value) const noe
         return;
     }
 
-    const auto isWidgetCalendar = object->inherits("QCalendarView");
+    const auto isWidgetCalendar = object->inherits("QCalendarWidget");
     const auto isWidgetEdit = object->inherits("QDateTimeEdit");
     const auto isQuickSpinBox = object->inherits("QQuickSpinBox");
     if (!isWidgetCalendar && !isWidgetEdit && !isQuickSpinBox) {
@@ -825,25 +825,34 @@ void ScriptRunner::setValue(const QString &path, const QString &value) const noe
     }
 
     if (isWidgetEdit) {
+        const auto time = QTime::fromString(value, Qt::ISODate);
+        const auto timeValid = !time.isNull() && time.isValid();
+        const auto date = QDate::fromString(value, Qt::ISODate);
+        const auto dateValid = !date.isNull() && date.isValid();
         const auto dateTime = QDateTime::fromString(value, Qt::ISODate);
-        if (dateTime.isNull() || dateTime.isValid()) {
-            engine_->throwError(QStringLiteral("Can't convert '%1' to QDateTime").arg(value));
+        const auto dateTimeValid = !dateTime.isNull() && dateTime.isValid();
+
+        if (!dateTimeValid && !timeValid && !dateValid) {
+            engine_->throwError(
+                QStringLiteral("Can't convert '%1' to QDateTime (or QDate, or QTime)").arg(value));
             return;
         }
-
-        if (dateTime.date().isNull()) {
-            invokeNonBlockMethod(object, "setTime", Q_ARG(QTime, dateTime.time()));
+        if (dateTimeValid) {
+            invokeNonBlockMethod(object, "setDateTime", Q_ARG(QDateTime, dateTime));
         }
-        else if (dateTime.time().isNull()) {
-            invokeNonBlockMethod(object, "setDate", Q_ARG(QDate, dateTime.date()));
+        else if (timeValid) {
+            invokeNonBlockMethod(object, "setTime", Q_ARG(QTime, time));
+        }
+        else if (dateValid) {
+            invokeNonBlockMethod(object, "setDate", Q_ARG(QDate, date));
         }
         else {
-            invokeNonBlockMethod(object, "setDateTime", Q_ARG(QDateTime, dateTime));
+            Q_UNREACHABLE();
         }
     }
     else if (isWidgetCalendar) {
         const auto date = QDate::fromString(value, Qt::ISODate);
-        if (date.isNull() || date.isValid()) {
+        if (date.isNull() || !date.isValid()) {
             engine_->throwError(QStringLiteral("Can't convert '%1' to QDate").arg(value));
             return;
         }
