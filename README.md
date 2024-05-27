@@ -74,8 +74,8 @@ To build and run QtAda, ensure the following software is installed:
 To install QtAda on your system, follow these commands:
 ```
 cd existing_repo
-git clone https://gitlab.com/lildannita/qtada.git
-cd ./qtada
+git clone https://github.com/lildannita/QtAda.git
+cd ./QtAda
 ./install.sh
 source ~/.bashrc
 ```
@@ -86,7 +86,7 @@ source ~/.bashrc
 
 The console interface is ideal for integrating QtAda's automated test runs into your project's automated tests:
 - Preferred for embedding in continuous testing environments.
-- Supports various command-line arguments which can be explored using `QtAda --help`.
+- Supports various command-line arguments which can be explored using `qtada --help`.
 
 ### GUI Usage
 
