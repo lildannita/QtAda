@@ -28,6 +28,7 @@ public:
     Q_INVOKABLE void keyEvent(const QString &path, const QString &keyText) const noexcept;
     Q_INVOKABLE void wheelEvent(const QString &path, int dx, int dy) const noexcept;
     Q_INVOKABLE void buttonClick(const QString &path) const noexcept;
+    Q_INVOKABLE void buttonToggle(const QString &path) const noexcept;
     Q_INVOKABLE void buttonDblClick(const QString &path) const noexcept;
     Q_INVOKABLE void buttonPress(const QString &path) const noexcept;
     Q_INVOKABLE void mouseAreaClick(const QString &path) const noexcept;
@@ -97,10 +98,10 @@ private:
 
     void writePropertyInGuiThread(QObject *object, const QString &propertyName,
                                   const QVariant &value) const noexcept;
-    void invokeNonBlockMethod(QObject *object, const char *method,
-                              QGenericArgument val0 = QGenericArgument(nullptr),
-                              QGenericArgument val1 = QGenericArgument(),
-                              QGenericArgument val2 = QGenericArgument()) const noexcept;
+    void invokeBlockMethodWithTimeout(QObject *object, const char *method,
+                                      QGenericArgument val0 = QGenericArgument(nullptr),
+                                      QGenericArgument val1 = QGenericArgument(),
+                                      QGenericArgument val2 = QGenericArgument()) const noexcept;
     void postEvents(QObject *object, std::vector<QEvent *> events) const noexcept;
 
     QObject *findObjectByPath(const QString &path) const noexcept;

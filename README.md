@@ -156,6 +156,9 @@ _Note: These are not auto-generated and should be used as needed._
 - `buttonClick(path)`
   - **Purpose:** Simulates a click on any button-like component derived from `QAbstractButton` and `QML Button`.
 
+- `buttonToggle(path)`
+  - **Purpose:** Simulates a toggle on any button-like component derived from `QAbstractButton` and `QML Button`.
+
 - `buttonDblClick(path)`
   - **Purpose:** Simulates a double click on any button-like component.
 

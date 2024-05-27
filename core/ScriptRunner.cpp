@@ -12,11 +12,16 @@
 #include <QModelIndex>
 #include <QAbstractItemView>
 #include <QAbstractItemModel>
+#include <QFuture>
+#include <QTimer>
+#include <QtConcurrent>
 
 #include "utils/FilterUtils.hpp"
 #include "utils/Tools.hpp"
 
 namespace QtAda::core {
+static constexpr int INVOKE_TIMEOUT_SEC = 3;
+
 static QMouseEvent *simpleMouseEvent(const QEvent::Type type, const QPoint &pos,
                                      const Qt::MouseButton button = Qt::LeftButton) noexcept
 {
@@ -238,33 +243,53 @@ void ScriptRunner::writePropertyInGuiThread(QObject *object, const QString &prop
     assert(ok == true);
 }
 
+void ScriptRunner::invokeBlockMethodWithTimeout(QObject *object, const char *method,
+                                                QGenericArgument val0, QGenericArgument val1,
+                                                QGenericArgument val2) const noexcept
+{
+    assert(object != nullptr);
+
+    auto future = QtConcurrent::run([object, method, val0, val1, val2]() {
+        bool ok = QMetaObject::invokeMethod(object, method, Qt::BlockingQueuedConnection, val0,
+                                            val1, val2);
+        assert(ok == true);
+    });
+
+    //! TODO: Конечно, лучше объявить эти данные в качестве поля данных в классе,
+    //! но пока что они объявлены как const, в связи с чем пришлось бы убирать этот
+    //! спецификатор. Позже нужно решить, что с этим делать
+    QFutureWatcher<void> watcher;
+    QEventLoop loop;
+    QTimer timer;
+
+    timer.setSingleShot(true);
+    timer.start(INVOKE_TIMEOUT_SEC * 1000);
+
+    QObject::connect(&watcher, &QFutureWatcher<void>::finished, &loop, &QEventLoop::quit);
+    QObject::connect(&timer, &QTimer::timeout, &loop, &QEventLoop::quit);
+
+    watcher.setFuture(future);
+
+    loop.exec();
+
+    if (timer.isActive()) {
+        timer.stop();
+        future.waitForFinished();
+        assert(watcher.future().isFinished());
+    }
+    else {
+        emit scriptWarning(QStringLiteral("Method '%1' took too long to execute (> %2 sec), "
+                                          "stopping the wait for its completion")
+                               .arg(method)
+                               .arg(INVOKE_TIMEOUT_SEC));
+    }
+}
+
 //! TODO: желательно отправлять события аналогично тому, как работает
 //! QMetaObject::invokeMethod(..., Qt::BlockingQueuedConnection);
 //! чтобы точно все "события" выполнялись по очереди. Но пока непонятно
 //! как это делать с обычными событиями, поэтому используем небольшую
-//! задержку: QThread::msleep(10);
-//!
-//! Проблема в том, что мы и не всегда можем использовать Qt::BlockingQueuedConnection,
-//! а если быть точнее, практически никогда. Проблема в том, что пользователь может
-//! запихнуть в обработку того или иного события что угодно. Самый простой пример:
-//! по нажатию кнопки открывать диалог, из-за чего запускается "бесконечный" цикл,
-//! который не закончится, пока пользователь не закроет диалог, а значит, что и не
-//! закончится ожидание выполнения этого метода, и, следовательно, мы не сможем перейти
-//! к выполнению следующей команды скрипта.
-//! По идее, можно было бы оставить по умолчанию исользование блокировки потока и добавить
-//! некоторые опции к функциям или глобальные опции, которые отключают блокировку потока,
-//! но это было бы слишком "муторно" для пользователя, поэтому пока просто используем
-//! небольшие задержки в тех методах, где нам не нужно дожидаться возврата какого-либо
-//! аргумента.
-
-void ScriptRunner::invokeNonBlockMethod(QObject *object, const char *method, QGenericArgument val0,
-                                        QGenericArgument val1, QGenericArgument val2) const noexcept
-{
-    assert(object != nullptr);
-    bool ok = QMetaObject::invokeMethod(object, method, val0, val1, val2);
-    assert(ok == true);
-    QThread::msleep(10);
-}
+//! задержку: QThread::msleep(100);
 
 void ScriptRunner::postEvents(QObject *object, std::vector<QEvent *> events) const noexcept
 {
@@ -272,7 +297,7 @@ void ScriptRunner::postEvents(QObject *object, std::vector<QEvent *> events) con
     for (auto *event : events) {
         QGuiApplication::postEvent(object, event);
     }
-    QThread::msleep(10);
+    QThread::msleep(100);
 }
 
 QObject *ScriptRunner::findObjectByPath(const QString &path) const noexcept
@@ -444,23 +469,12 @@ void ScriptRunner::mouseDblClick(const QString &path, const QString &mouseButton
 }
 
 /*
- * На удивление, ситуация для воспроизведения нажатий, обратная обработке нажатий
- * (см. UserEventFilter::eventFilter).
+ * Для обычного click, в случае QAbstractButton достаточно использовать метод `click`,
+ * но его нет для QQuickAbstractButton, поэтому для клика используются события P -> R.
  *
- * Примечание: для обычного Click в Quick и Widgets нужно в любом случае повторять цикл
- * P -> R, так как события Click не существует, ну или просто использовать метод toggle()
- * (но его нет для MouseArea в QML).
- *
- * В QML максимально просто можно эмулировать нужное нажатие на кнопку - нужно просто отправить
- * нужное событие.
- *
- * В QtWidgets для воспроизведения любого типа нажатия нужно воспроизвести полный цикл событий,
- * которые происходят "в оригинале" при генерации воспроизводимого события в GUI:
- *      1) Для DoubleClick: P -> R -> D -> R
- *      2) Для Press: P -> R-(вне области элемента)
- * В противном случае GUI не воспримет отправляемое событие или заблокирует обработку событий.
+ * Вообще для QQuickAbstractButton есть метод `toggle`, похожий на клик, и по идее это он
+ * и есть, но в QML при использовании метода `toggle` не будет вызван обработчик `onClicked`.
  */
-
 void ScriptRunner::buttonClick(const QString &path) const noexcept
 {
     auto *object = findObjectByPath(path);
@@ -479,10 +493,49 @@ void ScriptRunner::buttonClick(const QString &path) const noexcept
         return;
     }
 
-    // Не для всех кнопок в QtWidgets click == toggle, поэтому для QtWidgets предпочитаем click
-    invokeNonBlockMethod(object, isWidgetButton ? "click" : "toggle");
+    if (isWidgetButton) {
+        invokeBlockMethodWithTimeout(object, "click");
+    }
+    else {
+        const auto height = utils::getFromVariant<double>(QQmlProperty::read(object, "height"));
+        const auto width = utils::getFromVariant<double>(QQmlProperty::read(object, "width"));
+        const auto pos = QPoint(width / 2, height / 2);
+        postEvents(object, { simpleMouseEvent(QEvent::MouseButtonPress, pos),
+                             simpleMouseEvent(QEvent::MouseButtonRelease, pos) });
+    }
 }
 
+void ScriptRunner::buttonToggle(const QString &path) const noexcept
+{
+    auto *object = findObjectByPath(path);
+    if (object == nullptr) {
+        return;
+    }
+
+    bool isWidgetButton = object->inherits("QAbstractButton");
+    bool isQuickButton = object->inherits("QQuickAbstractButton");
+
+    if (!isWidgetButton && !isQuickButton) {
+        engine_->throwError(QStringLiteral("Passed object is not a button"));
+        return;
+    }
+    if (!checkObjectAvailability(object, path)) {
+        return;
+    }
+
+    invokeBlockMethodWithTimeout(object, "toggle");
+}
+
+/*
+ * В QML максимально просто можно эмулировать двойное нажатие на кнопку - нужно просто отправить
+ * соответствующее событие.
+ *
+ * В QtWidgets для воспроизведения любого типа нажатия нужно воспроизвести полный цикл событий,
+ * которые происходят "в оригинале" при генерации воспроизводимого события в GUI:
+ *      1) Для DoubleClick: P -> R -> D -> R
+ *      2) Для Press: P -> R (вне области элемента)
+ * В противном случае GUI не воспримет отправляемое событие или заблокирует обработку событий.
+ */
 void ScriptRunner::buttonDblClick(const QString &path) const noexcept
 {
     auto *object = findObjectByPath(path);
@@ -618,7 +671,7 @@ void ScriptRunner::checkButton(const QString &path, bool isChecked) const noexce
                                .arg(isChecked ? "true" : "false"));
     }
     else {
-        invokeNonBlockMethod(object, "toggle");
+        invokeBlockMethodWithTimeout(object, "toggle");
     }
 }
 
@@ -655,7 +708,7 @@ void ScriptRunner::selectItemTemplate(const QString &path, int index, const QStr
             return;
         }
         if (isWidgetComboBox) {
-            invokeNonBlockMethod(object, "setCurrentIndex", Q_ARG(int, currentIndex));
+            invokeBlockMethodWithTimeout(object, "setCurrentIndex", Q_ARG(int, currentIndex));
         }
         else if (isQuickComboBox || isQuickTumbler) {
             writePropertyInGuiThread(object, "currentIndex", currentIndex);
@@ -765,10 +818,10 @@ void ScriptRunner::setValue(const QString &path, double value) const noexcept
     }
 
     if (isIntRequiringWidget) {
-        invokeNonBlockMethod(object, "setValue", Q_ARG(int, value));
+        invokeBlockMethodWithTimeout(object, "setValue", Q_ARG(int, value));
     }
     else if (isDoubleRequiringWidget) {
-        invokeNonBlockMethod(object, "setValue", Q_ARG(double, value));
+        invokeBlockMethodWithTimeout(object, "setValue", Q_ARG(double, value));
     }
     else if (isQuickSlider) {
         writePropertyInGuiThread(object, "value", value);
@@ -803,7 +856,8 @@ void ScriptRunner::setValue(const QString &path, double leftValue, double rightV
     if (!checkObjectAvailability(object, path)) {
         return;
     }
-    invokeNonBlockMethod(object, "setValues", Q_ARG(double, leftValue), Q_ARG(double, rightValue));
+    invokeBlockMethodWithTimeout(object, "setValues", Q_ARG(double, leftValue),
+                                 Q_ARG(double, rightValue));
 }
 
 void ScriptRunner::setValue(const QString &path, const QString &value) const noexcept
@@ -838,13 +892,13 @@ void ScriptRunner::setValue(const QString &path, const QString &value) const noe
             return;
         }
         if (dateTimeValid) {
-            invokeNonBlockMethod(object, "setDateTime", Q_ARG(QDateTime, dateTime));
+            invokeBlockMethodWithTimeout(object, "setDateTime", Q_ARG(QDateTime, dateTime));
         }
         else if (timeValid) {
-            invokeNonBlockMethod(object, "setTime", Q_ARG(QTime, time));
+            invokeBlockMethodWithTimeout(object, "setTime", Q_ARG(QTime, time));
         }
         else if (dateValid) {
-            invokeNonBlockMethod(object, "setDate", Q_ARG(QDate, date));
+            invokeBlockMethodWithTimeout(object, "setDate", Q_ARG(QDate, date));
         }
         else {
             Q_UNREACHABLE();
@@ -856,7 +910,7 @@ void ScriptRunner::setValue(const QString &path, const QString &value) const noe
             engine_->throwError(QStringLiteral("Can't convert '%1' to QDate").arg(value));
             return;
         }
-        invokeNonBlockMethod(object, "setSelectedDate", Q_ARG(QDate, date));
+        invokeBlockMethodWithTimeout(object, "setSelectedDate", Q_ARG(QDate, date));
     }
     else if (isQuickSpinBox) {
         int intValue;
@@ -930,17 +984,17 @@ void ScriptRunner::changeValue(const QString &path, const QString &type) const n
             Q_UNREACHABLE();
         }
 
-        invokeNonBlockMethod(object, "setValue", Q_ARG(int, value));
+        invokeBlockMethodWithTimeout(object, "setValue", Q_ARG(int, value));
         return;
     }
 
     auto up = [&] {
         assert(isWidgetSpinBox == true || isQuickSpinBox == true);
-        invokeNonBlockMethod(object, isWidgetSpinBox ? "stepUp" : "increase");
+        invokeBlockMethodWithTimeout(object, isWidgetSpinBox ? "stepUp" : "increase");
     };
     auto down = [&] {
         assert(isWidgetSpinBox == true || isQuickSpinBox == true);
-        invokeNonBlockMethod(object, isWidgetSpinBox ? "stepDown" : "decrease");
+        invokeBlockMethodWithTimeout(object, isWidgetSpinBox ? "stepDown" : "decrease");
     };
 
     switch (*changeType) {
@@ -1012,7 +1066,7 @@ void ScriptRunner::selectTabItemTemplate(const QString &path, int index, const Q
                 QStringLiteral("Index '%1' is out of range [0, %2)").arg(currentIndex).arg(count));
             return;
         }
-        invokeNonBlockMethod(object, "setCurrentIndex", Q_ARG(int, currentIndex));
+        invokeBlockMethodWithTimeout(object, "setCurrentIndex", Q_ARG(int, currentIndex));
     };
 
     auto indexFromText = [&] {
@@ -1119,13 +1173,13 @@ void ScriptRunner::treeViewTemplate(const QString &path, const QList<int> &index
         }
 
         if (isExpand) {
-            invokeNonBlockMethod(object, "expand", Q_ARG(QModelIndex, index));
+            invokeBlockMethodWithTimeout(object, "expand", Q_ARG(QModelIndex, index));
         }
         lastIndex = index;
     }
 
     if (!isExpand) {
-        invokeNonBlockMethod(object, "collapse", Q_ARG(QModelIndex, lastIndex));
+        invokeBlockMethodWithTimeout(object, "collapse", Q_ARG(QModelIndex, lastIndex));
     }
 }
 
@@ -1190,7 +1244,7 @@ void ScriptRunner::actionTemplate(const QString &path, std::optional<bool> isChe
     }
 
     if (!isChecked.has_value()) {
-        invokeNonBlockMethod(object, "trigger");
+        invokeBlockMethodWithTimeout(object, "trigger");
         return;
     }
 
@@ -1205,7 +1259,7 @@ void ScriptRunner::actionTemplate(const QString &path, std::optional<bool> isChe
                                .arg(*isChecked ? "true" : "false"));
     }
     else {
-        invokeNonBlockMethod(object, "toggle");
+        invokeBlockMethodWithTimeout(object, "toggle");
     }
 }
 
@@ -1425,7 +1479,7 @@ void ScriptRunner::setSelection(const QString &path, const QJSValue &selectionDa
     }
 
     QItemSelection selection;
-    invokeNonBlockMethod(selectionModel, "clearSelection");
+    invokeBlockMethodWithTimeout(selectionModel, "clearSelection");
     //! TODO: слишком много дублирования кода, нужно будет переписать
     for (const auto &pair : data) {
         const auto &rawRow = pair.first;
@@ -1475,8 +1529,9 @@ void ScriptRunner::setSelection(const QString &path, const QJSValue &selectionDa
             Q_UNREACHABLE();
         }
     }
-    invokeNonBlockMethod(selectionModel, "select", Q_ARG(QItemSelection, selection),
-                         Q_ARG(QItemSelectionModel::SelectionFlags, QItemSelectionModel::Select));
+    invokeBlockMethodWithTimeout(
+        selectionModel, "select", Q_ARG(QItemSelection, selection),
+        Q_ARG(QItemSelectionModel::SelectionFlags, QItemSelectionModel::Select));
 }
 
 void ScriptRunner::clearSelection(const QString &path) const noexcept
@@ -1501,7 +1556,7 @@ void ScriptRunner::clearSelection(const QString &path) const noexcept
         engine_->throwError(QStringLiteral("Object selection model is not accessible"));
         return;
     }
-    invokeNonBlockMethod(selectionModel, "clearSelection");
+    invokeBlockMethodWithTimeout(selectionModel, "clearSelection");
 }
 
 void ScriptRunner::setText(const QString &path, const QString &text) const noexcept
@@ -1529,13 +1584,14 @@ void ScriptRunner::setText(const QString &path, const QString &text) const noexc
         writePropertyInGuiThread(object, "text", text);
     }
     else if (isWidgetTextEdit) {
-        invokeNonBlockMethod(object, "setText", Q_ARG(QString, text));
+        invokeBlockMethodWithTimeout(object, "setText", Q_ARG(QString, text));
     }
     else if (isWidgetPlainTextEdit) {
-        invokeNonBlockMethod(object, "setPlainText", Q_ARG(QString, text));
+        invokeBlockMethodWithTimeout(object, "setPlainText", Q_ARG(QString, text));
     }
     else if (isWidgetKeySeqEdit) {
-        invokeNonBlockMethod(object, "setKeySequence", Q_ARG(QKeySequence, QKeySequence(text)));
+        invokeBlockMethodWithTimeout(object, "setKeySequence",
+                                     Q_ARG(QKeySequence, QKeySequence(text)));
     }
     else {
         Q_UNREACHABLE();
@@ -1609,8 +1665,8 @@ void ScriptRunner::setTextTemplate(const QString &path, std::optional<QList<int>
     else {
         Q_UNREACHABLE();
     }
-    invokeNonBlockMethod(model, "setData", Q_ARG(QModelIndex, lastIndex),
-                         Q_ARG(QVariant, QVariant(text)), Q_ARG(int, Qt::EditRole));
+    invokeBlockMethodWithTimeout(model, "setData", Q_ARG(QModelIndex, lastIndex),
+                                 Q_ARG(QVariant, QVariant(text)), Q_ARG(int, Qt::EditRole));
 }
 
 void ScriptRunner::setText(const QString &path, int row, int column,
@@ -1655,7 +1711,7 @@ void ScriptRunner::closeWindow(const QString &path) const noexcept
     if (isWidgetWindow) {
         //! TODO: Почему-то именно для QMainWindow не работает
         //! QGuiApplication::postEvent(object, new QCloseEvent());
-        invokeNonBlockMethod(object, "close");
+        invokeBlockMethodWithTimeout(object, "close");
     }
     else if (isQuickWindow) {
         postEvents(object, { new QCloseEvent() });
