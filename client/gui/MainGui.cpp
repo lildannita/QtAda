@@ -120,6 +120,11 @@ static void handleSubDirectories(const QString &projectDirPath, CustomStandardIt
         initFileItem(fileInfo.fileName(), fileInfo.absoluteFilePath(), isScriptsTree));
 }
 
+static QString getTimestamp() noexcept
+{
+    return QTime::currentTime().toString("hh:mm:ss");
+}
+
 MainGui::MainGui(const QString &projectPath, QWidget *parent)
     : QMainWindow(parent)
     , ui(new Ui::MainGui)
@@ -1573,7 +1578,7 @@ void MainGui::prepareTextEditForAppLog(const QString &timestamp, const QString &
 void MainGui::prepareLogTextEditsForRecording(const QString &appPath, const QString &scriptPath,
                                               bool isStarting, int exitCode) noexcept
 {
-    const auto timestamp = QTime::currentTime().toString("hh:mm:ss");
+    const auto timestamp = getTimestamp();
     prepareTextEditForAppLog(timestamp, appPath, isStarting, exitCode);
     if (isStarting) {
         const auto qtadaLogText
@@ -1598,7 +1603,7 @@ void MainGui::prepareLogTextEditsForRecording(const QString &appPath, const QStr
 
 void MainGui::prepareLogTextEditsForRunning(bool isStarting) noexcept
 {
-    const auto timestamp = QTime::currentTime().toString("hh:mm:ss");
+    const auto timestamp = getTimestamp();
     if (isStarting) {
         const auto qtadaLogText
             = ui->qtadaLogTextEdit->toPlainText().trimmed().toHtmlEscaped().replace("\n", "<br>");
@@ -1655,6 +1660,13 @@ void MainGui::startupScriptRunnerLauncher(const QStringList &scripts) noexcept
         launcher_ = nullptr;
     });
 
+    connect(launcher_, &Launcher::scriptFinished, this, [this, appPath](int exitCode) {
+        prepareTextEditForAppLog(getTimestamp(), appPath, false, exitCode);
+    });
+    connect(launcher_, &Launcher::nextScriptStarted, this,
+            [this, appPath]() { prepareTextEditForAppLog(getTimestamp(), appPath, true); });
+
+    prepareTextEditForAppLog(getTimestamp(), appPath, true);
     prepareLogTextEditsForRunning(true);
     ui->tabWidget->setCurrentIndex(0);
     this->setEnabled(false);

@@ -36,17 +36,27 @@ Launcher::Launcher(const UserLaunchOptions &userOptions, bool fromGui, QObject *
             break;
         }
         case LaunchType::Run: {
-            connect(this, &Launcher::scriptRunError, printScriptErrorMessage);
-            connect(this, &Launcher::scriptRunWarning, printScriptWarningMessage);
-            connect(this, &Launcher::scriptRunLog, printScriptOutMessage);
-            connect(this, &Launcher::scriptRunService, printScriptOutMessage);
-            connect(this, &Launcher::scriptRunResult, printScriptOutMessage);
+            if (options_.userOptions.showAppLogForTestRun) {
+                connect(injector_.get(), &injector::AbstractInjector::stdMessage, printStdMessage);
+                connect(this, &Launcher::scriptRunError, printQtAdaErrorMessage);
+                connect(this, &Launcher::scriptRunWarning, printQtAdaWarningMessage);
+                connect(this, &Launcher::scriptRunLog, printQtAdaServiceMessage);
+                connect(this, &Launcher::scriptRunService, printQtAdaServiceMessage);
+                connect(this, &Launcher::scriptRunResult, printQtAdaServiceMessage);
+            }
+            else {
+                connect(this, &Launcher::scriptRunError, printScriptErrorMessage);
+                connect(this, &Launcher::scriptRunWarning, printScriptWarningMessage);
+                connect(this, &Launcher::scriptRunLog, printScriptOutMessage);
+                connect(this, &Launcher::scriptRunService, printScriptOutMessage);
+                connect(this, &Launcher::scriptRunResult, printScriptOutMessage);
+            }
             break;
         }
         default:
             Q_UNREACHABLE();
         }
-        connect(this, &Launcher::launcherErrMessage, printQtAdaErrMessage);
+        connect(this, &Launcher::launcherErrMessage, printQtAdaErrorMessage);
         connect(this, &Launcher::launcherOutMessage, printQtAdaOutMessage);
     }
 
@@ -54,7 +64,9 @@ Launcher::Launcher(const UserLaunchOptions &userOptions, bool fromGui, QObject *
         connect(this, &Launcher::launcherReadyForNextTest, this, [this] {
             const auto testedScript = options_.runningScript;
             assert(!testedScript.isEmpty());
-            if (exitCode() == 0) {
+            const auto code = exitCode();
+            emit scriptFinished(code);
+            if (code == 0) {
                 scriptsRunData_.testsPassed++;
                 emit scriptRunService(QStringLiteral("[       OK ] %1").arg(testedScript));
             }
@@ -78,6 +90,7 @@ Launcher::Launcher(const UserLaunchOptions &userOptions, bool fromGui, QObject *
                 emit launcherFinished();
             }
             else {
+                emit nextScriptStarted();
                 launch();
             }
         });

@@ -19,6 +19,9 @@ struct UserLaunchOptions final {
     QString workingDirectory;
     int timeoutValue = DEFAULT_WAITING_TIMER_VALUE;
 
+    // Используется только в режиме прогона тестового сценария
+    bool showAppLogForTestRun = false;
+
     LaunchType type = LaunchType::None;
     RecordSettings recordSettings;
     QList<RunSettings> runSettings;

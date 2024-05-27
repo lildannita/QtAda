@@ -37,6 +37,8 @@ signals:
     void launcherOutMessage(const QString &msg);
     void launcherErrMessage(const QString &msg);
 
+    void nextScriptStarted();
+    void scriptFinished(int exitCode);
     void scriptRunService(const QString &msg);
     void scriptRunResult(const QString &msg);
     void scriptRunError(const QString &msg);

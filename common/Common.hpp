@@ -23,6 +23,8 @@ static constexpr char ENV_LAUNCH_SETTINGS[] = "QTADA_LAUNCH_SETTINGS";
 static constexpr char RESET_COLOR[] = "\033[0m";
 static constexpr char QTADA_ERR_COLOR[] = "\033[37;41m";
 static constexpr char QTADA_OUT_COLOR[] = "\033[30;42m";
+static constexpr char QTADA_WARN_COLOR[] = "\033[30;43m";
+static constexpr char QTADA_SERV_COLOR[] = "\033[30;44m";
 static constexpr char QTADA_SCRIPT_ERR_COLOR[] = "\033[1;31m";
 static constexpr char QTADA_SCRIPT_WARN_COLOR[] = "\033[1;33m";
 static constexpr char QTADA_SCRIPT_OUT_COLOR[] = "\033[1m";
@@ -46,6 +48,7 @@ Options:
  -h, --help                                     print program help and exit
  -w, --workspace                                set working directory for executable (default: current path)
  -t, --timeout                                  application launch timeout in seconds (default: %2 seconds)
+ -s, --show-log                                 show application logs during test script execution
 
 (Record options):
  --new-script                                   new script will be (over)written to the specified path (default)
@@ -98,10 +101,26 @@ inline void printQtAdaOutMessage(const QString &msg) noexcept
               << std::flush;
 }
 
-inline void printQtAdaErrMessage(const QString &msg) noexcept
+inline void printQtAdaErrorMessage(const QString &msg) noexcept
 {
     std::cout << qPrintable(
         QStringLiteral("%1QtAda:%2 %3").arg(QTADA_ERR_COLOR).arg(RESET_COLOR).arg(msg))
+              << std::endl
+              << std::flush;
+}
+
+inline void printQtAdaWarningMessage(const QString &msg) noexcept
+{
+    std::cout << qPrintable(
+        QStringLiteral("%1QtAda:%2 %3").arg(QTADA_WARN_COLOR).arg(RESET_COLOR).arg(msg))
+              << std::endl
+              << std::flush;
+}
+
+inline void printQtAdaServiceMessage(const QString &msg) noexcept
+{
+    std::cout << qPrintable(
+        QStringLiteral("%1QtAda:%2 %3").arg(QTADA_SERV_COLOR).arg(RESET_COLOR).arg(msg))
               << std::endl
               << std::flush;
 }

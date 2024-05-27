@@ -35,7 +35,7 @@ Highlighter::Highlighter(QTextDocument *parent) noexcept
     }
 
     QTextCharFormat functionFormat;
-    functionFormat.setForeground(QColor("#DCDCAA"));
+    functionFormat.setForeground(QColor("#44BBA4"));
     functionFormat.setFontWeight(QFont::Bold);
     rule.pattern = QRegularExpression("\\b\\w+(?=\\()");
     rule.format = functionFormat;

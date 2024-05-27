@@ -7,13 +7,13 @@
 namespace QtAda::launcher {
 static void printMultiplyDefinitionError()
 {
-    printQtAdaErrMessage(QStringLiteral("Multiply definition of application's launch type."));
+    printQtAdaErrorMessage(QStringLiteral("Multiply definition of application's launch type."));
 }
 
 static void printErrors(const std::vector<QString> &errors)
 {
     for (const auto &error : errors) {
-        printQtAdaErrMessage(error);
+        printQtAdaErrorMessage(error);
     }
 }
 
@@ -22,7 +22,7 @@ static bool argToInt(int &option, const QString &value, const QString &arg) noex
     bool isOk = false;
     option = value.toInt(&isOk);
     if (!isOk) {
-        printQtAdaErrMessage(QStringLiteral("Invalid value for %1.").arg(arg));
+        printQtAdaErrorMessage(QStringLiteral("Invalid value for %1.").arg(arg));
         return false;
     }
     return true;
@@ -52,7 +52,7 @@ std::optional<int> UserLaunchOptions::initFromArgs(const char *appPath, QStringL
                 return 1;
             }
             if (timeoutValue < DEFAULT_WAITING_TIMER_VALUE) {
-                printQtAdaErrMessage(
+                printQtAdaErrorMessage(
                     QStringLiteral("Timeout value must be greater than %1 seconds.")
                         .arg(DEFAULT_WAITING_TIMER_VALUE));
             }
@@ -77,6 +77,9 @@ std::optional<int> UserLaunchOptions::initFromArgs(const char *appPath, QStringL
                 runSettings.push_back(standartRunSettings);
             }
             break;
+        }
+        else if ((arg == QLatin1String("-s")) || (arg == QLatin1String("--show-log"))) {
+            showAppLogForTestRun = true;
         }
         else if (arg == QLatin1String("--indent-width")) {
             if (!argToInt(recordSettings.indentWidth, args.takeFirst(), arg)) {
@@ -141,7 +144,7 @@ std::optional<int> UserLaunchOptions::initFromArgs(const char *appPath, QStringL
             standartRunSettings.showElapsed = true;
         }
         else {
-            printQtAdaErrMessage(QStringLiteral("Unknown parameter: %1.").arg(arg));
+            printQtAdaErrorMessage(QStringLiteral("Unknown parameter: %1.").arg(arg));
             return 1;
         }
     }
@@ -170,7 +173,7 @@ std::optional<int> UserLaunchOptions::initFromArgs(const char *appPath, QStringL
         break;
     }
     case LaunchType::None: {
-        printQtAdaErrMessage(QStringLiteral("Launch type is not specified."));
+        printQtAdaErrorMessage(QStringLiteral("Launch type is not specified."));
         return 1;
     }
     default:
@@ -179,7 +182,7 @@ std::optional<int> UserLaunchOptions::initFromArgs(const char *appPath, QStringL
     launchAppArguments = std::move(args);
 
     if (launchAppArguments.isEmpty()) {
-        printQtAdaErrMessage(QStringLiteral("Application path is not specified."));
+        printQtAdaErrorMessage(QStringLiteral("Application path is not specified."));
         return 1;
     }
 
