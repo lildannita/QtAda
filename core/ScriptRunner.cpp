@@ -337,13 +337,31 @@ QObject *ScriptRunner::findObjectByPath(const QString &path) const noexcept
 bool ScriptRunner::checkObjectAvailability(const QObject *object, const QString &path,
                                            bool shouldBeVisible) const noexcept
 {
-    if (!utils::getFromVariant<bool>(QQmlProperty::read(object, "enabled"))) {
+    const auto attempts = runSettings_.retrievalAttempts;
+    assert(attempts >= MINIMUM_RETRIEVAL_ATTEMPTS);
+    const auto interval = runSettings_.retrievalInterval;
+    assert(interval >= MINIMUM_RETRIEVAL_INTERVAL);
+
+    bool enabled = false;
+    bool visible = shouldBeVisible ? false : true;
+
+    //! TODO: позже нужно "встроить" это ожидание в функцию ScriptRunner::findObjectByPath
+    for (int i = 0; i < attempts && (!enabled || !visible); i++) {
+        enabled = utils::getFromVariant<bool>(QQmlProperty::read(object, "enabled"));
+        if (shouldBeVisible) {
+            visible = utils::getFromVariant<bool>(QQmlProperty::read(object, "visible"));
+        }
+        if (i != attempts - 1) {
+            QThread::msleep(interval);
+        }
+    }
+
+    if (!enabled) {
         emit scriptWarning(
             QStringLiteral("'%1': action on object ignored due to its disabled state").arg(path));
         return false;
     }
-    else if (shouldBeVisible
-             && !utils::getFromVariant<bool>(QQmlProperty::read(object, "visible"))) {
+    else if (!visible) {
         emit scriptWarning(
             QStringLiteral("'%1': action on object ignored due to its invisibility").arg(path));
         return false;
@@ -434,6 +452,9 @@ void ScriptRunner::mouseClickTemplate(const QString &path, const QString &mouseB
     const auto mouseButton = utils::mouseButtonFromString(mouseButtonStr);
     if (!mouseButton.has_value()) {
         engine_->throwError(QStringLiteral("Unknown mouse button: '%1'").arg(mouseButtonStr));
+        return;
+    }
+    if (!checkObjectAvailability(object, path)) {
         return;
     }
 
