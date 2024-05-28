@@ -31,6 +31,7 @@ find_package(
              Widgets
              RemoteObjects
              Concurrent
+             Test
   REQUIRED)
 
 # For ABI detection

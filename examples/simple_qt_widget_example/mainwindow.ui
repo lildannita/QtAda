@@ -36,7 +36,7 @@
           <item>
            <widget class="QLabel" name="label">
             <property name="text">
-             <string>Action log will be displayed here</string>
+             <string>Here will be displayed info after button push</string>
             </property>
            </widget>
           </item>
@@ -98,7 +98,7 @@
                      </widget>
                     </item>
                     <item>
-                     <widget class="QComboBox" name="comboBox_2">
+                     <widget class="QComboBox" name="editableComboBox">
                       <property name="editable">
                        <bool>true</bool>
                       </property>
@@ -150,26 +150,26 @@
               <item>
                <layout class="QHBoxLayout" name="horizontalLayout_3">
                 <item>
-                 <widget class="QRadioButton" name="radioButton_3">
+                 <widget class="QRadioButton" name="disabledRadioButton">
                   <property name="enabled">
                    <bool>false</bool>
                   </property>
                   <property name="text">
-                   <string>RadioButton1</string>
+                   <string>Disabled RadioButton</string>
                   </property>
                  </widget>
                 </item>
                 <item>
-                 <widget class="QRadioButton" name="radioButton">
+                 <widget class="QRadioButton" name="firstEnabledRadio">
                   <property name="text">
-                   <string>RadioButton2</string>
+                   <string>First Enabled RadioButton</string>
                   </property>
                  </widget>
                 </item>
                 <item>
-                 <widget class="QRadioButton" name="radioButton_2">
+                 <widget class="QRadioButton" name="secondEnabledRadio">
                   <property name="text">
-                   <string>RadioButton3</string>
+                   <string>Second Enabled RadioButton</string>
                   </property>
                  </widget>
                 </item>
@@ -178,21 +178,21 @@
               <item>
                <layout class="QHBoxLayout" name="horizontalLayout_4">
                 <item>
-                 <widget class="QCheckBox" name="checkBox">
+                 <widget class="QCheckBox" name="firstCheckBox">
                   <property name="text">
                    <string>CheckBox1</string>
                   </property>
                  </widget>
                 </item>
                 <item>
-                 <widget class="QCheckBox" name="checkBox_2">
+                 <widget class="QCheckBox" name="secondCheckBox">
                   <property name="text">
                    <string>CheckBox2</string>
                   </property>
                  </widget>
                 </item>
                 <item>
-                 <widget class="QCheckBox" name="checkBox_3">
+                 <widget class="QCheckBox" name="thirdCheckBox">
                   <property name="text">
                    <string>CheckBox3</string>
                   </property>
@@ -210,9 +210,9 @@
               <item>
                <layout class="QHBoxLayout" name="horizontalLayout">
                 <item>
-                 <widget class="QPushButton" name="pushButton">
+                 <widget class="QPushButton" name="checkablePushButton">
                   <property name="text">
-                   <string>Simple Button</string>
+                   <string>Checkable Button</string>
                   </property>
                   <property name="checkable">
                    <bool>true</bool>
@@ -220,9 +220,9 @@
                  </widget>
                 </item>
                 <item>
-                 <widget class="QPushButton" name="pushButton_2">
+                 <widget class="QPushButton" name="simplePushButton">
                   <property name="text">
-                   <string>Open Dialog</string>
+                   <string>Simple Button</string>
                   </property>
                  </widget>
                 </item>
@@ -260,7 +260,7 @@
             <item>
              <layout class="QVBoxLayout" name="verticalLayout_13">
               <item>
-               <widget class="QDateTimeEdit" name="dateTimeEdit_2">
+               <widget class="QDateTimeEdit" name="dateTimeEdit">
                 <property name="readOnly">
                  <bool>false</bool>
                 </property>
@@ -270,22 +270,22 @@
                </widget>
               </item>
               <item>
-               <widget class="QTimeEdit" name="timeEdit_2"/>
+               <widget class="QTimeEdit" name="timeEdit"/>
               </item>
               <item>
-               <widget class="QDateEdit" name="dateEdit_2"/>
+               <widget class="QDateEdit" name="dateEdit"/>
               </item>
              </layout>
             </item>
             <item>
-             <widget class="QDial" name="dial_2"/>
+             <widget class="QDial" name="dial"/>
             </item>
             <item>
              <layout class="QHBoxLayout" name="horizontalLayout_9">
               <item>
                <layout class="QVBoxLayout" name="verticalLayout_14">
                 <item>
-                 <widget class="QSlider" name="horizontalSlider_2">
+                 <widget class="QSlider" name="horizontalSlider">
                   <property name="orientation">
                    <enum>Qt::Horizontal</enum>
                   </property>
@@ -295,7 +295,7 @@
                  </widget>
                 </item>
                 <item>
-                 <widget class="QScrollBar" name="horizontalScrollBar_2">
+                 <widget class="QScrollBar" name="horizontalScrollBar">
                   <property name="orientation">
                    <enum>Qt::Horizontal</enum>
                   </property>
@@ -309,14 +309,14 @@
               <item>
                <layout class="QHBoxLayout" name="horizontalLayout_10">
                 <item>
-                 <widget class="QSlider" name="verticalSlider_2">
+                 <widget class="QSlider" name="verticalSlider">
                   <property name="orientation">
                    <enum>Qt::Vertical</enum>
                   </property>
                  </widget>
                 </item>
                 <item>
-                 <widget class="QScrollBar" name="verticalScrollBar_2">
+                 <widget class="QScrollBar" name="verticalScrollBar">
                   <property name="orientation">
                    <enum>Qt::Vertical</enum>
                   </property>
@@ -352,13 +352,13 @@
             </rect>
            </property>
            <attribute name="label">
-            <string>Page 1</string>
+            <string>Page With Simple Button</string>
            </attribute>
            <layout class="QVBoxLayout" name="verticalLayout_19">
             <item>
-             <widget class="QPushButton" name="pushButton_3">
+             <widget class="QPushButton" name="toolBoxButton">
               <property name="text">
-               <string>PushButton</string>
+               <string>Simple Button</string>
               </property>
              </widget>
             </item>
@@ -374,18 +374,18 @@
             </rect>
            </property>
            <attribute name="label">
-            <string>Page 2</string>
+            <string>Page With Radio Buttons</string>
            </attribute>
            <layout class="QVBoxLayout" name="verticalLayout_20">
             <item>
-             <widget class="QRadioButton" name="radioButton_4">
+             <widget class="QRadioButton" name="toolBoxFirstRadio">
               <property name="text">
                <string>RadioButton</string>
               </property>
              </widget>
             </item>
             <item>
-             <widget class="QRadioButton" name="radioButton_5">
+             <widget class="QRadioButton" name="toolBoxSecondRadio">
               <property name="text">
                <string>RadioButton</string>
               </property>
@@ -680,7 +680,7 @@ li.checked::marker { content: &quot;\2612&quot;; }
          </widget>
         </item>
         <item>
-         <widget class="QPushButton" name="pushButton_4">
+         <widget class="QPushButton" name="resetUndoLabel">
           <property name="text">
            <string>Reset label</string>
           </property>
@@ -710,7 +710,7 @@ li.checked::marker { content: &quot;\2612&quot;; }
       </widget>
       <widget class="QWidget" name="tab_8">
        <attribute name="title">
-        <string>ToolBox</string>
+        <string>Custom Delegates</string>
        </attribute>
        <layout class="QGridLayout" name="gridLayout_2">
         <item row="0" column="0">
@@ -746,15 +746,7 @@ li.checked::marker { content: &quot;\2612&quot;; }
     <property name="title">
      <string>Menu</string>
     </property>
-    <widget class="QMenu" name="menuQuit">
-     <property name="title">
-      <string>Quit</string>
-     </property>
-     <addaction name="actionQuit_child"/>
-    </widget>
-    <addaction name="actionQuit"/>
     <addaction name="actionTest_switch_for_tab_3"/>
-    <addaction name="menuQuit"/>
     <addaction name="separator"/>
     <addaction name="actionaction"/>
     <addaction name="actionaction_2"/>
@@ -767,7 +759,7 @@ li.checked::marker { content: &quot;\2612&quot;; }
    </widget>
    <widget class="QMenu" name="menuAction">
     <property name="title">
-     <string>Action</string>
+     <string>Empty Menu</string>
     </property>
    </widget>
    <addaction name="menuMenu"/>
@@ -785,17 +777,12 @@ li.checked::marker { content: &quot;\2612&quot;; }
     <bool>false</bool>
    </attribute>
   </widget>
-  <action name="actionQuit">
-   <property name="text">
-    <string>Quit</string>
-   </property>
-  </action>
   <action name="actionTest_switch_for_tab_3">
    <property name="checkable">
     <bool>true</bool>
    </property>
    <property name="text">
-    <string>Test switch for tab 3</string>
+    <string>Switch Action</string>
    </property>
   </action>
   <action name="actionQuit_child">
@@ -808,17 +795,17 @@ li.checked::marker { content: &quot;\2612&quot;; }
     <bool>false</bool>
    </property>
    <property name="text">
-    <string>action</string>
+    <string>Disabled Action</string>
    </property>
   </action>
   <action name="actiontest">
    <property name="text">
-    <string>test</string>
+    <string>Another Simple Action</string>
    </property>
   </action>
   <action name="actionaction_2">
    <property name="text">
-    <string>action</string>
+    <string>Simple Action</string>
    </property>
   </action>
  </widget>
