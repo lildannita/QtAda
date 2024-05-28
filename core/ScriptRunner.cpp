@@ -12,6 +12,7 @@
 #include <QModelIndex>
 #include <QAbstractItemView>
 #include <QAbstractItemModel>
+#include <QLineEdit>
 #include <QFuture>
 #include <QTimer>
 #include <QtConcurrent>
@@ -1585,6 +1586,27 @@ void ScriptRunner::setText(const QString &path, const QString &text) const noexc
     auto *object = findObjectByPath(path);
     if (object == nullptr) {
         return;
+    }
+
+    //! TODO: Нужно тщательней проверить какие еще компоненты могут иметь "под копотом"
+    //! QLineEdit, чтобы избежать ошибки "Passed object is not an text edit".
+    const auto isComboBox = object->inherits("QComboBox");
+    const auto isSpinBox = object->inherits("QAbstractSpinBox");
+    if (isComboBox || isSpinBox) {
+        const auto isEditable
+            = isComboBox ? utils::getFromVariant<bool>(QQmlProperty::read(object, "editable"))
+                         : !utils::getFromVariant<bool>(QQmlProperty::read(object, "readOnly"));
+        if (!isEditable) {
+            engine_->throwError(QStringLiteral("Passed %1 is not editable")
+                                    .arg(isComboBox ? "ComboBox" : "SpinBox"));
+            return;
+        }
+
+        object = qobject_cast<QObject *>(object->findChild<QLineEdit *>());
+        if (object == nullptr) {
+            engine_->throwError(QStringLiteral("Can't get QLineEdit from passed object"));
+            return;
+        }
     }
 
     const auto isQuickTextEdit
