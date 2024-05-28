@@ -335,42 +335,58 @@ static QString qCalendarFilter(const QWidget *widget, const QMouseEvent *event,
     int month = calendar->monthShown();
     int year = calendar->yearShown();
 
-    QModelIndex repeatingDayIndex;
+    QModelIndex previousIndex;
+    QModelIndex firstDayOfMonth;
+    QModelIndex lastDayOfMonth;
     auto *calendarModel = calendarView->model();
-    for (int row = 0; row < calendarModel->rowCount(); ++row) {
-        for (int column = 0; column < calendarModel->columnCount(); ++column) {
+    const auto rowCount = calendarModel->rowCount();
+    const auto columnCount = calendarModel->columnCount();
+    for (int row = 0; row < rowCount; ++row) {
+        for (int column = 0; column < columnCount; ++column) {
             QModelIndex index = calendarModel->index(row, column);
             assert(index.isValid());
             assert(index.data().canConvert<int>());
-            if (index.data().toInt() == day && index != currentCellIndex) {
-                repeatingDayIndex = index;
-                break;
+            if (index.data().toInt() == 1) {
+                if (!firstDayOfMonth.isValid()) {
+                    firstDayOfMonth = index;
+                }
+                else if (!lastDayOfMonth.isValid()) {
+                    assert(previousIndex.isValid());
+                    lastDayOfMonth = previousIndex;
+                }
+                else {
+                    Q_UNREACHABLE();
+                }
             }
-        }
-
-        if (repeatingDayIndex.isValid()) {
-            break;
+            previousIndex = index;
         }
     }
 
-    if (repeatingDayIndex.isValid()) {
-        if (repeatingDayIndex.row() < currentCellIndex.row()
-            || (repeatingDayIndex.row() == currentCellIndex.row()
-                && repeatingDayIndex.column() < currentCellIndex.column())) {
-            month++;
-            if (month > 12) {
-                month = 1;
-                year++;
-            }
-        }
-        else {
-            month--;
-            if (month < 1) {
-                month = 12;
-                year--;
-            }
+    assert(firstDayOfMonth.isValid());
+    if (!lastDayOfMonth.isValid()) {
+        lastDayOfMonth = calendarModel->index(rowCount - 1, columnCount - 1);
+    }
+    assert(lastDayOfMonth.isValid());
+
+    if (currentCellIndex.row() < firstDayOfMonth.row()
+        || (currentCellIndex.row() == firstDayOfMonth.row()
+            && currentCellIndex.column() < firstDayOfMonth.column())) {
+        month--;
+        if (month < 1) {
+            month = 12;
+            year--;
         }
     }
+    else if (currentCellIndex.row() > lastDayOfMonth.row()
+             || (currentCellIndex.row() == lastDayOfMonth.row()
+                 && currentCellIndex.column() > lastDayOfMonth.column())) {
+        month++;
+        if (month > 12) {
+            month = 1;
+            year++;
+        }
+    }
+
     auto currentDate = calendar->calendar().dateFromParts(year, month, day);
     assert(currentDate.isValid());
 
@@ -866,15 +882,23 @@ void WidgetEventFilter::setMousePressFilter(const QObject *obj, const QEvent *ev
     }
     else if (auto *foundWidget = utils::searchSpecificComponent(
                  widget, filters::s_widgetMetaMap.at(WidgetClass::ItemView))) {
-        auto *itemView = qobject_cast<const QAbstractItemView *>(foundWidget);
-        assert(itemView != nullptr);
-        foundWidgetClass = WidgetClass::ItemView;
-        connections.push_back(
-            QObject::connect(itemView->selectionModel(),
-                             static_cast<void (QItemSelectionModel::*)(const QItemSelection &,
-                                                                       const QItemSelection &)>(
-                                 &QItemSelectionModel::selectionChanged),
-                             this, [this] { this->delayedWatchDog_.processSignal(); }));
+        //! TODO: Такой костыль обуславливается тем, что список для QComboBox - QListView,
+        //! и в редких случаях может быть такое, что "родной" обработчик для QComboBox,
+        //! будет выполнен позже, чем отложенный. Но в будущем, скорее всего, лучше будет
+        //! включить обработку QComboBox в тело обработчика всех QAbstractItemView.
+        auto *parentComboBox = utils::searchSpecificComponent(
+            foundWidget, filters::s_widgetMetaMap.at(WidgetClass::ComboBox));
+        if (parentComboBox == nullptr) {
+            auto *itemView = qobject_cast<const QAbstractItemView *>(foundWidget);
+            assert(itemView != nullptr);
+            foundWidgetClass = WidgetClass::ItemView;
+            connections.push_back(
+                QObject::connect(itemView->selectionModel(),
+                                 static_cast<void (QItemSelectionModel::*)(const QItemSelection &,
+                                                                           const QItemSelection &)>(
+                                     &QItemSelectionModel::selectionChanged),
+                                 this, [this] { this->delayedWatchDog_.processSignal(); }));
+        }
     }
 
     if (foundWidgetClass != WidgetClass::None) {
