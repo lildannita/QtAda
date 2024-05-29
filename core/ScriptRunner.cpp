@@ -675,7 +675,9 @@ void ScriptRunner::checkButton(const QString &path, bool isChecked) const noexce
         return;
     }
 
-    if (!object->inherits("QAbstractButton") && !object->inherits("QQuickAbstractButton")) {
+    const auto isWidgetButton = object->inherits("QAbstractButton");
+    const auto isQuickButton = object->inherits("QQuickAbstractButton");
+    if (!isWidgetButton && !isQuickButton) {
         engine_->throwError(QStringLiteral("Passed object is not a button"));
         return;
     }
@@ -694,7 +696,19 @@ void ScriptRunner::checkButton(const QString &path, bool isChecked) const noexce
                                .arg(isChecked ? "true" : "false"));
     }
     else {
-        invokeBlockMethodWithTimeout(object, "toggle");
+        //! TODO: Скорее всего toggle вообще бесполезен, так как в большинстве используется
+        //! обработка события клика, а он не воспроизводится при выполнении метода `toggle`.
+        //! invokeBlockMethodWithTimeout(object, "toggle");
+        if (isWidgetButton) {
+            invokeBlockMethodWithTimeout(object, "click");
+        }
+        else {
+            const auto height = utils::getFromVariant<double>(QQmlProperty::read(object, "height"));
+            const auto width = utils::getFromVariant<double>(QQmlProperty::read(object, "width"));
+            const auto pos = QPoint(width / 2, height / 2);
+            postEvents(object, { simpleMouseEvent(QEvent::MouseButtonPress, pos),
+                                 simpleMouseEvent(QEvent::MouseButtonRelease, pos) });
+        }
     }
 }
 
