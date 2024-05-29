@@ -143,6 +143,11 @@ std::optional<int> UserLaunchOptions::initFromArgs(const char *appPath, QStringL
         else if (arg == QLatin1String("--show-elapsed")) {
             standartRunSettings.showElapsed = true;
         }
+        // Нужен только для разработчиков QtAda, так как используется только для внутренних
+        // автотестов.
+        else if (arg == QLatin1String("--auto-record")) {
+            autoRecord = true;
+        }
         else {
             printQtAdaErrorMessage(QStringLiteral("Unknown parameter: %1.").arg(arg));
             return 1;
@@ -165,6 +170,9 @@ std::optional<int> UserLaunchOptions::initFromArgs(const char *appPath, QStringL
             if (settingsErrors.has_value()) {
                 errors.insert(errors.end(), settingsErrors->begin(), settingsErrors->end());
             }
+        }
+        if (autoRecord) {
+            errors.push_back("Mode 'Auto Record' is only for Launch Type == Record.");
         }
         if (!errors.empty()) {
             printErrors(std::move(errors));

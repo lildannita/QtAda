@@ -497,12 +497,6 @@ void MainWindow::implementActionsForAutoRecord() noexcept
             auto tabBar = ui->tabWidget->tabBar();
             QTest::mouseClick(tabBar, Qt::LeftButton, Qt::NoModifier, tabBar->tabRect(4).center());
         },
-        // Клик по делегату (QTreeView)
-        [this] {
-            auto index = treeViewModel->index(1, 0);
-            auto clickPos = ui->treeView->visualRect(index).center();
-            QTest::mouseClick(ui->treeView->viewport(), Qt::LeftButton, Qt::NoModifier, clickPos);
-        },
         // Раскрытие делегата (QTreeView)
         [this] {
             auto index = treeViewModel->index(0, 0);
@@ -521,6 +515,12 @@ void MainWindow::implementActionsForAutoRecord() noexcept
             auto editor = ui->treeView->findChild<QLineEdit *>();
             assert(editor != nullptr);
             QTest::keyClicks(editor, "Test Text");
+        },
+        // Клик по делегату (QTreeView)
+        [this] {
+            auto index = treeViewModel->index(1, 0);
+            auto clickPos = ui->treeView->visualRect(index).center();
+            QTest::mouseClick(ui->treeView->viewport(), Qt::LeftButton, Qt::NoModifier, clickPos);
         },
         // Раскрытие делегата (QTreeWidget)
         [this] {

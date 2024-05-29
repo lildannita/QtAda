@@ -35,6 +35,7 @@ public:
 
 public slots:
     void appendLogMessage(const QString &line) noexcept;
+    void finishScript(bool isCancelled) noexcept;
 
 signals:
     void applicationStarted();
@@ -48,7 +49,6 @@ private slots:
     void handleLogToggle(bool isChecked) noexcept;
     void play() noexcept;
     void pause() noexcept;
-    void finishScript(bool isCancelled) noexcept;
 
     void acceptComment() noexcept;
     void clearComment() noexcept;

@@ -21,6 +21,8 @@ struct UserLaunchOptions final {
 
     // Используется только в режиме прогона тестового сценария
     bool showAppLogForTestRun = false;
+    // Используется только для автоматического записи сценария (--auto-record)
+    bool autoRecord = false;
 
     LaunchType type = LaunchType::None;
     RecordSettings recordSettings;

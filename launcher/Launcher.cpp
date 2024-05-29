@@ -173,6 +173,9 @@ bool Launcher::launch() noexcept
         options_.env.insert(ENV_LAUNCH_SETTINGS, options_.userOptions.recordSettings.toJson());
 
         inprocessDialog_ = new inprocess::InprocessDialog(options_.userOptions.recordSettings);
+        if (options_.userOptions.autoRecord) {
+            inprocessDialog_->setEnabled(false);
+        }
         connect(inprocessDialog_, &inprocess::InprocessDialog::applicationStarted, this,
                 &Launcher::applicationStarted);
         connect(injector_.get(), &injector::AbstractInjector::stdMessage, inprocessDialog_,
@@ -252,6 +255,9 @@ void Launcher::checkIfLauncherIsFinished() noexcept
             inprocessDialog_->setTextToScriptLabel(
                 QStringLiteral("The application under test has been closed. Please complete the "
                                "script generation in the dialog."));
+            if (options_.userOptions.autoRecord) {
+                inprocessDialog_->finishScript(false);
+            }
         }
         else {
             isFinished = true;
