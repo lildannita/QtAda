@@ -16,22 +16,27 @@ MyPage {
         }
 
         TabButton {
+            objectName: "tabGridView"
             text: qsTr("GridView")
         }
 
         TabButton {
+            objectName: "tabListView"
             text: qsTr("ListView")
         }
 
         TabButton {
+            objectName: "tabPathView"
             text: qsTr("PathView")
         }
 
         TabButton {
+            objectName: "tabSwipeView"
             text: qsTr("SwipeView")
         }
 
         TabButton {
+            objectName: "tabTableView"
             text: qsTr("TableView")
         }
 
@@ -132,7 +137,6 @@ MyPage {
         GridView {
             id: gridView
 
-            anchors.fill: parent
             model: listModel
             cellWidth: MyStyle.px(150)
             cellHeight: MyStyle.px(150)
@@ -156,7 +160,6 @@ MyPage {
         }
 
         ListView {
-            anchors.fill: parent
             model: listModel
             clip: true
 
@@ -169,8 +172,6 @@ MyPage {
         }
 
         Item {
-            anchors.fill: parent
-
             Component {
                 id: delegate
 
@@ -229,8 +230,6 @@ MyPage {
         }
 
         Item {
-            anchors.fill: parent
-
             SwipeView {
                 id: swipeView
 
@@ -272,7 +271,6 @@ MyPage {
         }
 
         TableView {
-            anchors.fill: parent
             columnSpacing: 1
             rowSpacing: 1
             clip: true

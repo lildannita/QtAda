@@ -17,6 +17,7 @@ Rectangle {
     }
 
     MouseArea {
+        objectName: "customMouseArea"
         anchors.fill: parent
         onClicked: {
             button.buttonClicked();

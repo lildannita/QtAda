@@ -12,6 +12,7 @@ MyPage {
     Dialog {
         id: dialog
 
+        objectName: "simpleDialog"
         title: "Enter Something"
         standardButtons: Dialog.Close
     }
@@ -30,6 +31,7 @@ MyPage {
             Layout.preferredHeight: page.prefferedHeight
 
             MyButton {
+                objectName: "customButton"
                 onButtonClicked: {
                     dialog.open();
                 }
@@ -45,9 +47,11 @@ MyPage {
             }
 
             Button {
+                objectName: "checkableButton"
                 text: "Simple Button"
                 font.pixelSize: MyStyle.px(15)
                 checkable: true
+
                 anchors {
                     left: parent.horizontalCenter
                     right: parent.right
@@ -73,18 +77,21 @@ MyPage {
             Layout.preferredHeight: page.prefferedHeight
 
             CheckBox {
+                objectName: "firstCheckBox"
                 Layout.preferredWidth: page.prefferedWidth
                 Layout.fillHeight: true
                 text: "First CheckBox"
             }
 
             CheckBox {
+                objectName: "secondCheckBox"
                 Layout.preferredWidth: page.prefferedWidth
                 Layout.fillHeight: true
                 text: "Second CheckBox"
             }
 
             CheckBox {
+                objectName: "disabledCheckBox"
                 Layout.preferredWidth: page.prefferedWidth
                 Layout.fillHeight: true
                 enabled: false
@@ -98,18 +105,21 @@ MyPage {
             Layout.preferredHeight: page.prefferedHeight
 
             RadioButton {
+                objectName: "firstRadioButton"
                 Layout.preferredWidth: page.prefferedWidth
                 Layout.fillHeight: true
                 text: "First RadioButton"
             }
 
             RadioButton {
+                objectName: "secondRadioButton"
                 Layout.preferredWidth: page.prefferedWidth
                 Layout.fillHeight: true
                 text: "Second RadioButton"
             }
 
             RadioButton {
+                objectName: "disabledRadioButton"
                 Layout.preferredWidth: page.prefferedWidth
                 Layout.fillHeight: true
                 enabled: false
@@ -123,12 +133,14 @@ MyPage {
             Layout.preferredHeight: page.prefferedHeight
 
             Switch {
+                objectName: "simpleSwitch"
                 Layout.preferredWidth: page.prefferedWidth
                 Layout.fillHeight: true
                 text: "Switch"
             }
 
             Switch {
+                objectName: "disabledSwitch"
                 Layout.preferredWidth: page.prefferedWidth
                 enabled: false
                 Layout.fillHeight: true
@@ -136,6 +148,7 @@ MyPage {
             }
 
             DelayButton {
+                objectName: "delayButton"
                 Layout.preferredWidth: page.prefferedWidth
                 Layout.fillHeight: true
                 delay: 3000
@@ -149,16 +162,19 @@ MyPage {
             Layout.preferredHeight: page.prefferedHeight * 3
 
             Slider {
+                objectName: "simpleSlider"
                 Layout.preferredWidth: page.prefferedWidth
                 Layout.fillHeight: true
             }
 
             RangeSlider {
+                objectName: "rangeSlider"
                 Layout.preferredWidth: page.prefferedWidth
                 Layout.fillHeight: true
             }
 
             Dial {
+                objectName: "simpleDial"
                 Layout.preferredWidth: page.prefferedWidth
                 Layout.fillHeight: true
             }
@@ -191,6 +207,7 @@ MyPage {
             }
 
             ComboBox {
+                objectName: "editableComboBox"
                 Layout.preferredWidth: page.prefferedWidth
                 Layout.fillHeight: true
                 editable: true
@@ -213,6 +230,7 @@ MyPage {
             }
 
             SpinBox {
+                objectName: "simpleSpinBox"
                 Layout.preferredWidth: page.prefferedWidth
                 Layout.fillHeight: true
                 editable: true
@@ -237,6 +255,7 @@ MyPage {
             Layout.preferredHeight: page.prefferedHeight
 
             ScrollBar {
+                objectName: "simpleScrollBar"
                 hoverEnabled: true
                 active: true
                 policy: ScrollBar.AlwaysOn

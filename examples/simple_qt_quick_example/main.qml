@@ -31,12 +31,15 @@ ApplicationWindow {
     }
 
     menuBar: MenuBar {
+        objectName: "menuBar"
         visible: tabBar.currentIndex == 0
 
         Menu {
+            objectName: "simpleMenu"
             title: "Menu"
 
             Action {
+                objectName: "simpleAction"
                 text: "Action"
             }
 
@@ -44,9 +47,11 @@ ApplicationWindow {
             }
 
             Menu {
+                objectName: "simpleSubMenu"
                 title: "Submenu"
 
                 Action {
+                    objectName: "simpleSubAction"
                     text: "Submenu action"
                 }
 
@@ -75,14 +80,17 @@ ApplicationWindow {
         currentIndex: 0
 
         MyTabButton {
+            objectName: "clickItemsTabButton"
             buttonText: "Click Items"
         }
 
         MyTabButton {
+            objectName: "textItemsTabButton"
             buttonText: "Text Items"
         }
 
         MyTabButton {
+            objectName: "viewItemsTabButton"
             buttonText: "Views Items"
         }
 

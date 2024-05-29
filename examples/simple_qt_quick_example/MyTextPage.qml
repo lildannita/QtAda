@@ -30,6 +30,7 @@ MyPage {
                 color: MyStyle.greenColor
 
                 TextInput {
+                    objectName: "simpleTextInput"
                     anchors.fill: parent
                     text: "Original TextInput"
                     font.pixelSize: MyStyle.px(20)
@@ -43,6 +44,7 @@ MyPage {
                 color: MyStyle.greenColor
 
                 MyTextInput {
+                    objectName: "customTextInput"
                     anchors.fill: parent
                     text: "Custom TextInput"
                     font.pixelSize: MyStyle.px(20)
@@ -56,6 +58,7 @@ MyPage {
                 color: MyStyle.greenColor
 
                 TextField {
+                    objectName: "simpleTextField"
                     anchors.fill: parent
                     text: "Orignal TextField"
                     font.pixelSize: MyStyle.px(15)
@@ -75,6 +78,7 @@ MyPage {
                 color: MyStyle.greenColor
 
                 TextEdit {
+                    objectName: "simpleTextEdit"
                     anchors.fill: parent
                     text: "Orignal TextEdit"
                     font.pixelSize: MyStyle.px(20)
@@ -88,6 +92,7 @@ MyPage {
                 color: MyStyle.greenColor
 
                 TextArea {
+                    objectName: "simpleTextArea"
                     anchors.fill: parent
                     text: "Orignal TextArea"
                     font.pixelSize: MyStyle.px(20)
