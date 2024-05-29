@@ -31,11 +31,13 @@ public:
     }
 
 public slots:
-    void autoClickOnOkButton() noexcept {
+    void autoClickOnOkButton() noexcept
+    {
         // Автоматически нажимаем на кнопку "OK" (закрываем текущий диалог)
         QTest::mouseClick(okButton, Qt::LeftButton);
     }
-    void autoClickOnOpenButton() noexcept {
+    void autoClickOnOpenButton() noexcept
+    {
         // Это нужно для дочернего диалога, чтобы указать обработчику onOpenClicked о том,
         // что находимся в режиме тестирования
         testMode = true;
