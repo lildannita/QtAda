@@ -280,7 +280,7 @@ _Note: These are not auto-generated and should be used as needed._
 
 ### Value Manipulation
 - `setValue(path, value)`
-  - **Purpose:** Sets the current numeric value in components like `QSpinBox`, `QDoubleSpinBox`, `QML SpinBox`, `QAbstractSlider`, `QML Slider`, and `QML ScrollBar`. If the component only accepts integer values, the fractional part of the number will be discarded.
+  - **Purpose:** Sets the current numeric value in components like `QSpinBox`, `QDoubleSpinBox`, `QML SpinBox`, `QAbstractSlider`, `QML Slider`, `QML ScrollBar` and `QML Dial`. If the component only accepts integer values, the fractional part of the number will be discarded.
   - **Arguments:**
     - `value` (double): The numeric value to set.
 
@@ -317,7 +317,7 @@ _Note: These are not auto-generated and should be used as needed._
 
 ### Text Manipulation
 - `setText(path, text)`
-  - **Purpose:** Sets text in components derived from `QTextEdit`, `QLineEdit`, `QPlainTextEdit`, `QKeySequenceEdit`, `QML TextEdit`, or `QML TextInput`.
+  - **Purpose:** Sets text in components derived from `QTextEdit`, `QLineEdit`, `QPlainTextEdit`, `QKeySequenceEdit`, `QML TextEdit` or `QML TextInput`. This function can also be used for components that contain the listed classes (for example `QComboxBox`).
   - **Arguments:**
     - `text` (string): The text to be set in the component.
 
