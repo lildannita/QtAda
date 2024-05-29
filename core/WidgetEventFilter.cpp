@@ -1003,9 +1003,25 @@ void WidgetEventFilter::callKeyFilters() noexcept
         return;
     }
     case WidgetClass::SpinBox: {
-        auto *spinBox = qobject_cast<const QAbstractSpinBox *>(keyWidget);
-        assert(spinBox != nullptr);
-        processKeyEvent(spinBox->text());
+        if (keyWidget->inherits("QDateTimeEdit")) {
+            auto *spinBox = qobject_cast<const QDateTimeEdit *>(keyWidget);
+            assert(spinBox != nullptr);
+            if (keyWidget->inherits("QDateEdit")) {
+                processKeyEvent(spinBox->date().toString(Qt::ISODate));
+            }
+            else if (keyWidget->inherits("QTimeEdit")) {
+                processKeyEvent(spinBox->time().toString(Qt::ISODate));
+            }
+            else {
+                processKeyEvent(spinBox->dateTime().toString(Qt::ISODate));
+            }
+        }
+        else {
+            auto *spinBox = qobject_cast<const QAbstractSpinBox *>(keyWidget);
+            assert(spinBox != nullptr);
+            processKeyEvent(spinBox->text());
+        }
+
         return;
     }
     default:
