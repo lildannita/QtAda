@@ -1,6 +1,8 @@
 #include "QuickEventFilter.hpp"
 
 #include <QQmlProperty>
+#include <QJSValue>
+#include <QQmlEngine>
 
 namespace QtAda::core::filters {
 // Принцип построения этого std::map смотри в WidgetEventFilter.cpp
@@ -230,17 +232,26 @@ static QString qSpinBoxFilter(const QQuickItem *item, const QMouseEvent *event,
     }
 
     const auto value = utils::getFromVariant<int>(QQmlProperty::read(item, "value"));
-    QVariant varValue;
-    QMetaObject::invokeMethod(const_cast<QQuickItem *>(item), "textFromValue",
-                              Q_RETURN_ARG(QVariant, varValue), Q_ARG(int, value));
-    if (varValue.canConvert<double>()) {
-        return setValueStatement(item, utils::getFromVariant<double>(varValue));
-    }
-    else if (varValue.canConvert<int>()) {
-        return setValueStatement(item, utils::getFromVariant<int>(varValue));
-    }
-    else if (varValue.canConvert<QString>()) {
-        return setValueStatement(item, utils::getFromVariant<QString>(varValue));
+    auto rawValueFromText = QQmlProperty::read(item, "textFromValue");
+    if (rawValueFromText.canConvert<QJSValue>()) {
+        auto valueFromText = rawValueFromText.value<QJSValue>();
+        if (valueFromText.isCallable()) {
+            auto *originalEngine = qmlEngine(item);
+            assert(originalEngine != nullptr);
+            auto locale = QLocale::system();
+            auto jsLocale = originalEngine->toScriptValue(locale);
+
+            auto varValue = valueFromText.call(QJSValueList() << value << jsLocale).toVariant();
+            if (varValue.canConvert<double>()) {
+                return setValueStatement(item, utils::getFromVariant<double>(varValue));
+            }
+            else if (varValue.canConvert<int>()) {
+                return setValueStatement(item, utils::getFromVariant<int>(varValue));
+            }
+            else if (varValue.canConvert<QString>()) {
+                return setValueStatement(item, utils::getFromVariant<QString>(varValue));
+            }
+        }
     }
     return setValueStatement(item, value);
 }

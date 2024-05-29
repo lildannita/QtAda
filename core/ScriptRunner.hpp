@@ -125,5 +125,9 @@ private:
     void setTextTemplate(const QString &path, std::optional<QList<int>> indexPath,
                          std::optional<std::pair<int, int>> index,
                          const QString &text) const noexcept;
+    void setValueTemplate(QObject *object, const QString &path,
+                          const QString &value) const noexcept;
+    void setValueTemplate(QObject *object, const QString &path, double value) const noexcept;
+    void setValueIntoQmlSpinBox(QObject *object, const QString &value) const noexcept;
 };
 } // namespace QtAda::core

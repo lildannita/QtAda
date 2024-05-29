@@ -231,9 +231,41 @@ MyPage {
 
             SpinBox {
                 objectName: "simpleSpinBox"
-                Layout.preferredWidth: page.prefferedWidth
+                Layout.preferredWidth: page.prefferedWidth / 2 - 5
                 Layout.fillHeight: true
                 editable: true
+            }
+
+            SpinBox {
+                id: spinBox
+
+                property int decimals: 2
+                property real realValue: 0
+                property real realFrom: 0
+                property real realTo: 100
+                property real realStepSize: 1
+                property real factor: Math.pow(10, decimals)
+
+                objectName: "doubleSpinBox"
+                Layout.preferredWidth: page.prefferedWidth / 2 - 5
+                Layout.fillHeight: true
+                editable: true
+                stepSize: realStepSize * factor
+                value: realValue * factor
+                to: realTo * factor
+                from: realFrom * factor
+                textFromValue: function(value, locale) {
+                    return parseFloat(value * 1 / factor).toFixed(decimals);
+                }
+                valueFromText: function(text, locale) {
+                    return Number.fromLocaleString(locale, text) * Math.pow(10, decimals);
+                }
+
+                validator: DoubleValidator {
+                    bottom: Math.min(spinBox.from, spinBox.to) * spinBox.factor
+                    top: Math.max(spinBox.from, spinBox.to) * spinBox.factor
+                }
+
             }
 
         }

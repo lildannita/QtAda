@@ -64,8 +64,6 @@ void QmlAutoRecord::simulateKeyClick(QQuickItem *item, bool isDigit) noexcept
 
 void QmlAutoRecord::implementActionsForAutoRecord() noexcept
 {
-    auto *test = root_->findChild<QQuickItem *>("QQuickWindow");
-
     testActions_ = {
         /********** ПЕРВАЯ СТРАНИЦА **********/
         //! TODO: Это действие открывает диалог, но пока непонятно, как работать с
@@ -198,9 +196,22 @@ void QmlAutoRecord::implementActionsForAutoRecord() noexcept
             assert(item != nullptr);
             simulateKeyClick(item, true);
         },
-        // Уменьшаем на один шаг значение в SpinBox
+        // Уменьшаем на несколько шагов значение в SpinBox
         [this] {
             auto *item = root_->findChild<QQuickItem *>("simpleSpinBox");
+            assert(item != nullptr);
+            simulateLongPress(item, getSpecificClickPoint(item, 5, item->height() / 2));
+        },
+        // Увеличиваем на несколько шагов значение в "Double" SpinBox
+        [this] {
+            auto *item = root_->findChild<QQuickItem *>("doubleSpinBox");
+            assert(item != nullptr);
+            simulateLongPress(item,
+                              getSpecificClickPoint(item, item->width() - 5, item->height() / 2));
+        },
+        // Уменьшаем на один шаг значение в "Double" SpinBox
+        [this] {
+            auto *item = root_->findChild<QQuickItem *>("doubleSpinBox");
             assert(item != nullptr);
             simulateClick(item, getSpecificClickPoint(item, 5, item->height() / 2));
         },

@@ -16,6 +16,7 @@
 #include <QFuture>
 #include <QTimer>
 #include <QtConcurrent>
+#include <QQmlEngine>
 
 #include "utils/FilterUtils.hpp"
 #include "utils/Tools.hpp"
@@ -816,12 +817,68 @@ void ScriptRunner::selectItem(const QString &path, const QString &text, int inde
     selectItemTemplate(path, index, text, TextIndexBehavior::TextIndex);
 }
 
-void ScriptRunner::setValue(const QString &path, double value) const noexcept
+void ScriptRunner::setValueIntoQmlSpinBox(QObject *object, const QString &value) const noexcept
 {
-    auto *object = findObjectByPath(path);
-    if (object == nullptr) {
-        return;
+    assert(object != nullptr);
+
+    auto standardWayToSetValue = [&] {
+        bool ok = false;
+        int intValue = value.toInt(&ok);
+        if (!ok) {
+            engine_->throwError(
+                QStringLiteral("Cannot convert '%1' to an integer (required for QML SpinBox)")
+                    .arg(value));
+        }
+        else {
+            writePropertyInGuiThread(object, "value", intValue);
+        }
+    };
+
+    auto issueWarningAndFallback = [&](const QString &warningMessage) {
+        emit scriptWarning(warningMessage);
+        standardWayToSetValue();
+    };
+
+    auto rawValueFromText = QQmlProperty::read(object, "valueFromText");
+    if (rawValueFromText.canConvert<QJSValue>()) {
+        auto valueFromText = rawValueFromText.value<QJSValue>();
+        if (valueFromText.isCallable()) {
+            auto *originalEngine = qmlEngine(object);
+            assert(originalEngine != nullptr);
+            auto locale = QLocale::system();
+            auto jsLocale = originalEngine->toScriptValue(locale);
+
+            auto jsValue = value;
+            bool isDouble = false;
+            auto doubleValue = value.toDouble(&isDouble);
+            if (isDouble) {
+                jsValue = locale.toString(doubleValue);
+            }
+
+            auto rawValue = valueFromText.call(QJSValueList() << jsValue << jsLocale);
+            if (!rawValue.isError() && rawValue.isNumber()) {
+                writePropertyInGuiThread(object, "value", rawValue.toInt());
+            }
+            else {
+                issueWarningAndFallback("Invalid result from `valueFromText` for QML SpinBox. "
+                                        "Setting original text value...");
+            }
+        }
+        else {
+            issueWarningAndFallback("`valueFromText` for QML SpinBox is not callable. Setting "
+                                    "original text value...");
+        }
     }
+    else {
+        issueWarningAndFallback("Unable to retrieve `valueFromText` function for QML SpinBox. "
+                                "Setting original text value...");
+    }
+}
+
+void ScriptRunner::setValueTemplate(QObject *object, const QString &path,
+                                    double value) const noexcept
+{
+    assert(object != nullptr);
 
     const auto isIntRequiringWidget
         = object->inherits("QAbstractSlider") || object->inherits("QSpinBox");
@@ -829,9 +886,10 @@ void ScriptRunner::setValue(const QString &path, double value) const noexcept
     const auto isQuickSlider = object->inherits("QQuickSlider");
     const auto isQuickScrollBar = object->inherits("QQuickScrollBar");
     const auto isQuickSpinBox = object->inherits("QQuickSpinBox");
+    const auto isQuickDial = object->inherits("QQuickDial");
 
     if (!isIntRequiringWidget && !isDoubleRequiringWidget && !isQuickSlider && !isQuickScrollBar
-        && !isQuickSpinBox) {
+        && !isQuickSpinBox && !isQuickDial) {
         engine_->throwError(QStringLiteral("This function doesn't support such an object"));
         return;
     }
@@ -845,23 +903,27 @@ void ScriptRunner::setValue(const QString &path, double value) const noexcept
     else if (isDoubleRequiringWidget) {
         invokeBlockMethodWithTimeout(object, "setValue", Q_ARG(double, value));
     }
-    else if (isQuickSlider) {
+    else if (isQuickSlider || isQuickDial) {
         writePropertyInGuiThread(object, "value", value);
     }
     else if (isQuickScrollBar) {
         writePropertyInGuiThread(object, "position", value);
     }
     else if (isQuickSpinBox) {
-        int intValue;
-        bool ok = QMetaObject::invokeMethod(object, "valueFromText", Qt::BlockingQueuedConnection,
-                                            Q_RETURN_ARG(int, intValue),
-                                            Q_ARG(QString, QString::number(value)));
-        assert(ok == true);
-        writePropertyInGuiThread(object, "value", intValue);
+        setValueIntoQmlSpinBox(object, QString::number(value));
     }
     else {
         Q_UNREACHABLE();
     }
+}
+
+void ScriptRunner::setValue(const QString &path, double value) const noexcept
+{
+    auto *object = findObjectByPath(path);
+    if (object == nullptr) {
+        return;
+    }
+    setValueTemplate(object, path, value);
 }
 
 void ScriptRunner::setValue(const QString &path, double leftValue, double rightValue) const noexcept
@@ -882,12 +944,10 @@ void ScriptRunner::setValue(const QString &path, double leftValue, double rightV
                                  Q_ARG(double, rightValue));
 }
 
-void ScriptRunner::setValue(const QString &path, const QString &value) const noexcept
+void ScriptRunner::setValueTemplate(QObject *object, const QString &path,
+                                    const QString &value) const noexcept
 {
-    auto *object = findObjectByPath(path);
-    if (object == nullptr) {
-        return;
-    }
+    assert(object != nullptr);
 
     const auto isWidgetCalendar = object->inherits("QCalendarWidget");
     const auto isWidgetEdit = object->inherits("QDateTimeEdit");
@@ -935,15 +995,20 @@ void ScriptRunner::setValue(const QString &path, const QString &value) const noe
         invokeBlockMethodWithTimeout(object, "setSelectedDate", Q_ARG(QDate, date));
     }
     else if (isQuickSpinBox) {
-        int intValue;
-        bool ok = QMetaObject::invokeMethod(object, "valueFromText", Qt::BlockingQueuedConnection,
-                                            Q_RETURN_ARG(int, intValue), Q_ARG(QString, value));
-        assert(ok == true);
-        writePropertyInGuiThread(object, "value", intValue);
+        setValueIntoQmlSpinBox(object, value);
     }
     else {
         Q_UNREACHABLE();
     }
+}
+
+void ScriptRunner::setValue(const QString &path, const QString &value) const noexcept
+{
+    auto *object = findObjectByPath(path);
+    if (object == nullptr) {
+        return;
+    }
+    setValueTemplate(object, path, value);
 }
 
 void ScriptRunner::changeValue(const QString &path, const QString &type) const noexcept
@@ -1590,23 +1655,44 @@ void ScriptRunner::setText(const QString &path, const QString &text) const noexc
 
     //! TODO: Нужно тщательней проверить какие еще компоненты могут иметь "под копотом"
     //! QLineEdit, чтобы избежать ошибки "Passed object is not an text edit".
-    const auto isComboBox = object->inherits("QComboBox");
-    const auto isSpinBox = object->inherits("QAbstractSpinBox");
-    if (isComboBox || isSpinBox) {
+    const auto isWidgetComboBox = object->inherits("QComboBox");
+    const auto isWidgetSpinBox = object->inherits("QAbstractSpinBox");
+    const auto isQuickComboBox = object->inherits("QQuickComboBox");
+    const auto isQuickSpinBox = object->inherits("QQuickSpinBox");
+    if (isWidgetComboBox || isWidgetSpinBox || isQuickComboBox || isQuickSpinBox) {
         const auto isEditable
-            = isComboBox ? utils::getFromVariant<bool>(QQmlProperty::read(object, "editable"))
-                         : !utils::getFromVariant<bool>(QQmlProperty::read(object, "readOnly"));
+            = isWidgetSpinBox ? !utils::getFromVariant<bool>(QQmlProperty::read(object, "readOnly"))
+                              : utils::getFromVariant<bool>(QQmlProperty::read(object, "editable"));
         if (!isEditable) {
-            engine_->throwError(QStringLiteral("Passed %1 is not editable")
-                                    .arg(isComboBox ? "ComboBox" : "SpinBox"));
+            engine_->throwError(
+                QStringLiteral("Passed %1 is not editable")
+                    .arg(isWidgetComboBox || isQuickComboBox ? "ComboBox" : "SpinBox"));
             return;
         }
 
-        object = qobject_cast<QObject *>(object->findChild<QLineEdit *>());
-        if (object == nullptr) {
-            engine_->throwError(QStringLiteral("Can't get QLineEdit from passed object"));
-            return;
+        if (isWidgetSpinBox) {
+            if (object->inherits("QSpinBox") || object->inherits("QDoubleSpinBox")) {
+                auto doubleValue
+                    = utils::getFromVariant<double>(QQmlProperty::read(object, "value"));
+                setValueTemplate(object, path, doubleValue);
+            }
+            else {
+                setValueTemplate(object, path, text);
+            }
         }
+        else if (isWidgetComboBox) {
+            invokeBlockMethodWithTimeout(object, "setEditText", Q_ARG(QString, text));
+        }
+        else if (isQuickSpinBox) {
+            setValueTemplate(object, path, text);
+        }
+        else if (isQuickComboBox) {
+            writePropertyInGuiThread(object, "editText", text);
+        }
+        else {
+            Q_UNREACHABLE();
+        }
+        return;
     }
 
     const auto isQuickTextEdit
