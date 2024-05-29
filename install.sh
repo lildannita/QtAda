@@ -19,8 +19,18 @@ echo_error() {
 
 set -e
 
-echo_info "Installing necessary packages..."
-sudo pacman -S --needed qt5-base qt5-quickcontrols qt5-quickcontrols2 qt5-graphicaleffects qt5-remoteobjects cmake make gcc git
+echo_info "Current OS: $(bash ./tools/get_os_info.sh -f)"
+OS_INFO=$(bash ./tools/get_os_info.sh -d)
+OS_NAME=$(echo ${OS_INFO} | awk '{ print $1 }')
+INSTALL_CMD=$(bash ./tools/get_packet_cmd.sh "${OS_NAME}")
+
+if [ -n "$INSTALL_CMD" ]; then
+    echo_info "Installing necessary packages for $OS_NAME..."
+    eval $INSTALL_CMD
+else
+    echo_error "Failed to get install command for $OS_NAME."
+    exit 1
+fi
 
 # TODO: Нужно будет как-нибудь корректно проверять актуальность репозитория
 # echo_info "Checking repository status..."
