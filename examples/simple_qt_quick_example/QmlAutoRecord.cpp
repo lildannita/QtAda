@@ -66,14 +66,19 @@ void QmlAutoRecord::implementActionsForAutoRecord() noexcept
 {
     testActions_ = {
         /********** ПЕРВАЯ СТРАНИЦА **********/
-        //! TODO: Это действие открывает диалог, но пока непонятно, как работать с
-        //! диалогами в QML, поскольку получить их их engine_ не удается
+        //! TODO: Пока непонятно, как симулировать закрытие диалога так, чтобы
+        //! QtAda смогла обработать это действие
         //! [this] {
         //!     auto *item = root_->findChild<QQuickItem*>("customButton");
         //!     assert(item != nullptr);
         //!     auto *clickableItem = item->findChild<QQuickItem*>("customMouseArea");
         //!     assert(clickableItem != nullptr);
         //!     simulateClick(clickableItem);
+        //! },
+        //! [this] {
+        //!     auto *item = root_->findChild<QObject*>("simpleDialog");
+        //!     assert(item != nullptr);
+        //!     QMetaObject::invokeMethod(item, "accept");
         //! },
         // Нажатие на кнопку "Checkable Button" (переводим в состояние true)
         [this] {
