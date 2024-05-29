@@ -60,6 +60,9 @@ enum class QuickClass {
     //! TextField,
     //! TextArea,
     Window,
+    // Нужно для QuickEventFilter::processKeyEvent
+    ExtSpinBox,
+    ExtComboBox,
     None,
 };
 

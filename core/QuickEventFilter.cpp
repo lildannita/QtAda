@@ -30,6 +30,9 @@ static const std::map<QuickClass, std::pair<QLatin1String, size_t>> s_quickMetaM
     //! { QuickClass::TextField, { QLatin1String("QQuickTextField"), 1 } },
     //! { QuickClass::TextArea, { QLatin1String("QQuickTextArea"), 1 } },
     { QuickClass::Window, { QLatin1String("QQuickWindow"), 1 } },
+    // Нужно для QuickEventFilter::processKeyEvent
+    { QuickClass::ExtSpinBox, { QLatin1String("QQuickSpinBox"), 2 } },
+    { QuickClass::ExtComboBox, { QLatin1String("QQuickComboBox"), 2 } },
 };
 
 static const std::vector<QuickClass> s_processedTextItems = {
@@ -699,12 +702,27 @@ void QuickEventFilter::callKeyFilters() noexcept
 
 void QuickEventFilter::processKeyEvent(const QString &text) noexcept
 {
-    assert(keyWatchDog_.component != nullptr);
+    auto *item = keyWatchDog_.component;
+    assert(item != nullptr);
+
+    // Этот код нужен потому, что установка текста прямо в поле QQuickSpinBox или QQuickComboBox
+    // ломает эти компоненты: для QQuickSpinBox перестают работать кнопки `+` и `-`, а для
+    // QQuickComboBox - перестает работать выбор элемента в списке. Поэтому нужно получать
+    // путь не до текстового поля внутри этих компонентов, а путь до самих компонентов
+    const auto &comboBoxExtInfo = filters::s_quickMetaMap.at(QuickClass::ExtComboBox);
+    const auto &spinBoxExtInfo = filters::s_quickMetaMap.at(QuickClass::ExtSpinBox);
+    auto comboBoxSearch = utils::searchSpecificComponentWithIteration(item, comboBoxExtInfo);
+    auto spinBoxSearch = utils::searchSpecificComponentWithIteration(item, spinBoxExtInfo);
+    bool needToUseParent = (comboBoxSearch.first != nullptr || spinBoxSearch.first != nullptr)
+                           && (comboBoxSearch.second == comboBoxExtInfo.second
+                               || spinBoxSearch.second == spinBoxExtInfo.second);
+
     //! TODO: Как и для QtWidgets, для QtQuick желательно учитывать, если текстовый
     //! элемент находится в View компоненте, но так как для делегатов "трудно" получать
     //! родителя, то пока откладываем.
-    flushKeyEvent(filters::setTextCommand(utils::objectPath(keyWatchDog_.component),
-                                          utils::escapeText(std::move(text))));
+    flushKeyEvent(
+        filters::setTextCommand(utils::objectPath(needToUseParent ? item->parent() : item),
+                                utils::escapeText(std::move(text))));
     keyWatchDog_.clear();
 }
 
