@@ -826,7 +826,7 @@ void ScriptRunner::setValueIntoQmlSpinBox(QObject *object, const QString &value)
         int intValue = value.toInt(&ok);
         if (!ok) {
             engine_->throwError(
-                QStringLiteral("Cannot convert '%1' to an integer (required for QML SpinBox)")
+                QStringLiteral("Can't convert '%1' to an integer (required for QML SpinBox)")
                     .arg(value));
         }
         else {
@@ -850,7 +850,7 @@ void ScriptRunner::setValueIntoQmlSpinBox(QObject *object, const QString &value)
 
             auto jsValue = value;
             bool isDouble = false;
-            auto doubleValue = value.toDouble(&isDouble);
+            auto doubleValue = locale.toDouble(value, &isDouble);
             if (isDouble) {
                 jsValue = locale.toString(doubleValue);
             }
@@ -1672,8 +1672,15 @@ void ScriptRunner::setText(const QString &path, const QString &text) const noexc
 
         if (isWidgetSpinBox) {
             if (object->inherits("QSpinBox") || object->inherits("QDoubleSpinBox")) {
-                auto doubleValue
-                    = utils::getFromVariant<double>(QQmlProperty::read(object, "value"));
+                bool isOk = false;
+                auto doubleValue = QLocale::system().toDouble(text, &isOk);
+                if (!isOk) {
+                    engine_->throwError(
+                        QStringLiteral("Can't convert '%1' to a number (required for QSpinBox and "
+                                       "QDoubleSpinBox)")
+                            .arg(text));
+                    return;
+                }
                 setValueTemplate(object, path, doubleValue);
             }
             else {
