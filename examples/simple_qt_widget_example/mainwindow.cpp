@@ -221,356 +221,395 @@ static void simulateDblClick(QObject *obj, const QPoint pos) noexcept
     QApplication::postEvent(obj, simpleMouseEvent(QEvent::MouseButtonRelease, pos));
 }
 
-void MainWindow::implementActionsForAutoRecord() noexcept
+void MainWindow::implementActionsForAutoRecord(bool isUpdate) noexcept
 {
     testMode = true;
     // Этот вектор - сценарий, который будет записан программой QtAda, и который
     // будет воспроизведен автоматически, без вмешательства пользователя
-    testActions_ = {
-        /********** ПЕРВАЯ СТРАНИЦА **********/
-        // Открытие списка QComboBox
-        [this] { QTest::mouseClick(ui->comboBox, Qt::LeftButton); },
-        // Нажатие на элемент в списке QComboBox
-        [this] {
-            auto *popup = ui->comboBox->view();
-            if (popup) {
-                const auto index = ui->comboBox->model()->index(2, 0);
-                const auto rect = popup->visualRect(index);
-                QTest::mouseClick(popup->viewport(), Qt::LeftButton, Qt::NoModifier, rect.center());
-            }
-        },
-        // Изменение текста в QComboBox
-        [this] {
-            ui->editableComboBox->clear();
-            QTest::keyClicks(ui->editableComboBox, "New Text For ComboBox");
-            QTest::mouseClick(ui->label, Qt::LeftButton);
-        },
-        // Открытие списка QComboBox
-        [this] {
-            // Нужно для того, чтобы при симуляции нажатии на новый элемент список
-            // не листался, что происходит, если шрифт по-умолчанию находится в середине
-            // или в конце списка.
-            ui->fontComboBox->setCurrentIndex(0);
-            const auto x = ui->fontComboBox->width() - 10;
-            const auto y = ui->fontComboBox->height() / 2;
-            QTest::mouseClick(ui->fontComboBox, Qt::LeftButton, Qt::NoModifier, { x, y });
-        },
-        // Нажатие на элемент в списке QComboBox
-        [this] {
-            auto *popup = ui->fontComboBox->view();
-            if (popup) {
-                const auto index = ui->fontComboBox->model()->index(2, 0);
-                const auto rect = popup->visualRect(index);
-                QTest::mouseClick(popup->viewport(), Qt::LeftButton, Qt::NoModifier, rect.center());
-            }
-        },
+    if (!isUpdate) {
+        testActions_ = {
+            /********** ПЕРВАЯ СТРАНИЦА **********/
+            // Открытие списка QComboBox
+            [this] { QTest::mouseClick(ui->comboBox, Qt::LeftButton); },
+            // Нажатие на элемент в списке QComboBox
+            [this] {
+                auto *popup = ui->comboBox->view();
+                if (popup) {
+                    const auto index = ui->comboBox->model()->index(2, 0);
+                    const auto rect = popup->visualRect(index);
+                    QTest::mouseClick(popup->viewport(), Qt::LeftButton, Qt::NoModifier,
+                                      rect.center());
+                }
+            },
+            // Изменение текста в QComboBox
+            [this] {
+                ui->editableComboBox->clear();
+                QTest::keyClicks(ui->editableComboBox, "New Text For ComboBox");
+                QTest::mouseClick(ui->label, Qt::LeftButton);
+            },
+            // Открытие списка QComboBox
+            [this] {
+                // Нужно для того, чтобы при симуляции нажатии на новый элемент список
+                // не листался, что происходит, если шрифт по-умолчанию находится в середине
+                // или в конце списка.
+                ui->fontComboBox->setCurrentIndex(0);
+                const auto x = ui->fontComboBox->width() - 10;
+                const auto y = ui->fontComboBox->height() / 2;
+                QTest::mouseClick(ui->fontComboBox, Qt::LeftButton, Qt::NoModifier, { x, y });
+            },
+            // Нажатие на элемент в списке QComboBox
+            [this] {
+                auto *popup = ui->fontComboBox->view();
+                if (popup) {
+                    const auto index = ui->fontComboBox->model()->index(2, 0);
+                    const auto rect = popup->visualRect(index);
+                    QTest::mouseClick(popup->viewport(), Qt::LeftButton, Qt::NoModifier,
+                                      rect.center());
+                }
+            },
 
-        // Запись правильного значения в QSpinBox
-        [this] {
-            ui->spinBox->clear();
-            QTest::keyClicks(ui->spinBox, "22");
-            QTest::mouseClick(ui->label, Qt::LeftButton);
-        },
-        // Увеличение значения на один шаг в QSpinBox
-        [this] {
-            const auto x = ui->spinBox->width() - 10;
-            const auto y = ui->spinBox->height() / 2 - 5;
-            QTest::mouseClick(ui->spinBox, Qt::LeftButton, Qt::NoModifier, { x, y });
-        },
-        // Запись правильного значения в QDoubleSpinBox
-        [this] {
-            ui->doubleSpinBox->clear();
-            QTest::keyClicks(ui->doubleSpinBox, "3,22");
-            QTest::mouseClick(ui->label, Qt::LeftButton);
-        },
-        // Уменьшение значения на один шаг в QDoubleSpinBox
-        [this] {
-            const auto x = ui->doubleSpinBox->width() - 10;
-            const auto y = ui->doubleSpinBox->height() / 2 + 5;
-            QTest::mouseClick(ui->doubleSpinBox, Qt::LeftButton, Qt::NoModifier, { x, y });
-        },
+            // Запись правильного значения в QSpinBox
+            [this] {
+                ui->spinBox->clear();
+                QTest::keyClicks(ui->spinBox, "22");
+                QTest::mouseClick(ui->label, Qt::LeftButton);
+            },
+            // Увеличение значения на один шаг в QSpinBox
+            [this] {
+                const auto x = ui->spinBox->width() - 10;
+                const auto y = ui->spinBox->height() / 2 - 5;
+                QTest::mouseClick(ui->spinBox, Qt::LeftButton, Qt::NoModifier, { x, y });
+            },
+            // Запись правильного значения в QDoubleSpinBox
+            [this] {
+                ui->doubleSpinBox->clear();
+                QTest::keyClicks(ui->doubleSpinBox, "3,22");
+                QTest::mouseClick(ui->label, Qt::LeftButton);
+            },
+            // Уменьшение значения на один шаг в QDoubleSpinBox
+            [this] {
+                const auto x = ui->doubleSpinBox->width() - 10;
+                const auto y = ui->doubleSpinBox->height() / 2 + 5;
+                QTest::mouseClick(ui->doubleSpinBox, Qt::LeftButton, Qt::NoModifier, { x, y });
+            },
 
-        // Нажатие на первый RadioButton (который disabled)
-        [this] {
-            const auto minSize = ui->disabledRadioButton->minimumSizeHint();
-            QTest::mouseClick(ui->disabledRadioButton, Qt::LeftButton, Qt::NoModifier,
-                              { minSize.width() / 2, minSize.height() / 2 });
-        },
-        // Нажатие на второй RadioButton
-        [this] {
-            const auto minSize = ui->firstEnabledRadio->minimumSizeHint();
-            QTest::mouseClick(ui->firstEnabledRadio, Qt::LeftButton, Qt::NoModifier,
-                              { minSize.width() / 2, minSize.height() / 2 });
-        },
-        // Нажатие на третий RadioButton
-        [this] {
-            const auto minSize = ui->secondEnabledRadio->minimumSizeHint();
-            QTest::mouseClick(ui->secondEnabledRadio, Qt::LeftButton, Qt::NoModifier,
-                              { minSize.width() / 2, minSize.height() / 2 });
-        },
+            // Нажатие на первый RadioButton (который disabled)
+            [this] {
+                const auto minSize = ui->disabledRadioButton->minimumSizeHint();
+                QTest::mouseClick(ui->disabledRadioButton, Qt::LeftButton, Qt::NoModifier,
+                                  { minSize.width() / 2, minSize.height() / 2 });
+            },
+            // Нажатие на второй RadioButton
+            [this] {
+                const auto minSize = ui->firstEnabledRadio->minimumSizeHint();
+                QTest::mouseClick(ui->firstEnabledRadio, Qt::LeftButton, Qt::NoModifier,
+                                  { minSize.width() / 2, minSize.height() / 2 });
+            },
+            // Нажатие на третий RadioButton
+            [this] {
+                const auto minSize = ui->secondEnabledRadio->minimumSizeHint();
+                QTest::mouseClick(ui->secondEnabledRadio, Qt::LeftButton, Qt::NoModifier,
+                                  { minSize.width() / 2, minSize.height() / 2 });
+            },
 
-        // Нажатие на первый CheckBox (переводим в состояние true)
-        [this] {
-            const auto minSize = ui->firstCheckBox->minimumSizeHint();
-            QTest::mouseClick(ui->firstCheckBox, Qt::LeftButton, Qt::NoModifier,
-                              { minSize.width() / 2, minSize.height() / 2 });
-        },
-        // Нажатие на третий CheckBox
-        [this] {
-            const auto minSize = ui->thirdCheckBox->minimumSizeHint();
-            QTest::mouseClick(ui->thirdCheckBox, Qt::LeftButton, Qt::NoModifier,
-                              { minSize.width() / 2, minSize.height() / 2 });
-        },
-        // Нажатие на первый CheckBox (переводим в состояние false)
-        [this] {
-            const auto minSize = ui->firstCheckBox->minimumSizeHint();
-            QTest::mouseClick(ui->firstCheckBox, Qt::LeftButton, Qt::NoModifier,
-                              { minSize.width() / 2, minSize.height() / 2 });
-        },
+            // Нажатие на первый CheckBox (переводим в состояние true)
+            [this] {
+                const auto minSize = ui->firstCheckBox->minimumSizeHint();
+                QTest::mouseClick(ui->firstCheckBox, Qt::LeftButton, Qt::NoModifier,
+                                  { minSize.width() / 2, minSize.height() / 2 });
+            },
+            // Нажатие на третий CheckBox
+            [this] {
+                const auto minSize = ui->thirdCheckBox->minimumSizeHint();
+                QTest::mouseClick(ui->thirdCheckBox, Qt::LeftButton, Qt::NoModifier,
+                                  { minSize.width() / 2, minSize.height() / 2 });
+            },
+            // Нажатие на первый CheckBox (переводим в состояние false)
+            [this] {
+                const auto minSize = ui->firstCheckBox->minimumSizeHint();
+                QTest::mouseClick(ui->firstCheckBox, Qt::LeftButton, Qt::NoModifier,
+                                  { minSize.width() / 2, minSize.height() / 2 });
+            },
 
-        // Нажатие на кнопку "Checkable Button" (переводим в состояние true)
-        [this] { QTest::mouseClick(ui->checkablePushButton, Qt::LeftButton); },
-        // Нажатие на кнопку "Simple Button"
-        [this] { QTest::mouseClick(ui->simplePushButton, Qt::LeftButton); },
-        // Повторное нажатие на кнопку "Checkable Button" (переводим в состояние false)
-        [this] { QTest::mouseClick(ui->checkablePushButton, Qt::LeftButton); },
+            // Нажатие на кнопку "Checkable Button" (переводим в состояние true)
+            [this] { QTest::mouseClick(ui->checkablePushButton, Qt::LeftButton); },
+            // Нажатие на кнопку "Simple Button"
+            [this] { QTest::mouseClick(ui->simplePushButton, Qt::LeftButton); },
+            // Повторное нажатие на кнопку "Checkable Button" (переводим в состояние false)
+            [this] { QTest::mouseClick(ui->checkablePushButton, Qt::LeftButton); },
 
-        // Выбор даты в CalendarWidget
-        [this] {
-            // Вводим исходную дату
-            QDate dateToSelect(2022, 2, 22);
-            ui->calendarWidget->setSelectedDate(dateToSelect);
+            // Выбор даты в CalendarWidget
+            [this] {
+                // Вводим исходную дату
+                QDate dateToSelect(2022, 2, 22);
+                ui->calendarWidget->setSelectedDate(dateToSelect);
 
-            auto *calendarView = ui->calendarWidget->findChild<QTableView *>();
-            if (calendarView) {
-                auto currentIndex = calendarView->currentIndex();
-                auto index
-                    = calendarView->model()->index(currentIndex.row(), currentIndex.column() + 1);
-                auto rect = calendarView->visualRect(index);
-                // Симуляция нажатия на 23.02.2022
-                QTest::mouseClick(calendarView->viewport(), Qt::LeftButton, Qt::NoModifier,
-                                  rect.center());
-            }
-        },
-        // Более сложный выбор даты в CalendarWidget
-        [this] {
-            auto *calendarView = ui->calendarWidget->findChild<QTableView *>();
-            if (calendarView) {
-                auto index = calendarView->model()->index(1, 1);
-                auto rect = calendarView->visualRect(index);
-                // Симуляция нажатия на 31.01.2022
-                QTest::mouseClick(calendarView->viewport(), Qt::LeftButton, Qt::NoModifier,
-                                  rect.center());
-            }
-        },
+                auto *calendarView = ui->calendarWidget->findChild<QTableView *>();
+                if (calendarView) {
+                    auto currentIndex = calendarView->currentIndex();
+                    auto index = calendarView->model()->index(currentIndex.row(),
+                                                              currentIndex.column() + 1);
+                    auto rect = calendarView->visualRect(index);
+                    // Симуляция нажатия на 23.02.2022
+                    QTest::mouseClick(calendarView->viewport(), Qt::LeftButton, Qt::NoModifier,
+                                      rect.center());
+                }
+            },
+            // Более сложный выбор даты в CalendarWidget
+            [this] {
+                auto *calendarView = ui->calendarWidget->findChild<QTableView *>();
+                if (calendarView) {
+                    auto index = calendarView->model()->index(1, 1);
+                    auto rect = calendarView->visualRect(index);
+                    // Симуляция нажатия на 31.01.2022
+                    QTest::mouseClick(calendarView->viewport(), Qt::LeftButton, Qt::NoModifier,
+                                      rect.center());
+                }
+            },
 
-        // Запись правильного значения в QDateTimeEdit
-        [this] {
-            ui->dateTimeEdit->clear();
-            QTest::keyClicks(ui->dateTimeEdit, "01.02.2022 22:22");
-            QTest::mouseClick(ui->label, Qt::LeftButton);
-        },
-        // Запись правильного значения в QTimeEdit
-        [this] {
-            ui->timeEdit->clear();
-            QTest::keyClicks(ui->timeEdit, "00:22");
-            QTest::mouseClick(ui->label, Qt::LeftButton);
-        },
-        // Запись правильного значения в QDateEdit
-        [this] {
-            ui->dateEdit->clear();
-            QTest::keyClicks(ui->dateEdit, "01.02.2022");
-            QTest::mouseClick(ui->label, Qt::LeftButton);
-        },
+            // Запись правильного значения в QDateTimeEdit
+            [this] {
+                ui->dateTimeEdit->clear();
+                QTest::keyClicks(ui->dateTimeEdit, "01.02.2022 22:22");
+                QTest::mouseClick(ui->label, Qt::LeftButton);
+            },
+            // Запись правильного значения в QTimeEdit
+            [this] {
+                ui->timeEdit->clear();
+                QTest::keyClicks(ui->timeEdit, "00:22");
+                QTest::mouseClick(ui->label, Qt::LeftButton);
+            },
+            // Запись правильного значения в QDateEdit
+            [this] {
+                ui->dateEdit->clear();
+                QTest::keyClicks(ui->dateEdit, "01.02.2022");
+                QTest::mouseClick(ui->label, Qt::LeftButton);
+            },
 
-        // Изменение значения в QDial (достаточно просто нажатия по середине компонента, что и
-        // делает QTest::mouseClick)
-        [this] { QTest::mouseClick(ui->dial, Qt::LeftButton); },
-        // Изменение значения в QScrollBar (горизонтальный)
-        [this] { QTest::mouseClick(ui->horizontalScrollBar, Qt::LeftButton); },
-        // Изменение значения в QSlider (вертикальный)
-        [this] { QTest::mouseClick(ui->verticalSlider, Qt::LeftButton); },
+            // Изменение значения в QDial (достаточно просто нажатия по середине компонента, что и
+            // делает QTest::mouseClick)
+            [this] { QTest::mouseClick(ui->dial, Qt::LeftButton); },
+            // Изменение значения в QScrollBar (горизонтальный)
+            [this] { QTest::mouseClick(ui->horizontalScrollBar, Qt::LeftButton); },
+            // Изменение значения в QSlider (вертикальный)
+            [this] { QTest::mouseClick(ui->verticalSlider, Qt::LeftButton); },
 
-        // Открытие обычного диалога (дальнейшие действия автоматически выполняются "внутри"
-        // диалога)
-        [this] { QTest::mouseClick(buttonForSimpleDialog, Qt::LeftButton); },
-        // Открытие диалога с дочерним диалогом (дальнейшие действия автоматически выполняются
-        // "внутри" диалогов)
-        [this] { QTest::mouseClick(buttonForAnotherDialog, Qt::LeftButton); },
-        // Нажатие на обычный QToolButton
-        [this] { QTest::mouseClick(simpleToolButton, Qt::LeftButton); },
+            // Открытие обычного диалога (дальнейшие действия автоматически выполняются "внутри"
+            // диалога)
+            [this] { QTest::mouseClick(buttonForSimpleDialog, Qt::LeftButton); },
+            // Открытие диалога с дочерним диалогом (дальнейшие действия автоматически выполняются
+            // "внутри" диалогов)
+            [this] { QTest::mouseClick(buttonForAnotherDialog, Qt::LeftButton); },
+            // Нажатие на обычный QToolButton
+            [this] { QTest::mouseClick(simpleToolButton, Qt::LeftButton); },
 
-        /********** ВТОРАЯ СТРАНИЦА **********/
-        // Переключаем на вторую страницу
-        [this] {
-            auto tabBar = ui->tabWidget->tabBar();
-            QTest::mouseClick(tabBar, Qt::LeftButton, Qt::NoModifier, tabBar->tabRect(1).center());
-        },
-        // Нажимаем на кнопку, которая находится на первой вкладке
-        [this] { QTest::mouseClick(ui->toolBoxButton, Qt::LeftButton); },
-        // Выбираем вторую вкладку
-        [this] {
-            //! TODO: не очень надежный способ получения кнопки QToolBox
-            QTest::mouseClick(
-                ui->toolBox->findChildren<QAbstractButton *>("qt_toolbox_toolboxbutton").at(1),
-                Qt::LeftButton);
-        },
-        // Нажимаем на первый RadioButton
-        [this] {
-            auto minSize = ui->toolBoxFirstRadio->minimumSizeHint();
-            QTest::mouseClick(ui->toolBoxFirstRadio, Qt::LeftButton, Qt::NoModifier,
-                              { minSize.width() / 2, minSize.height() / 2 });
-        },
-        // Нажимаем на второй RadioButton
-        [this] {
-            auto minSize = ui->toolBoxSecondRadio->minimumSizeHint();
-            QTest::mouseClick(ui->toolBoxSecondRadio, Qt::LeftButton, Qt::NoModifier,
-                              { minSize.width() / 2, minSize.height() / 2 });
-        },
+            /********** ВТОРАЯ СТРАНИЦА **********/
+            // Переключаем на вторую страницу
+            [this] {
+                auto tabBar = ui->tabWidget->tabBar();
+                QTest::mouseClick(tabBar, Qt::LeftButton, Qt::NoModifier,
+                                  tabBar->tabRect(1).center());
+            },
+            // Нажимаем на кнопку, которая находится на первой вкладке
+            [this] { QTest::mouseClick(ui->toolBoxButton, Qt::LeftButton); },
+            // Выбираем вторую вкладку
+            [this] {
+                //! TODO: не очень надежный способ получения кнопки QToolBox
+                QTest::mouseClick(
+                    ui->toolBox->findChildren<QAbstractButton *>("qt_toolbox_toolboxbutton").at(1),
+                    Qt::LeftButton);
+            },
+            // Нажимаем на первый RadioButton
+            [this] {
+                auto minSize = ui->toolBoxFirstRadio->minimumSizeHint();
+                QTest::mouseClick(ui->toolBoxFirstRadio, Qt::LeftButton, Qt::NoModifier,
+                                  { minSize.width() / 2, minSize.height() / 2 });
+            },
+            // Нажимаем на второй RadioButton
+            [this] {
+                auto minSize = ui->toolBoxSecondRadio->minimumSizeHint();
+                QTest::mouseClick(ui->toolBoxSecondRadio, Qt::LeftButton, Qt::NoModifier,
+                                  { minSize.width() / 2, minSize.height() / 2 });
+            },
 
-        /********** ТРЕТЬЯ СТРАНИЦА **********/
-        // Переключаем на третью страницу
-        [this] {
-            auto tabBar = ui->tabWidget->tabBar();
-            QTest::mouseClick(tabBar, Qt::LeftButton, Qt::NoModifier, tabBar->tabRect(2).center());
-        },
-        // Устанавливаем текст в QTextEdit
-        [this] {
-            ui->textEdit->setFocus();
-            QTest::keyClicks(ui->textEdit, "SampleText");
-        },
-        // Устанавливаем текст в QPlainTextEdit
-        [this] {
-            ui->plainTextEdit->setFocus();
-            QTest::keyClicks(ui->plainTextEdit, "SampleText");
-        },
-        // Устанавливаем текст в QLineEdit
-        [this] {
-            ui->lineEdit->setFocus();
-            QTest::keyClicks(ui->lineEdit, "SampleText");
-        },
+            /********** ТРЕТЬЯ СТРАНИЦА **********/
+            // Переключаем на третью страницу
+            [this] {
+                auto tabBar = ui->tabWidget->tabBar();
+                QTest::mouseClick(tabBar, Qt::LeftButton, Qt::NoModifier,
+                                  tabBar->tabRect(2).center());
+            },
+            // Устанавливаем текст в QTextEdit
+            [this] {
+                ui->textEdit->setFocus();
+                QTest::keyClicks(ui->textEdit, "SampleText");
+            },
+            // Устанавливаем текст в QPlainTextEdit
+            [this] {
+                ui->plainTextEdit->setFocus();
+                QTest::keyClicks(ui->plainTextEdit, "SampleText");
+            },
+            // Устанавливаем текст в QLineEdit
+            [this] {
+                ui->lineEdit->setFocus();
+                QTest::keyClicks(ui->lineEdit, "SampleText");
+            },
 
-        /********** ЧЕТВЕРТАЯ СТРАНИЦА **********/
-        // Переключаем на четвертую страницу
-        [this] {
-            auto tabBar = ui->tabWidget->tabBar();
-            QTest::mouseClick(tabBar, Qt::LeftButton, Qt::NoModifier, tabBar->tabRect(3).center());
-        },
-        // Двойной клик по делегату
-        [this] {
-            auto index = tableViewModel->index(0, 0);
-            auto clickPos = ui->tableView->visualRect(index).center();
-            simulateDblClick(ui->tableView->viewport(), clickPos);
-        },
-        // Изменение текста в делегате
-        [this] {
-            auto editor = ui->tableView->findChild<QLineEdit *>();
-            assert(editor != nullptr);
-            QTest::keyClicks(editor, "Test Text");
-        },
-        // Клик по делегату
-        [this] {
-            auto index = tableViewModel->index(1, 1);
-            auto clickPos = ui->tableView->visualRect(index).center();
-            QTest::mouseClick(ui->tableView->viewport(), Qt::LeftButton, Qt::NoModifier, clickPos);
-        },
-        // Нажатие по заголовку столбца (под номером 3) QTableView
-        [this] {
-            auto *header = ui->tableView->horizontalHeader();
-            // По факту - это размер одной секции
-            auto sectionPosition = header->sectionPosition(1);
-            // Так как нам нужны координаты середины третьей секции, то можно посчитать так:
-            auto clickPos = QPoint(sectionPosition * 2.5, header->height() / 2);
-            QTest::mouseClick(header->viewport(), Qt::LeftButton, Qt::NoModifier, clickPos);
-        },
-        // Нажатие по заголовку строки (под номером 4) QTableWidget
-        [this] {
-            auto *header = ui->tableWidget->verticalHeader();
-            auto sectionPosition = header->sectionPosition(1);
-            auto clickPos = QPoint(header->width() / 2, sectionPosition * 3.5);
-            QTest::mouseClick(header->viewport(), Qt::LeftButton, Qt::NoModifier, clickPos);
-        },
+            /********** ЧЕТВЕРТАЯ СТРАНИЦА **********/
+            // Переключаем на четвертую страницу
+            [this] {
+                auto tabBar = ui->tabWidget->tabBar();
+                QTest::mouseClick(tabBar, Qt::LeftButton, Qt::NoModifier,
+                                  tabBar->tabRect(3).center());
+            },
+            // Двойной клик по делегату
+            [this] {
+                auto index = tableViewModel->index(0, 0);
+                auto clickPos = ui->tableView->visualRect(index).center();
+                simulateDblClick(ui->tableView->viewport(), clickPos);
+            },
+            // Изменение текста в делегате
+            [this] {
+                auto editor = ui->tableView->findChild<QLineEdit *>();
+                assert(editor != nullptr);
+                QTest::keyClicks(editor, "Test Text");
+            },
+            // Клик по делегату
+            [this] {
+                auto index = tableViewModel->index(1, 1);
+                auto clickPos = ui->tableView->visualRect(index).center();
+                QTest::mouseClick(ui->tableView->viewport(), Qt::LeftButton, Qt::NoModifier,
+                                  clickPos);
+            },
+            // Нажатие по заголовку столбца (под номером 3) QTableView
+            [this] {
+                auto *header = ui->tableView->horizontalHeader();
+                // По факту - это размер одной секции
+                auto sectionPosition = header->sectionPosition(1);
+                // Так как нам нужны координаты середины третьей секции, то можно посчитать так:
+                auto clickPos = QPoint(sectionPosition * 2.5, header->height() / 2);
+                QTest::mouseClick(header->viewport(), Qt::LeftButton, Qt::NoModifier, clickPos);
+            },
+            // Нажатие по заголовку строки (под номером 4) QTableWidget
+            [this] {
+                auto *header = ui->tableWidget->verticalHeader();
+                auto sectionPosition = header->sectionPosition(1);
+                auto clickPos = QPoint(header->width() / 2, sectionPosition * 3.5);
+                QTest::mouseClick(header->viewport(), Qt::LeftButton, Qt::NoModifier, clickPos);
+            },
 
-        /********** ПЯТАЯ СТРАНИЦА **********/
-        // Переключаем на пятую страницу
-        [this] {
-            auto tabBar = ui->tabWidget->tabBar();
-            QTest::mouseClick(tabBar, Qt::LeftButton, Qt::NoModifier, tabBar->tabRect(4).center());
-        },
-        // Раскрытие делегата (QTreeView)
-        [this] {
-            auto index = treeViewModel->index(0, 0);
-            auto rect = ui->treeView->visualRect(index);
-            auto clickPos = QPoint(rect.topLeft().x() - 5, rect.height() / 2);
-            QTest::mouseClick(ui->treeView->viewport(), Qt::LeftButton, Qt::NoModifier, clickPos);
-        },
-        // Двойной клик по дочернему делегату (QTreeView)
-        [this] {
-            auto index = treeViewModel->index(0, 0, treeViewModel->index(0, 0));
-            auto clickPos = ui->treeView->visualRect(index).center();
-            simulateDblClick(ui->treeView->viewport(), clickPos);
-        },
-        // Изменение текста дочернего делегата (QTreeView)
-        [this] {
-            auto editor = ui->treeView->findChild<QLineEdit *>();
-            assert(editor != nullptr);
-            QTest::keyClicks(editor, "Test Text");
-        },
-        // Клик по делегату (QTreeView)
-        [this] {
-            auto index = treeViewModel->index(1, 0);
-            auto clickPos = ui->treeView->visualRect(index).center();
-            QTest::mouseClick(ui->treeView->viewport(), Qt::LeftButton, Qt::NoModifier, clickPos);
-        },
-        // Раскрытие делегата (QTreeWidget)
-        [this] {
-            auto rect = ui->treeWidget->visualItemRect(ui->treeWidget->topLevelItem(0));
-            auto clickPos = rect.topLeft() + QPoint(-5, rect.height() / 2);
-            QTest::mouseClick(ui->treeWidget->viewport(), Qt::LeftButton, Qt::NoModifier, clickPos);
-        },
-        // Сокрытие делегата (QTreeWidget)
-        [this] {
-            auto rect = ui->treeWidget->visualItemRect(ui->treeWidget->topLevelItem(0));
-            auto clickPos = QPoint(rect.topLeft().x() - 5, rect.height() / 2);
-            QTest::mouseClick(ui->treeWidget->viewport(), Qt::LeftButton, Qt::NoModifier, clickPos);
-        },
-        // Раскрытие дочернего делегата (QTreeView)
-        [this] {
-            auto index = treeViewModel->index(0, 0, treeViewModel->index(0, 0));
-            auto rect = ui->treeView->visualRect(index);
-            auto clickPos = rect.topLeft() + QPoint(-5, rect.height() / 2);
-            QTest::mouseClick(ui->treeView->viewport(), Qt::LeftButton, Qt::NoModifier, clickPos);
-        },
+            /********** ПЯТАЯ СТРАНИЦА **********/
+            // Переключаем на пятую страницу
+            [this] {
+                auto tabBar = ui->tabWidget->tabBar();
+                QTest::mouseClick(tabBar, Qt::LeftButton, Qt::NoModifier,
+                                  tabBar->tabRect(4).center());
+            },
+            // Раскрытие делегата (QTreeView)
+            [this] {
+                auto index = treeViewModel->index(0, 0);
+                auto rect = ui->treeView->visualRect(index);
+                auto clickPos = QPoint(rect.topLeft().x() - 5, rect.height() / 2);
+                QTest::mouseClick(ui->treeView->viewport(), Qt::LeftButton, Qt::NoModifier,
+                                  clickPos);
+            },
+            // Двойной клик по дочернему делегату (QTreeView)
+            [this] {
+                auto index = treeViewModel->index(0, 0, treeViewModel->index(0, 0));
+                auto clickPos = ui->treeView->visualRect(index).center();
+                simulateDblClick(ui->treeView->viewport(), clickPos);
+            },
+            // Изменение текста дочернего делегата (QTreeView)
+            [this] {
+                auto editor = ui->treeView->findChild<QLineEdit *>();
+                assert(editor != nullptr);
+                QTest::keyClicks(editor, "Test Text");
+            },
+            // Клик по делегату (QTreeView)
+            [this] {
+                auto index = treeViewModel->index(1, 0);
+                auto clickPos = ui->treeView->visualRect(index).center();
+                QTest::mouseClick(ui->treeView->viewport(), Qt::LeftButton, Qt::NoModifier,
+                                  clickPos);
+            },
+            // Раскрытие делегата (QTreeWidget)
+            [this] {
+                auto rect = ui->treeWidget->visualItemRect(ui->treeWidget->topLevelItem(0));
+                auto clickPos = rect.topLeft() + QPoint(-5, rect.height() / 2);
+                QTest::mouseClick(ui->treeWidget->viewport(), Qt::LeftButton, Qt::NoModifier,
+                                  clickPos);
+            },
+            // Сокрытие делегата (QTreeWidget)
+            [this] {
+                auto rect = ui->treeWidget->visualItemRect(ui->treeWidget->topLevelItem(0));
+                auto clickPos = QPoint(rect.topLeft().x() - 5, rect.height() / 2);
+                QTest::mouseClick(ui->treeWidget->viewport(), Qt::LeftButton, Qt::NoModifier,
+                                  clickPos);
+            },
+            // Раскрытие дочернего делегата (QTreeView)
+            [this] {
+                auto index = treeViewModel->index(0, 0, treeViewModel->index(0, 0));
+                auto rect = ui->treeView->visualRect(index);
+                auto clickPos = rect.topLeft() + QPoint(-5, rect.height() / 2);
+                QTest::mouseClick(ui->treeView->viewport(), Qt::LeftButton, Qt::NoModifier,
+                                  clickPos);
+            },
 
-        /********** МЕНЮ **********/
-        // Открываем меню
-        [this] {
-            auto *menu = this->menuBar()->actions().at(0);
-            auto clickPos = this->menuBar()->actionGeometry(menu).center();
-            QTest::mouseClick(this->menuBar(), Qt::LeftButton, Qt::NoModifier, clickPos);
-        },
-        // Нажимаем на первое "checkable" QAction
-        [this] {
-            auto *menu = this->menuBar()->actions().at(0)->menu();
-            auto *action = menu->actions().at(0);
-            auto clickPos = menu->actionGeometry(action).center();
-            QTest::mouseClick(menu, Qt::LeftButton, Qt::NoModifier, clickPos);
-        },
-        // Открываем второе меню
-        [this] {
-            auto *menu = this->menuBar()->actions().at(1);
-            auto clickPos = this->menuBar()->actionGeometry(menu).center();
-            QTest::mouseClick(this->menuBar(), Qt::LeftButton, Qt::NoModifier, clickPos);
-        },
-        // Нажимаем на обычный QAction
-        [this] {
-            auto *menu = this->menuBar()->actions().at(1)->menu();
-            auto *action = menu->actions().at(0);
-            auto clickPos = menu->actionGeometry(action).center();
-            QTest::mouseClick(menu, Qt::LeftButton, Qt::NoModifier, clickPos);
-        },
+            /********** МЕНЮ **********/
+            // Открываем меню
+            [this] {
+                auto *menu = this->menuBar()->actions().at(0);
+                auto clickPos = this->menuBar()->actionGeometry(menu).center();
+                QTest::mouseClick(this->menuBar(), Qt::LeftButton, Qt::NoModifier, clickPos);
+            },
+            // Нажимаем на первое "checkable" QAction
+            [this] {
+                auto *menu = this->menuBar()->actions().at(0)->menu();
+                auto *action = menu->actions().at(0);
+                auto clickPos = menu->actionGeometry(action).center();
+                QTest::mouseClick(menu, Qt::LeftButton, Qt::NoModifier, clickPos);
+            },
+            // Открываем второе меню
+            [this] {
+                auto *menu = this->menuBar()->actions().at(1);
+                auto clickPos = this->menuBar()->actionGeometry(menu).center();
+                QTest::mouseClick(this->menuBar(), Qt::LeftButton, Qt::NoModifier, clickPos);
+            },
+            // Нажимаем на обычный QAction
+            [this] {
+                auto *menu = this->menuBar()->actions().at(1)->menu();
+                auto *action = menu->actions().at(0);
+                auto clickPos = menu->actionGeometry(action).center();
+                QTest::mouseClick(menu, Qt::LeftButton, Qt::NoModifier, clickPos);
+            },
+        };
+    }
+    else {
+        testActions_ = {
+            // Переключаем на шестую страницу
+            [this] {
+                auto tabBar = ui->tabWidget->tabBar();
+                QTest::mouseClick(tabBar, Qt::LeftButton, Qt::NoModifier,
+                                  tabBar->tabRect(5).center());
+            },
+            // Переключаем на седьмую страницу
+            [this] {
+                auto tabBar = ui->tabWidget->tabBar();
+                QTest::mouseClick(tabBar, Qt::LeftButton, Qt::NoModifier,
+                                  tabBar->tabRect(6).center());
+            },
+            // Клик по кнопке "Reset Label"
+            [this] { QTest::mouseClick(ui->resetUndoLabel, Qt::LeftButton); },
+            // Переключаем на восьмую страницу
+            [this] {
+                auto tabBar = ui->tabWidget->tabBar();
+                QTest::mouseClick(tabBar, Qt::LeftButton, Qt::NoModifier,
+                                  tabBar->tabRect(7).center());
+            },
+        };
+    }
 
-    };
+    assert(!testActions_.isEmpty());
 
     testTimer_ = new QTimer(this);
     testTimer_->setInterval(500);

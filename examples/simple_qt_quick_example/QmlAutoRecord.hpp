@@ -15,7 +15,7 @@ class QmlAutoRecord : public QObject {
 
 public:
     QmlAutoRecord(QQmlApplicationEngine *engine, QObject *parent = nullptr) noexcept;
-    void implementActionsForAutoRecord() noexcept;
+    void implementActionsForAutoRecord(bool isUpdate) noexcept;
 
 private:
     QQmlApplicationEngine *engine_ = nullptr;

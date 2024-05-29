@@ -18,8 +18,7 @@ class MainWindow : public QMainWindow {
 public:
     MainWindow(QWidget *parent = nullptr) noexcept;
     ~MainWindow() noexcept;
-
-    void implementActionsForAutoRecord() noexcept;
+    void implementActionsForAutoRecord(bool isUpdate) noexcept;
 
 private slots:
     void openFirstDialog() noexcept;

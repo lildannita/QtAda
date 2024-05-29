@@ -19,10 +19,14 @@ int main(int argc, char *argv[])
     }
 
     bool isAutoRecord = false;
+    bool isAutoUpdate = false;
     if (!args.isEmpty()) {
         for (const auto &arg : args) {
             if (arg == "--auto-record") {
                 isAutoRecord = true;
+            }
+            else if (arg == "--auto-update") {
+                isAutoUpdate = true;
             }
             else {
                 std::cout << "Unknown argument: " << qPrintable(arg) << std::endl;
@@ -31,8 +35,8 @@ int main(int argc, char *argv[])
         }
     }
 
-    if (isAutoRecord) {
-        w.implementActionsForAutoRecord();
+    if (isAutoRecord || isAutoUpdate) {
+        w.implementActionsForAutoRecord(isAutoUpdate);
     }
 
     return a.exec();
