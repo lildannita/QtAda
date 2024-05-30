@@ -49,8 +49,10 @@ run_and_check() {
     log "Command: $command"
 
     START_ACTION_TIME=$(date +%s%3N)
-    eval $command &>> $LOG_FILE
-    local result=$?
+    tmpfile=$(mktemp)
+    eval $command > >(tee -a $LOG_FILE) 2> >(tee -a $LOG_FILE >&2) ; echo $? > $tmpfile
+    result=$(< $tmpfile)
+    rm -f $tmpfile
     END_ACTION_TIME=$(date +%s%3N)
 
     log_info "[Finished]: $description with result $result ($((END_ACTION_TIME - START_ACTION_TIME)) ms)"
