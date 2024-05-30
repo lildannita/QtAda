@@ -1,0 +1,17 @@
+FROM ubuntu:20.04
+
+RUN apt-get update && apt-get install -y \
+    git \
+    curl \
+    jq \
+    sudo \
+    build-essential \
+    cmake \
+    qt5-default \
+    qtdeclarative5-dev \
+    && apt-get clean
+
+COPY internal_docker.sh /internal_docker.sh
+RUN chmod +x /internal_docker.sh
+
+CMD ["/internal_docker.sh"]

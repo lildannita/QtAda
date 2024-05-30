@@ -1,7 +1,10 @@
 #!/bin/bash
 
-LOG_FILE="/tmp/test_script_$(date '+%d%m%Y_%H%M%S').log"
-START_TIME=$(date +%s)
+if [ -z "$1" ]; then
+  LOG_FILE="/tmp/test_script_$(date '+%d%m%Y_%H%M%S').log"
+else
+  LOG_FILE="$1"
+fi
 
 RED='\033[1;31m'
 GREEN='\033[1;32m'
