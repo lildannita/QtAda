@@ -1,5 +1,7 @@
 #include "ProcessInjector.hpp"
 
+#include <QFileInfo>
+
 namespace QtAda::launcher::injector {
 ProcessInjector::ProcessInjector() noexcept
 {
@@ -32,7 +34,9 @@ bool ProcessInjector::injectAndLaunch(const QStringList &launchArgs, const QProc
     process_.setWorkingDirectory(workingDirectory());
 
     QStringList args(launchArgs);
-    const auto program = args.takeFirst();
+    QFileInfo programInfo(args.takeFirst());
+    const auto program = programInfo.absoluteFilePath();
+    assert(!program.isEmpty());
 
     process_.start(program, args);
     bool isStarted = process_.waitForStarted(-1);
