@@ -9,28 +9,41 @@ PACKAGES_ASTRA="qt5-default qtbase5-dev qt5-qmltooling-plugins libqt5remoteobjec
 #     INSTALL_CMD="sudo yum install -y qt5-qtbase qt5-qml qt5-qtdeclarative cmake make gcc git python3"
 #     ;;
 
-if [ "$1" == "--check-packages" ]; then
-    case ${2} in
-        Manjaro|Arch)
-            CHECK_CMD="pacman -Q $PACKAGES_ARCH"
+
+function show_help() {
+    echo "Usage: $0 [options] <Linux Distribution Name>"
+    echo ""
+    echo "Options:"
+    echo "  -h, --help                  print help"
+    echo "  -i, --install-packages      generate command to check for packages"
+    echo "  -c, --check-packages        generate command to install packages"
+}
+
+INSTALL_PACKAGES=true
+OS=
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        -c|--check-packages)
+            INSTALL_PACKAGES=false
+            shift
             ;;
-        Debian)
-            CHECK_CMD="dpkg -l $PACKAGES_DEBIAN"
+        -i|--install-packages)
+            INSTALL_PACKAGES=true
+            shift
             ;;
-        Ubuntu)
-            CHECK_CMD="dpkg -l $PACKAGES_UBUNTU"
-            ;;
-        Astra)
-            CHECK_CMD="dpkg -l $PACKAGES_ASTRA"
+        -h|--help)
+            show_help
+            exit 0
             ;;
         *)
-            echo "Unsupported OS: $1"
-            exit 1
+            OS=$1
+            shift
             ;;
     esac
-    echo "$CHECK_CMD"
-else
-    case ${2} in
+done
+
+if $INSTALL_PACKAGES; then
+    case $OS in
         Manjaro|Arch)
             INSTALL_CMD="sudo pacman -S --needed $PACKAGES_ARCH"
             ;;
@@ -44,9 +57,29 @@ else
             INSTALL_CMD="sudo apt-get install -y $PACKAGES_ASTRA"
             ;;
         *)
-            echo "Unsupported OS: $1"
+            echo "Unsupported OS: $OS"
             exit 1
             ;;
     esac
     echo "$INSTALL_CMD"
+else
+    case $OS in
+        Manjaro|Arch)
+            CHECK_CMD="pacman -Q $PACKAGES_ARCH"
+            ;;
+        Debian)
+            CHECK_CMD="dpkg -l $PACKAGES_DEBIAN"
+            ;;
+        Ubuntu)
+            CHECK_CMD="dpkg -l $PACKAGES_UBUNTU"
+            ;;
+        Astra)
+            CHECK_CMD="dpkg -l $PACKAGES_ASTRA"
+            ;;
+        *)
+            echo "Unsupported OS: $OS"
+            exit 1
+            ;;
+    esac
+    echo "$CHECK_CMD"
 fi
