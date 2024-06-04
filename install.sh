@@ -23,6 +23,15 @@ quite_eval() {
 
 set -e
 
+function show_help() {
+    echo "Usage: $0 [options]"
+    echo ""
+    echo "Options:"
+    echo "  -h, --help                  print help"
+    echo "  --skip-package-install      packages will not be installed"
+    echo "  --skip-symlink              symlink will not be installed"
+}
+
 INSTALL_PACKAGES=true
 INSTALL_SYMLINK=true
 for arg in "$@"; do
@@ -34,6 +43,15 @@ for arg in "$@"; do
         --skip-symlink)
             INSTALL_SYMLINK=false
             shift
+            ;;
+        -h|--help)
+            show_help
+            exit 0
+            ;;
+        *)
+            echo_error "Unknown option: $1"
+            show_help
+            exit 1
             ;;
     esac
 done
