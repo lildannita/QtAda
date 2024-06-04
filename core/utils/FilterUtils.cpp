@@ -73,8 +73,10 @@ static QString metaObjectId(const QObject *obj) noexcept
     //! но проблема в том, что это число - не постоянная величина (особенно это видно со
     //! "специфическими" надстройками над графической оболочкой). Поэтому при запуске скриптов
     //! могут быть проблемы. В связи с этим решено пока что убирать этот суффикс, если он есть.
-    const QString metaObjName = QString(obj->metaObject()->className())
-                                    .remove(QRegularExpression("(?<=.)_(QMLTYPE|QML)_\\d+$"));
+    const QString metaObjName
+        = QString(obj->metaObject()->className())
+              .remove(QRegularExpression("(?<=.)(_(QMLTYPE|QML)_\\d+)|(_QMLTYPE_\\d+_QML_\\d+)|(_"
+                                         "QML_\\d+_QMLTYPE_\\d+)$"));
     const auto *parent = obj->parent();
     return QString("%1_%2")
         .arg(metaObjName)
