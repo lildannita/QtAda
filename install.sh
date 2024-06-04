@@ -23,17 +23,48 @@ quite_eval() {
 
 set -e
 
+INSTALL_PACKAGES=true
+INSTALL_SYMLINK=true
+for arg in "$@"; do
+    case $arg in
+        --skip-package-install)
+            INSTALL_PACKAGES=false
+            shift
+            ;;
+        --skip-symlink)
+            INSTALL_SYMLINK=false
+            shift
+            ;;
+    esac
+done
+
 echo_info "Current OS: $(bash ./tools/get_os_info.sh -f)"
 OS_INFO=$(bash ./tools/get_os_info.sh -d)
 OS_NAME=$(echo ${OS_INFO} | awk '{ print $1 }')
-INSTALL_CMD=$(bash ./tools/get_packet_cmd.sh "${OS_NAME}")
 
-if [ -n "$INSTALL_CMD" ]; then
-    echo_info "Installing necessary packages for $OS_NAME..."
-    quite_eval "$INSTALL_CMD"
+if $INSTALL_PACKAGES; then
+    INSTALL_CMD=$(bash ./tools/get_packet_cmd.sh "${OS_NAME}")
+    if [ -n "$INSTALL_CMD" ]; then
+        echo_info "Installing necessary packages for $OS_NAME..."
+        quite_eval "$INSTALL_CMD"
+    else
+        echo_error "Failed to get install command for $OS_NAME."
+        exit 1
+    fi
 else
-    echo_error "Failed to get install command for $OS_NAME."
-    exit 1
+    CHECK_CMD=$(bash ./tools/get_packet_cmd.sh --check-packages "${OS_NAME}")
+    if [ -n "$CHECK_CMD" ]; then
+        echo_info "Checking necessary packages for $OS_NAME..."
+        if quite_eval "$CHECK_CMD"; then
+            echo_info "All necessary packages are already installed."
+        else
+            echo_error "Some necessary packages are missing."
+            exit 1
+        fi
+    else
+        echo_error "Failed to get check command for $OS_NAME."
+        exit 1
+    fi
 fi
 
 # TODO: Нужно будет как-нибудь корректно проверять актуальность репозитория
@@ -61,9 +92,7 @@ quite_eval "make"
 BIN_PATH=$(realpath $(pwd)/bin)
 APP_NAME=qtada
 
-if [ "$1" == "--only-build" ]; then
-    echo "$BIN_PATH/$APP_NAME"
-else
+if $INSTALL_SYMLINK; then
     LINK_PATH=/usr/local/bin/$APP_NAME
     if [ -L $LINK_PATH ]; then
         sudo rm $LINK_PATH
@@ -71,4 +100,6 @@ else
     quite_eval "sudo ln -s $BIN_PATH/$APP_NAME /usr/local/bin/$APP_NAME"
     echo_info "Symbolic link created at '$LINK_PATH'. Call 'qtada' to run application"
     echo_info "Installation completed."
+else
+    echo "$BIN_PATH/$APP_NAME"
 fi
