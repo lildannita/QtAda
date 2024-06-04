@@ -96,7 +96,7 @@ void Editor::highlightCurrentLine() noexcept
     QList<QTextEdit::ExtraSelection> extraSelections;
     if (!isReadOnly()) {
         QTextEdit::ExtraSelection selection;
-        QColor lineColor = QColor(255, 219, 139, 20);
+        QColor lineColor = QColor(255, 219, 139, 40);
         selection.format.setBackground(lineColor);
         selection.format.setProperty(QTextFormat::FullWidthSelection, true);
         auto textCursor = this->textCursor();
