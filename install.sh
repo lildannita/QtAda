@@ -28,20 +28,39 @@ function show_help() {
     echo ""
     echo "Options:"
     echo "  -h, --help                  print help"
+    echo "  -b, --build-dir <path>      build QtAda in the specified directory"
+    echo "  -e, --build-examples        build applications with QtWidgets- and QtQuick-based GUI"
     echo "  --skip-package-install      packages will not be installed"
     echo "  --skip-symlink              symlink will not be installed"
 }
 
+SOURCE_DIR=$(realpath $(pwd))
+BUILD_DIR="build"
 INSTALL_PACKAGES=true
 INSTALL_SYMLINK=true
-for arg in "$@"; do
-    case $arg in
+BUILD_EXAMPLES=false
+
+while [[ "$#" -gt 0 ]]; do
+    case $1 in
         --skip-package-install)
             INSTALL_PACKAGES=false
             shift
             ;;
         --skip-symlink)
             INSTALL_SYMLINK=false
+            shift
+            ;;
+        -b|--build-dir)
+            if [[ -n "$2" ]]; then
+                BUILD_DIR="$2"
+                shift 2
+            else
+                echo_error "Error: --build-path requires a path argument."
+                exit 1
+            fi
+            ;;
+        -e|--build-examples)
+            BUILD_EXAMPLES=true
             shift
             ;;
         -h|--help)
@@ -97,15 +116,16 @@ fi
 #     git pull --ff-only
 # fi
 
-echo_info "Building the project..."
-mkdir -p build
-cd build
-quite_eval "cmake .."
-quite_eval "make"
+CMAKE_ARGS=
+if $BUILD_EXAMPLES; then
+    CMAKE_ARGS="-DBUILD_EXAMPLES=ON"
+fi
 
-# TODO: По идее предыдущих команд достаточно
-# echo_info "Installing the application..."
-# sudo make install
+echo_info "Building the project..."
+mkdir -p "$BUILD_DIR"
+cd "$BUILD_DIR"
+quite_eval "cmake $CMAKE_ARGS $SOURCE_DIR"
+quite_eval "make"
 
 BIN_PATH=$(realpath $(pwd)/bin)
 APP_NAME=qtada
@@ -119,5 +139,6 @@ if $INSTALL_SYMLINK; then
     echo_info "Symbolic link created at '$LINK_PATH'. Call 'qtada' to run application"
     echo_info "Installation completed."
 else
+    echo_info "The QtAda application is in the following path:"
     echo "$BIN_PATH/$APP_NAME"
 fi

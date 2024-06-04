@@ -53,4 +53,7 @@ add_subdirectory(client)
 configure_file(${CMAKE_SOURCE_DIR}/config.h.cmake
                ${CMAKE_CURRENT_BINARY_DIR}/config.h)
 
-add_subdirectory(examples)
+option(BUILD_EXAMPLES "Build example projects" OFF)
+if(BUILD_EXAMPLES)
+  add_subdirectory(examples)
+endif()

@@ -85,20 +85,17 @@ run_and_compare() {
 main() {
     log_info "Starting test script"
 
-    # Install
-    run_and_check "./install.sh" 0 "Running install.sh"
+    local BUILD_PATH="./build_test"
+    run_and_check "bash ./install.sh --skip-symlink --skip-package-install --build-examples --build-dir $BUILD_PATH" 0 "Running install.sh"
 
-    # Source bashrc
-    run_and_check "source ~/.bashrc" 0 "Sourcing .bashrc"
-
-    local QTADA="qtada"
+    local QTADA="$BUILD_PATH/bin/qtada"
     local RECORD_FLAG="-r"
     local UPDATE_FLAG="--update-script"
     local RUN_FLAG="-r"
     local AUTO_RECORD_FLAG="--auto-record"
     local AUTO_UPDATE_FLAG="--auto-update"
 
-    local QTADA_EXAMPLES=$(absolute_path "./build/bin/examples")
+    local QTADA_EXAMPLES=$(absolute_path "$BUILD_PATH/bin/examples")
     local QT_WIDGETS="$QTADA_EXAMPLES/simple_qt_widget_example"
     local QT_QUICK="$QTADA_EXAMPLES/simple_qt_quick_example"
 
