@@ -52,6 +52,9 @@ add_subdirectory(client)
 
 option(DEBUG_RUN "DEBUG PROBE FOR RUNNING" OFF)
 option(DEBUG_RECORD "DEBUG PROBE FOR RECORDING" OFF)
+if (DEBUG_RUN OR DEBUG_RECORD)
+  set(DEBUG_BUILD TRUE)
+endif()
 
 configure_file(${CMAKE_SOURCE_DIR}/config.h.cmake
                ${CMAKE_CURRENT_BINARY_DIR}/config.h)

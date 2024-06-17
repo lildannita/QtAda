@@ -175,10 +175,6 @@ Probe::Probe(const LaunchType launchType, const std::optional<RecordSettings> &r
 
 Probe::~Probe() noexcept
 {
-    qtHookData[QHooks::AddQObject] = 0;
-    qtHookData[QHooks::RemoveQObject] = 0;
-    qtHookData[QHooks::Startup] = 0;
-
     s_probeInstance = QAtomicPointer<Probe>(nullptr);
 }
 
@@ -192,9 +188,24 @@ bool Probe::initialized() noexcept
     return probeInstance();
 }
 
-void Probe::kill() noexcept
+void Probe::smoothKill() noexcept
 {
-    delete this;
+    applicationOnClose_ = true;
+    qtHookData[QHooks::AddQObject] = 0;
+    qtHookData[QHooks::RemoveQObject] = 0;
+    qtHookData[QHooks::Startup] = 0;
+
+    // За очистку памяти при LaunchType::Run отвечает обработчик окончания работы
+    // потока scriptThread_ (так как нам нужно дать ему отработать до конца)
+    if (scriptThread_ != nullptr && scriptThread_->isRunning()) {
+        assert(scriptRunner_ != nullptr);
+        scriptRunner_->handleApplicationClosing();
+    }
+    else {
+        //! TODO: для режима LaunchType::Record нужно задерживать очистку, пока
+        //! не будет передана команда, которая привела к закрытию приложения
+        delete this;
+    }
 }
 
 void Probe::initProbe(const LaunchType launchType,
@@ -210,8 +221,8 @@ void Probe::initProbe(const LaunchType launchType,
         probe = new Probe(launchType, recordSettings, runSettings);
     }
 
-    connect(qApp, &QCoreApplication::aboutToQuit, probe, &Probe::kill);
-    connect(qApp, &QCoreApplication::destroyed, probe, &Probe::kill);
+    connect(qApp, &QCoreApplication::aboutToQuit, probe, &Probe::smoothKill);
+    connect(qApp, &QCoreApplication::destroyed, probe, &Probe::smoothKill);
 
     {
         QMutexLocker lock(s_mutex());
@@ -272,7 +283,8 @@ void Probe::handleApplicationFinished(int exitCode) noexcept
 
 bool Probe::eventFilter(QObject *reciever, QEvent *event)
 {
-    if (ProbeGuard::locked() && reciever->thread() == QThread::currentThread()) {
+    if ((ProbeGuard::locked() && reciever->thread() == QThread::currentThread())
+        || applicationOnClose_) {
         return QObject::eventFilter(reciever, event);
     }
 
@@ -559,7 +571,7 @@ bool Probe::isObjectInCreationQueue(QObject *obj) const noexcept
 
 void Probe::notifyQueueTimer() noexcept
 {
-    if (queueTimer_->isActive()) {
+    if (queueTimer_->isActive() || applicationOnClose_) {
         return;
     }
 
@@ -584,6 +596,10 @@ void Probe::notifyQueueTimer() noexcept
 
 void Probe::handleObjectsQueue() noexcept
 {
+    if (applicationOnClose_) {
+        return;
+    }
+
     QMutexLocker lock(s_mutex());
     assert(thread() == QThread::currentThread());
 

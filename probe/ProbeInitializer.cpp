@@ -33,11 +33,17 @@ void ProbeInitializer::initProbe() noexcept
     RecordSettings settings;
     settings.scriptPath = "/tmp/record_debug.js";
     Probe::initProbe(LaunchType::Record, settings, std::nullopt);
-#elif DEBUG_RUN
+#endif
+
+#ifdef DEBUG_RUN
     RunSettings settings;
-    settings.scriptPath = "/tmp/run_debug.js";
+    settings.scriptPath
+        = "/files/work/avia_planetable/qt_gui/tests/gui_scenarios/test_close_application.js";
+    settings.showElapsed = true;
     Probe::initProbe(LaunchType::Run, std::nullopt, settings);
-#else
+#endif
+
+#ifndef DEBUG_BUILD
     const auto rawLaunchType = qgetenv(ENV_LAUNCH_TYPE);
     qputenv(ENV_LAUNCH_TYPE, "");
     assert(!rawLaunchType.isEmpty());
@@ -66,7 +72,6 @@ void ProbeInitializer::initProbe() noexcept
 #endif
 
     assert(Probe::initialized());
-
     deleteLater();
 }
 } // namespace QtAda::probe

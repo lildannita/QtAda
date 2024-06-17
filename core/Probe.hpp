@@ -49,7 +49,7 @@ signals:
 private slots:
     void installInternalEventFilter() noexcept;
     void handleObjectsQueue() noexcept;
-    void kill() noexcept;
+    void smoothKill() noexcept;
 
     void handleApplicationPaused(bool isPaused) noexcept;
     void handleVerificationMode(bool isMode) noexcept;
@@ -59,6 +59,8 @@ private slots:
 private:
     static QAtomicPointer<Probe> s_probeInstance;
     QTimer *queueTimer_ = nullptr;
+
+    bool applicationOnClose_ = false;
 
     QRemoteObjectNode *inprocessNode_ = nullptr;
     std::shared_ptr<InprocessControllerReplica> inprocessController_ = nullptr;

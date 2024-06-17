@@ -10,3 +10,4 @@
 
 #cmakedefine DEBUG_RUN
 #cmakedefine DEBUG_RECORD
+#cmakedefine DEBUG_BUILD

@@ -75,6 +75,12 @@ public:
     Q_INVOKABLE void closeDialog(const QString &path) const noexcept;
     Q_INVOKABLE void closeWindow(const QString &path) const noexcept;
 
+    void handleApplicationClosing() noexcept
+    {
+        pathToObject_.clear();
+        objectToPath_.clear();
+    }
+
 signals:
     void scriptError(const QString &msg) const;
     void scriptWarning(const QString &msg) const;
