@@ -50,6 +50,9 @@ add_subdirectory(probe)
 add_subdirectory(launcher)
 add_subdirectory(client)
 
+option(DEBUG_RUN "DEBUG PROBE FOR RUNNING" OFF)
+option(DEBUG_RECORD "DEBUG PROBE FOR RECORDING" OFF)
+
 configure_file(${CMAKE_SOURCE_DIR}/config.h.cmake
                ${CMAKE_CURRENT_BINARY_DIR}/config.h)
 

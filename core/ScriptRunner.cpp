@@ -428,6 +428,49 @@ void ScriptRunner::verify(const QString &path, const QString &property,
     }
 }
 
+void ScriptRunner::waitFor(const QString &path, int sec) const noexcept
+{
+    mwaitFor(path, sec * 1000);
+}
+
+void ScriptRunner::mwaitFor(const QString &path, int msec) const noexcept
+{
+    QElapsedTimer timer;
+    timer.start();
+
+    auto it = pathToObject_.end();
+    while (!timer.hasExpired(msec)) {
+        it = pathToObject_.find(path);
+        if (it != pathToObject_.end() && it->second != nullptr) {
+            auto *object = it->second;
+            const auto *metaObject = object->metaObject();
+            const auto propertyIndex = metaObject->indexOfProperty("visible");
+            if (propertyIndex == -1) {
+                engine_->throwError(
+                    QStringLiteral("This function is intended to wait for the creation"
+                                   " and visibility of an object, but the object"
+                                   " does not have a 'visible' property"));
+                return;
+            }
+            const auto visible = object->property("visible").toBool();
+            if (visible) {
+                if (runSettings_.showElapsed) {
+                    auto elapsed = timer.elapsed();
+                    emit scriptLog(
+                        QStringLiteral("'%1' retrieved in %2 ms").arg(path).arg(elapsed));
+                }
+                return;
+            }
+        }
+    }
+
+    assert(it == pathToObject_.end());
+    engine_->throwError(QStringLiteral("Failed to wait for the object at path '%1' "
+                                       "within %2 ms.")
+                            .arg(path)
+                            .arg(msec));
+}
+
 void ScriptRunner::sleep(int sec)
 {
     QThread::sleep(sec);

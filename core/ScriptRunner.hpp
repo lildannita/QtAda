@@ -18,6 +18,8 @@ public:
 
     Q_INVOKABLE void verify(const QString &path, const QString &property,
                             const QString &value) const noexcept;
+    Q_INVOKABLE void waitFor(const QString &path, int sec) const noexcept;
+    Q_INVOKABLE void mwaitFor(const QString &path, int msec) const noexcept;
     Q_INVOKABLE void sleep(int sec);
     Q_INVOKABLE void msleep(int msec);
     Q_INVOKABLE void usleep(int usec);

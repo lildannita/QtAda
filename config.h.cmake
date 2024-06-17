@@ -7,3 +7,6 @@
 #cmakedefine HAVE_ELF_H
 #cmakedefine HAVE_SYS_ELF_H
 #cmakedefine HAVE_ELF
+
+#cmakedefine DEBUG_RUN
+#cmakedefine DEBUG_RECORD

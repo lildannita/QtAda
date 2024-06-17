@@ -6,6 +6,7 @@
 
 #include "Probe.hpp"
 #include "Settings.hpp"
+#include <config.h>
 
 namespace QtAda::probe {
 using namespace core;
@@ -28,6 +29,15 @@ void ProbeInitializer::initProbe() noexcept
 
     assert(QThread::currentThread() == qApp->thread());
 
+#ifdef DEBUG_RECORD
+    RecordSettings settings;
+    settings.scriptPath = "/tmp/record_debug.js";
+    Probe::initProbe(LaunchType::Record, settings, std::nullopt);
+#elif DEBUG_RUN
+    RunSettings settings;
+    settings.scriptPath = "/tmp/run_debug.js";
+    Probe::initProbe(LaunchType::Run, std::nullopt, settings);
+#else
     const auto rawLaunchType = qgetenv(ENV_LAUNCH_TYPE);
     qputenv(ENV_LAUNCH_TYPE, "");
     assert(!rawLaunchType.isEmpty());
@@ -53,6 +63,8 @@ void ProbeInitializer::initProbe() noexcept
     default:
         Q_UNREACHABLE();
     }
+#endif
+
     assert(Probe::initialized());
 
     deleteLater();

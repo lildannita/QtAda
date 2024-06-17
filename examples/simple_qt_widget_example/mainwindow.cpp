@@ -627,3 +627,8 @@ void MainWindow::implementActionsForAutoRecord(bool isUpdate) noexcept
     // Откладываем запуск "сценария"
     QTimer::singleShot(1500, [this] { testTimer_->start(); });
 }
+
+void MainWindow::on_closeButton_clicked()
+{
+    QCoreApplication::exit(0);
+}

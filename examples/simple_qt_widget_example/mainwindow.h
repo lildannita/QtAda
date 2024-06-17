@@ -27,6 +27,8 @@ private slots:
     void on_checkablePushButton_clicked(bool checked);
     void on_simplePushButton_clicked();
 
+    void on_closeButton_clicked();
+
 private:
     Ui::MainWindow *ui;
 

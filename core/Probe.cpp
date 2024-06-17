@@ -16,6 +16,7 @@
 #include "UserVerificationFilter.hpp"
 #include "ScriptRunner.hpp"
 #include <inprocess/rep_InprocessController_replica.h>
+#include <config.h>
 
 namespace QtAda::core {
 static constexpr char QTADA_NAMESPACE[] = "QtAda::";
@@ -84,9 +85,11 @@ Probe::Probe(const LaunchType launchType, const std::optional<RecordSettings> &r
         assert(inprocessController_->applicationRunning() == false);
         inprocessController_->pushApplicationRunning(true);
 
+#ifndef DEBUG_RUN
         if (launchType_ == LaunchType::Run) {
             scriptThread_->start();
         }
+#endif
     });
 
     switch (launchType_) {
@@ -96,6 +99,10 @@ Probe::Probe(const LaunchType launchType, const std::optional<RecordSettings> &r
         userEventFilter_ = new UserEventFilter(std::move(*recordSettings), this);
         userVerificationFilter_ = new UserVerificationFilter(this);
 
+#ifdef DEBUG_RECORD
+        connect(userEventFilter_, &UserEventFilter::newScriptLine, inprocessController_.get(),
+                [this](const QString &msg) { std::cout << qPrintable(msg) << std::endl; });
+#else
         connect(userEventFilter_, &UserEventFilter::newScriptLine, inprocessController_.get(),
                 &InprocessControllerReplica::sendNewScriptLine);
         connect(userVerificationFilter_, &UserVerificationFilter::newFramedRootObjectData,
@@ -111,6 +118,7 @@ Probe::Probe(const LaunchType launchType, const std::optional<RecordSettings> &r
                 this, &Probe::handleVerificationMode);
         connect(inprocessController_.get(), &InprocessControllerReplica::requestFramedObjectChange,
                 userVerificationFilter_, &UserVerificationFilter::changeFramedObject);
+#endif
         break;
     }
     case LaunchType::Run: {
@@ -154,6 +162,10 @@ Probe::Probe(const LaunchType launchType, const std::optional<RecordSettings> &r
             //! не менее разобраться с scriptThread_->wait() нужно.
             //! scriptThread_->wait();
         });
+
+#ifdef DEBUG_RUN
+        scriptThread_->start();
+#endif
         break;
     }
     default:
