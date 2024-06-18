@@ -4,6 +4,13 @@
 #include <iostream>
 
 namespace QtAda {
+Q_GLOBAL_STATIC(bool, noHighlight)
+
+inline void setMsgHighlight(bool isHighlight) noexcept
+{
+    *noHighlight() = !isHighlight;
+}
+
 static constexpr int DEFAULT_WAITING_TIMER_VALUE = 60;
 static constexpr int DEFAULT_INDENT_WIDTH = 4;
 static constexpr int MINIMUM_CYCLE_COUNT = 3;
@@ -49,6 +56,7 @@ Options:
  -w, --workspace                                set working directory for executable (default: current path)
  -t, --timeout                                  application launch timeout in seconds (default: %2 seconds)
  -s, --show-log                                 show application logs during test script execution
+ --no-highlight                                 disable highlighting of QtAda messages in the console
 
 (Record options):
  --new-script                                   new script will be (over)written to the specified path (default)
@@ -88,13 +96,27 @@ Options:
     std::cout << qPrintable(usage) << std::endl << std::flush;
 }
 
+inline void printMessage(const QString &msg, bool needNewLine) noexcept
+{
+    std::cout << qPrintable(msg);
+    if (needNewLine) {
+        std::cout << std::endl;
+    }
+    std::cout << std::flush;
+}
+
 inline void printStdMessage(const QString &msg) noexcept
 {
-    std::cout << qPrintable(msg) << std::flush;
+    printMessage(msg, false);
 }
 
 inline void printQtAdaOutMessage(const QString &msg) noexcept
 {
+    if (noHighlight) {
+        printMessage(msg, true);
+        return;
+    }
+
     std::cout << qPrintable(
         QStringLiteral("%1QtAda:%2 %3").arg(QTADA_OUT_COLOR).arg(RESET_COLOR).arg(msg))
               << std::endl
@@ -103,6 +125,11 @@ inline void printQtAdaOutMessage(const QString &msg) noexcept
 
 inline void printQtAdaErrorMessage(const QString &msg) noexcept
 {
+    if (noHighlight) {
+        printMessage(msg, true);
+        return;
+    }
+
     std::cout << qPrintable(
         QStringLiteral("%1QtAda:%2 %3").arg(QTADA_ERR_COLOR).arg(RESET_COLOR).arg(msg))
               << std::endl
@@ -111,6 +138,11 @@ inline void printQtAdaErrorMessage(const QString &msg) noexcept
 
 inline void printQtAdaWarningMessage(const QString &msg) noexcept
 {
+    if (noHighlight) {
+        printMessage(msg, true);
+        return;
+    }
+
     std::cout << qPrintable(
         QStringLiteral("%1QtAda:%2 %3").arg(QTADA_WARN_COLOR).arg(RESET_COLOR).arg(msg))
               << std::endl
@@ -119,6 +151,11 @@ inline void printQtAdaWarningMessage(const QString &msg) noexcept
 
 inline void printQtAdaServiceMessage(const QString &msg) noexcept
 {
+    if (noHighlight) {
+        printMessage(msg, true);
+        return;
+    }
+
     std::cout << qPrintable(
         QStringLiteral("%1QtAda:%2 %3").arg(QTADA_SERV_COLOR).arg(RESET_COLOR).arg(msg))
               << std::endl
@@ -127,18 +164,33 @@ inline void printQtAdaServiceMessage(const QString &msg) noexcept
 
 inline void printScriptErrorMessage(const QString &msg) noexcept
 {
+    if (noHighlight) {
+        printMessage(msg, true);
+        return;
+    }
+
     std::cout << QTADA_SCRIPT_ERR_COLOR << qPrintable(msg) << RESET_COLOR << std::endl
               << std::flush;
 }
 
 inline void printScriptWarningMessage(const QString &msg) noexcept
 {
+    if (noHighlight) {
+        printMessage(msg, true);
+        return;
+    }
+
     std::cout << QTADA_SCRIPT_WARN_COLOR << qPrintable(msg) << RESET_COLOR << std::endl
               << std::flush;
 }
 
 inline void printScriptOutMessage(const QString &msg) noexcept
 {
+    if (noHighlight) {
+        printMessage(msg, true);
+        return;
+    }
+
     std::cout << QTADA_SCRIPT_OUT_COLOR << qPrintable(msg) << RESET_COLOR << std::endl
               << std::flush;
 }

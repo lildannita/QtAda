@@ -57,6 +57,9 @@ std::optional<int> UserLaunchOptions::initFromArgs(const char *appPath, QStringL
                         .arg(DEFAULT_WAITING_TIMER_VALUE));
             }
         }
+        else if (arg == QLatin1String("--no-highlight")) {
+            setMsgHighlight(false);
+        }
         else if ((arg == QLatin1String("-r")) || (arg == QLatin1String("--record"))) {
             if (type != LaunchType::None) {
                 printMultiplyDefinitionError();
