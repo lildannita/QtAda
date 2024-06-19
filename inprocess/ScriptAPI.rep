@@ -1,0 +1,7 @@
+#include <QObject>
+#include <QString>
+
+class ScriptAPI
+{
+    Q_INVOKABLE QString method1(const QString &name);
+}

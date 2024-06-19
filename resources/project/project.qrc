@@ -1,0 +1,11 @@
+<RCC>
+    <qresource prefix="/project">
+        <file>app.png</file>
+        <file>add.svg</file>
+        <file>aut.svg</file>
+        <file>clear.svg</file>
+        <file>project.svg</file>
+        <file>remove.svg</file>
+        <file>script.svg</file>
+    </qresource>
+</RCC>

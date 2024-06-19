@@ -7,6 +7,8 @@
 #include "InitDialog.hpp"
 #include "MainGui.hpp"
 
+#include "ProjectDialog.hpp"
+
 namespace QtAda {
 int guiInitializer(int argc, char *argv[])
 {
@@ -75,5 +77,9 @@ int cliInitializer(int argc, char *argv[])
 
 int main(int argc, char *argv[])
 {
-    return argc <= 1 ? QtAda::guiInitializer(argc, argv) : QtAda::cliInitializer(argc, argv);
+    QApplication app(argc, argv);
+    QtAda::project::ProjectDialog dialog("/a/b/test_project.qtada");
+    dialog.show();
+    return app.exec();
+//    return argc <= 1 ? QtAda::guiInitializer(argc, argv) : QtAda::cliInitializer(argc, argv);
 }

@@ -44,6 +44,7 @@ endif()
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
 
 add_subdirectory(common)
+add_subdirectory(project)
 add_subdirectory(inprocess)
 add_subdirectory(core)
 add_subdirectory(probe)
