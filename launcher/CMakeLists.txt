@@ -46,6 +46,5 @@ target_link_libraries(launcher PRIVATE common
                                        inprocess
                                        Qt5::Core
                                        Qt5::Widgets)
-target_include_directories(launcher PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}
-                                            ${QTADA_COMMON_INCLUDE_DIR}
+target_include_directories(launcher PRIVATE ${QTADA_COMMON_INCLUDE_DIR}
                                             ${QTADA_INPROCESS_INCLUDE_DIR})

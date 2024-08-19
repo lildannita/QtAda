@@ -10,3 +10,8 @@ target_link_libraries(qtada PRIVATE common
 target_include_directories(qtada PRIVATE ${QTADA_COMMON_INCLUDE_DIR}
                                          ${QTADA_LAUNCHER_INCLUDE_DIR}
                                          ${QTADA_GUI_INCLUDE_DIR})
+install(TARGETS qtada
+        DESTINATION ${QTADA_BIN_DIR}
+        PERMISSIONS OWNER_EXECUTE OWNER_WRITE OWNER_READ
+                    GROUP_EXECUTE GROUP_READ
+                    WORLD_EXECUTE WORLD_READ)

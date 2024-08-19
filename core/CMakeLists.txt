@@ -61,4 +61,5 @@ target_link_libraries(core PRIVATE common
                                    Qt5::Widgets
                                    Qt5::RemoteObjects
                                    Qt5::Concurrent)
-target_include_directories(core PRIVATE ${QTADA_COMMON_INCLUDE_DIR})
+target_include_directories(core PRIVATE ${QTADA_COMMON_INCLUDE_DIR}
+                                        ${QTADA_INPROCESS_INCLUDE_DIR})

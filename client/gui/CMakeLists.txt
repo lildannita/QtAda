@@ -35,4 +35,5 @@ target_link_libraries(gui PRIVATE common
                                   Qt5::Core
                                   Qt5::Widgets)
 target_include_directories(gui PRIVATE ${QTADA_COMMON_INCLUDE_DIR}
+                                       ${QTADA_INPROCESS_INCLUDE_DIR}
                                        ${QTADA_LAUNCHER_INCLUDE_DIR})
