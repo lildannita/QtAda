@@ -528,7 +528,7 @@ void Probe::removeObject(QObject *obj) noexcept
     assert(!probeInstance()->isObjectInCreationQueue(obj));
 
     if (probeInstance()->thread() == QThread::currentThread()) {
-        emit probeInstance()->objectDestroyed(obj);
+        emit probeInstance() -> objectDestroyed(obj);
     }
     else {
         probeInstance()->addObjectDestroyToQueue(obj);

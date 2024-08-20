@@ -138,7 +138,7 @@ private:
                 extra.changeIndex = forExtra->toInt();
             }
             return isInit() ? std::make_optional(
-                       (*mouseFilter)(causedComponent, causedEvent.get(), extra))
+                                  (*mouseFilter)(causedComponent, causedEvent.get(), extra))
                             : std::nullopt;
         }
     } postReleaseWatchDog_;

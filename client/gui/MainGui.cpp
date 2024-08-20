@@ -639,13 +639,14 @@ void MainGui::addNewFileToProject(bool isNewFileMode, bool isScript) noexcept
     const auto filter
         = isScript ? QStringLiteral("JavaScript (*.js)") : QStringLiteral("All files (*)");
     const auto path
-        = (isNewFileMode
-               ? QFileDialog::getSaveFileName(
-                   this, isScript ? paths::QTADA_NEW_SCRIPT_HEADER : paths::QTADA_NEW_SOURCE_HEADER,
-                   defaultDir, filter)
-               : QFileDialog::getOpenFileName(
-                   this, isScript ? paths::QTADA_ADD_SCRIPT_HEADER : paths::QTADA_ADD_SOURCE_HEADER,
-                   defaultDir, filter))
+        = (isNewFileMode ? QFileDialog::getSaveFileName(this,
+                                                        isScript ? paths::QTADA_NEW_SCRIPT_HEADER
+                                                                 : paths::QTADA_NEW_SOURCE_HEADER,
+                                                        defaultDir, filter)
+                         : QFileDialog::getOpenFileName(this,
+                                                        isScript ? paths::QTADA_ADD_SCRIPT_HEADER
+                                                                 : paths::QTADA_ADD_SOURCE_HEADER,
+                                                        defaultDir, filter))
               .trimmed();
 
     if (path.isEmpty()) {
