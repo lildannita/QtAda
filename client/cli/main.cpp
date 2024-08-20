@@ -3,11 +3,18 @@
 #include <QStringList>
 #include <csignal>
 
+#include <config.h>
 #include "Launcher.hpp"
+
+#ifdef BUILD_QTADA_CLIENT
 #include "InitDialog.hpp"
 #include "MainGui.hpp"
+#else
+#include "Common.hpp"
+#endif
 
 namespace QtAda {
+#ifdef BUILD_QTADA_CLIENT
 int guiInitializer(int argc, char *argv[])
 {
     using namespace gui;
@@ -24,6 +31,7 @@ int guiInitializer(int argc, char *argv[])
 
     return 0;
 }
+#endif
 
 int cliInitializer(int argc, char *argv[])
 {
@@ -37,7 +45,14 @@ int cliInitializer(int argc, char *argv[])
         }
     }
     if (args.empty()) {
+#ifdef BUILD_QTADA_CLIENT
         return guiInitializer(argc, argv);
+#else
+        printQtAdaErrorMessage(
+            "The QtAda build was completed without the graphical client, so command-line arguments "
+            "need to be explicitly specified for QtAda to function properly.");
+        return 1;
+#endif
     }
 
     UserLaunchOptions options;
@@ -75,5 +90,9 @@ int cliInitializer(int argc, char *argv[])
 
 int main(int argc, char *argv[])
 {
+#ifdef BUILD_QTADA_CLIENT
     return argc <= 1 ? QtAda::guiInitializer(argc, argv) : QtAda::cliInitializer(argc, argv);
+#else
+    return QtAda::cliInitializer(argc, argv);
+#endif
 }

@@ -47,6 +47,8 @@ endif()
 
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
 
+option(BUILD_QTADA_CLIENT "BUILD GUI CLIENT" ON)
+
 add_subdirectory(common)
 add_subdirectory(inprocess)
 add_subdirectory(core)

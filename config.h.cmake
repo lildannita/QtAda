@@ -8,6 +8,8 @@
 #cmakedefine HAVE_SYS_ELF_H
 #cmakedefine HAVE_ELF
 
+#cmakedefine BUILD_QTADA_CLIENT
+
 #cmakedefine DEBUG_RUN
 #cmakedefine DEBUG_RECORD
 #cmakedefine DEBUG_BUILD
