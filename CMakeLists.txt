@@ -56,6 +56,11 @@ add_subdirectory(probe)
 add_subdirectory(launcher)
 add_subdirectory(client)
 
+add_custom_target(qtada_ci DEPENDS common inprocess core probe launcher qtada)
+if(BUILD_QTADA_CLIENT)
+  add_custom_target(qtada_all DEPENDS common inprocess core probe launcher gui qtada)
+endif()
+
 option(DEBUG_RUN "DEBUG PROBE FOR RUNNING" OFF)
 option(DEBUG_RECORD "DEBUG PROBE FOR RECORDING" OFF)
 if (DEBUG_RUN OR DEBUG_RECORD)
