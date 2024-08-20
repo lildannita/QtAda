@@ -4,6 +4,10 @@ set(QTADA_INPROCESS_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR} PARENT_SCOPE)
 
 set(inprocess_REPS
   InprocessController.rep)
+qt5_generate_repc(gen_SRCS ${inprocess_REPS} SOURCE)
+qt5_generate_repc(gen_SRCS ${inprocess_REPS} REPLICA)
+set_source_files_properties(${gen_SRCS} PROPERTIES COMPILE_FLAGS "-fvisibility=default")
+
 set(inprocess_MOC_HDRS
   InprocessController.hpp
   InprocessDialog.hpp
@@ -21,8 +25,6 @@ set(inprocess_SRCS
   InprocessRunner.cpp)
 qt5_wrap_cpp(gen_SRCS ${inprocess_MOC_HDRS})
 qt5_add_resources(gen_SRCS ${QTADA_RESOURCES_DIR}/inprocess.qrc)
-qt5_generate_repc(gen_SRCS ${inprocess_REPS} SOURCE)
-qt5_generate_repc(gen_SRCS ${inprocess_REPS} REPLICA)
 
 add_library(inprocess SHARED ${inprocess_SRCS}
                              ${inprocess_HDRS}
