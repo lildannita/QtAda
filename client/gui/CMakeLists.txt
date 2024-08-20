@@ -11,6 +11,7 @@ set(gui_MOC_HDRS
   MainGui.hpp)
 set(gui_HDRS
   ${gui_MOC_HDRS}
+  GuiExport.hpp
   GuiTools.hpp)
 set(gui_SRCS
   InitDialog.cpp
@@ -37,3 +38,4 @@ target_link_libraries(gui PRIVATE common
 target_include_directories(gui PRIVATE ${QTADA_COMMON_INCLUDE_DIR}
                                        ${QTADA_INPROCESS_INCLUDE_DIR}
                                        ${QTADA_LAUNCHER_INCLUDE_DIR})
+target_compile_definitions(gui PRIVATE GUI_BUILD)

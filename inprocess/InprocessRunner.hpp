@@ -2,6 +2,8 @@
 
 #include <QObject>
 
+#include "InprocessExport.hpp"
+
 QT_BEGIN_NAMESPACE
 class QRemoteObjectHost;
 QT_END_NAMESPACE
@@ -9,7 +11,7 @@ QT_END_NAMESPACE
 namespace QtAda::inprocess {
 class InprocessController;
 
-class InprocessRunner final : public QObject {
+class INPROCESS_EXPORT InprocessRunner final : public QObject {
     Q_OBJECT
 public:
     InprocessRunner(QObject *parent = nullptr) noexcept;

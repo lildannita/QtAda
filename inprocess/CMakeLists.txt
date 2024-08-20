@@ -12,6 +12,7 @@ set(inprocess_MOC_HDRS
   InprocessRunner.hpp)
 set(inprocess_HDRS
   ${inprocess_MOC_HDRS}
+  InprocessExport.hpp
   InprocessTools.hpp)
 set(inprocess_SRCS
   InprocessDialog.cpp
@@ -36,3 +37,4 @@ target_link_libraries(inprocess PRIVATE common
                                         Qt5::Widgets
                                         Qt5::RemoteObjects)
 target_include_directories(inprocess PRIVATE ${QTADA_COMMON_INCLUDE_DIR})
+target_compile_definitions(inprocess PRIVATE INPROCESS_BUILD)

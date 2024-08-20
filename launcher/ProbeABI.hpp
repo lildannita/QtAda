@@ -2,8 +2,10 @@
 
 #include <QString>
 
+#include "LauncherExport.hpp"
+
 namespace QtAda::launcher::probe {
-class ProbeABI final {
+class LAUNCHER_EXPORT ProbeABI final {
 public:
     void setQtVersion(int major, int minor) noexcept;
     void setQtVersion(std::pair<int, int> version) noexcept;

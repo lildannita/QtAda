@@ -1,6 +1,8 @@
 #pragma once
 
 #include <QDialog>
+
+#include "GuiExport.hpp"
 #include "GuiTools.hpp"
 
 QT_BEGIN_NAMESPACE
@@ -15,7 +17,7 @@ class QTextEdit;
 QT_END_NAMESPACE
 
 namespace QtAda::gui {
-class InitDialog final : public QDialog {
+class GUI_EXPORT InitDialog final : public QDialog {
     Q_OBJECT
 public:
     InitDialog(QWidget *parent = nullptr) noexcept;

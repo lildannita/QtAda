@@ -4,6 +4,7 @@
 #include <QStandardItem>
 #include <QTextEdit>
 
+#include "GuiExport.hpp"
 #include "Settings.hpp"
 #include "LaunchOptions.hpp"
 
@@ -27,7 +28,7 @@ namespace QtAda::gui {
 class CustomStandardItem;
 class FileEditor;
 
-class MainGui final : public QMainWindow {
+class GUI_EXPORT MainGui final : public QMainWindow {
     Q_OBJECT
 public:
     MainGui(const QString &projectPath, QWidget *parent = nullptr);

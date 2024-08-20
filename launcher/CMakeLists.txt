@@ -18,6 +18,7 @@ set(launcher_MOC_HDRS
 )
 set(launcher_HDRS
   ${launcher_MOC_HDRS}
+  LauncherExport.hpp
   LauncherUtils.hpp
   ProbeABI.hpp
   ProbeDetector.hpp
@@ -48,3 +49,4 @@ target_link_libraries(launcher PRIVATE common
                                        Qt5::Widgets)
 target_include_directories(launcher PRIVATE ${QTADA_COMMON_INCLUDE_DIR}
                                             ${QTADA_INPROCESS_INCLUDE_DIR})
+target_compile_definitions(launcher PRIVATE LAUNCHER_BUILD)

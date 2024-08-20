@@ -3,6 +3,7 @@
 #include <QStringList>
 #include <QProcessEnvironment>
 
+#include "LauncherExport.hpp"
 #include "ProbeABI.hpp"
 #include "Settings.hpp"
 #include "Common.hpp"
@@ -14,7 +15,7 @@ enum class LauncherState {
     InjectorFailed = 2,
 };
 
-struct UserLaunchOptions final {
+struct LAUNCHER_EXPORT UserLaunchOptions final {
     QStringList launchAppArguments;
     QString workingDirectory;
     int timeoutValue = DEFAULT_WAITING_TIMER_VALUE;

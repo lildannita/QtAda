@@ -2,6 +2,7 @@
 
 #include <QDialog>
 
+#include "InprocessExport.hpp"
 #include "Settings.hpp"
 
 QT_BEGIN_NAMESPACE
@@ -16,7 +17,7 @@ class InprocessController;
 class PropertiesWatcher;
 class ScriptWriter;
 
-class InprocessDialog final : public QDialog {
+class INPROCESS_EXPORT InprocessDialog final : public QDialog {
     Q_OBJECT
 public:
     explicit InprocessDialog(const RecordSettings &settings, QWidget *parent = nullptr) noexcept;

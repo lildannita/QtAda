@@ -4,6 +4,7 @@
 #include <QTimer>
 #include <memory>
 
+#include "LauncherExport.hpp"
 #include "LaunchOptions.hpp"
 
 namespace QtAda::launcher::injector {
@@ -16,7 +17,7 @@ class InprocessRunner;
 } // namespace QtAda::inprocess
 
 namespace QtAda::launcher {
-class Launcher final : public QObject {
+class LAUNCHER_EXPORT Launcher final : public QObject {
     Q_OBJECT
 public:
     explicit Launcher(const UserLaunchOptions &options, bool fromGui = false,

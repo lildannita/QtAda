@@ -1,5 +1,6 @@
 #pragma once
 
+#include "LauncherExport.hpp"
 #include "ProbeABI.hpp"
 
 QT_BEGIN_NAMESPACE
@@ -7,5 +8,5 @@ class QString;
 QT_END_NAMESPACE
 
 namespace QtAda::launcher::probe {
-ProbeABI detectProbeAbiForExecutable(const QString &elfPath) noexcept;
+LAUNCHER_EXPORT ProbeABI detectProbeAbiForExecutable(const QString &elfPath) noexcept;
 }

@@ -25,6 +25,7 @@ set(core_MOC_HDRS
 set(core_HDRS
   ${core_MOC_HDRS}
 # MetaTypeDeclarations.hpp
+  CoreExport.hpp
   ProbeGuard.hpp
   ProcessedObjects.hpp
   LastEvent.hpp
@@ -63,3 +64,4 @@ target_link_libraries(core PRIVATE common
                                    Qt5::Concurrent)
 target_include_directories(core PRIVATE ${QTADA_COMMON_INCLUDE_DIR}
                                         ${QTADA_INPROCESS_INCLUDE_DIR})
+target_compile_definitions(core PRIVATE CORE_BUILD)

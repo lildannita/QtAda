@@ -5,6 +5,7 @@
 #include <set>
 #include <memory>
 
+#include "CoreExport.hpp"
 #include "Settings.hpp"
 
 QT_BEGIN_NAMESPACE
@@ -18,7 +19,7 @@ class UserEventFilter;
 class UserVerificationFilter;
 class ScriptRunner;
 
-class Probe final : public QObject {
+class CORE_EXPORT Probe final : public QObject {
     Q_OBJECT
 
 public:
