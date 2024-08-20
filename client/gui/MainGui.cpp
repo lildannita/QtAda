@@ -1084,8 +1084,8 @@ void MainGui::doRenameFile(QStandardItemModel *model, QStandardItem *rawItem,
             return;
         }
 
-        const auto oldDirPath = oldPath + QDir::separator();
-        const auto newDirPath = newPath + QDir::separator();
+        const QString oldDirPath = oldPath + QDir::separator();
+        const QString newDirPath = newPath + QDir::separator();
         auto renamePaths = [this, oldDirPath, newDirPath](QStringList &filesPaths) {
             for (auto &filePath : filesPaths) {
                 if (filePath.startsWith(oldDirPath)) {
