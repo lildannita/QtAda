@@ -12,8 +12,12 @@ if (BUILD_QTADA_CLIENT)
   target_link_libraries(qtada PRIVATE gui)
   target_include_directories(qtada PRIVATE ${QTADA_GUI_INCLUDE_DIR})
 endif()
-install(TARGETS qtada
-        DESTINATION ${QTADA_BIN_DIR}
-        PERMISSIONS OWNER_EXECUTE OWNER_WRITE OWNER_READ
-                    GROUP_EXECUTE GROUP_READ
-                    WORLD_EXECUTE WORLD_READ)
+
+# TODO: (разобраться позже) сейчас развертка в системе
+#       происходит посредством установки ссылки в /usr/local/bin
+#       через Bash, но это можно сделать подобным образом:
+# install(TARGETS qtada
+#         DESTINATION bin
+#         PERMISSIONS OWNER_EXECUTE OWNER_WRITE OWNER_READ
+#                     GROUP_EXECUTE GROUP_READ
+#                     WORLD_EXECUTE WORLD_READ)
