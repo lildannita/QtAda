@@ -1,6 +1,7 @@
 #include "ProbeABI.hpp"
 
 #include <QFileInfo>
+#include <QDir>
 
 #include <config.h>
 
@@ -38,8 +39,8 @@ bool ProbeABI::isValid() const noexcept
 
 QString ProbeABI::probeDllPath() const noexcept
 {
-    const auto probePath
-        = QLatin1String(QTADA_LIB_DIR "/" QTADA_LIB_PREFIX QTADA_PROBE_BASENAME ".so");
+    const QString probePath = QDir::toNativeSeparators(QString::fromUtf8(QTADA_LIB_DIR))
+                              + QDir::separator() + QTADA_LIB_PREFIX + QTADA_PROBE_BASENAME + ".so";
     QFileInfo probeInfo(probePath);
     if (probeInfo.isFile() && probeInfo.isReadable()) {
         return probeInfo.canonicalFilePath();
