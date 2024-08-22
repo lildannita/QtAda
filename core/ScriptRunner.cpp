@@ -18,6 +18,7 @@
 #include <QtConcurrent/QtConcurrentRun>
 #include <QFutureWatcher>
 #include <QQmlEngine>
+#include <set>
 
 #include "utils/FilterUtils.hpp"
 #include "utils/Tools.hpp"
@@ -335,6 +336,74 @@ QObject *ScriptRunner::findObjectByPath(const QString &path) const noexcept
     return nullptr;
 }
 
+bool ScriptRunner::canObjectBeVisible(const QObject *object) const noexcept
+{
+    static const std::set<QString> nonVisibleClasses = { "QAction", "QQuickItemView" };
+    for (const auto &className : nonVisibleClasses) {
+        if (object->inherits(className.toUtf8().constData())) {
+            return false;
+        }
+    }
+    return true;
+}
+
+bool ScriptRunner::objectHasAvailabilityProperties(const QObject *object,
+                                                   bool canBeVisible) const noexcept
+{
+    const auto *metaObject = object->metaObject();
+    const auto nonVisible = canBeVisible ? (metaObject->indexOfProperty("visible") == -1) : false;
+    const auto nonEnabled = metaObject->indexOfProperty("enabled") == -1;
+
+    if (nonVisible || nonEnabled) {
+        QStringList missingProperties;
+        if (nonVisible) {
+            missingProperties << "'visible'";
+        }
+        if (nonEnabled) {
+            missingProperties << "'enabled'";
+        }
+        engine_->throwError(
+            QStringLiteral("This function is intended to retrieve an object while waiting "
+                           "for its visible and enabled properties, but the passed object "
+                           "does not have the following properties: %1.")
+                .arg(missingProperties.join(", ")));
+        return false;
+    }
+    return true;
+}
+
+bool ScriptRunner::checkObjectAvailability(const QObject *object, bool canBeVisible,
+                                           bool isCritical) const noexcept
+{
+    if (object == nullptr) {
+        // isCritical выставляется в false только в waitAndGetObject,
+        // и при вызове checkObjectAvailability из этой функции,
+        // указатель на объект точно должен быть != nullptr
+        assert(isCritical == true);
+        engine_->throwError(QStringLiteral("A null pointer was passed for the object."));
+        return false;
+    }
+
+    const auto visible = canBeVisible ? object->property("visible").toBool() : true;
+    const auto enabled = object->property("enabled").toBool();
+    if (visible && enabled) {
+        return true;
+    }
+    else if (!isCritical) {
+        return false;
+    }
+    else if (!visible && !enabled) {
+        engine_->throwError(QStringLiteral("The passed object is not enabled and not visible."));
+    }
+    else if (!visible) {
+        engine_->throwError(QStringLiteral("The passed object is not visible."));
+    }
+    else if (!enabled) {
+        engine_->throwError(QStringLiteral("The passed object is not enabled."));
+    }
+    return false;
+}
+
 bool ScriptRunner::checkObjectAvailability(const QObject *object, const QString &path,
                                            bool shouldBeVisible) const noexcept
 {
@@ -491,35 +560,15 @@ QObject *ScriptRunner::waitAndGetObject(const QString &path, std::optional<int> 
                 return object;
             }
 
-            const auto *metaObject = object->metaObject();
-            const auto visiblePropertyIndex = metaObject->indexOfProperty("visible");
-            const auto enabledPropertyIndex = metaObject->indexOfProperty("enabled");
-
-            if (visiblePropertyIndex == -1 || enabledPropertyIndex == -1) {
-                QStringList missingProperties;
-                if (visiblePropertyIndex == -1) {
-                    missingProperties << "`visible`";
-                }
-                if (enabledPropertyIndex == -1) {
-                    missingProperties << "`enabled`";
-                }
-
-                engine_->throwError(
-                    QStringLiteral("This function is intended to retrieve an object while waiting "
-                                   "for its visible and enabled properties, but the object at path "
-                                   "%1 does not have the following properties: %2.")
-                        .arg(path, missingProperties.join(", ")));
+            const auto canBeVisible = canObjectBeVisible(object);
+            if (!objectHasAvailabilityProperties(object, canBeVisible)) {
                 return nullptr;
             }
-
             while (!timer.hasExpired(timeout)) {
-                const auto visible = object->property("visible").toBool();
-                const auto enabled = object->property("enabled").toBool();
-
-                if (visible && enabled) {
+                if (checkObjectAvailability(object, canBeVisible, false)) {
                     if (runSettings_.showElapsed) {
                         auto elapsed = timer.elapsed();
-                        emit scriptLog(QStringLiteral("`%1` became available in %2 ms")
+                        emit scriptLog(QStringLiteral("'%1' became available in %2 ms")
                                            .arg(path)
                                            .arg(elapsed));
                     }

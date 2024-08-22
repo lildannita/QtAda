@@ -136,6 +136,12 @@ private:
 
     QObject *waitAndGetObject(const QString &path, std::optional<int> msec,
                               bool waitForAccessibility) const noexcept;
+    bool canObjectBeVisible(const QObject *object) const noexcept;
+    bool objectHasAvailabilityProperties(const QObject *object, bool canBeVisible) const noexcept;
+    bool checkObjectAvailability(const QObject *object, bool canBeVisible,
+                                 bool needLog) const noexcept;
+
+    //! TODO: избавиться
     QObject *findObjectByPath(const QString &path) const noexcept;
     bool checkObjectAvailability(const QObject *object, const QString &path,
                                  bool shouldBeVisible = true) const noexcept;
