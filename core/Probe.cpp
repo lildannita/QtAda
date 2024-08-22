@@ -290,7 +290,10 @@ bool Probe::eventFilter(QObject *reciever, QEvent *event)
 
     if (event->type() == AsyncCloseEvent::AsyncClose) {
         auto *asyncClose = static_cast<AsyncCloseEvent *>(event);
-        QCoreApplication::exit(asyncClose->exitCode());
+        //! TODO: почему-то не работает, если ошибка в запущенном скрипте
+        //! произошла в самом начале работы приложения
+        //! QCoreApplication::exit(asyncClose->exitCode());
+        std::exit(asyncClose->exitCode());
         return true;
     }
 
