@@ -1167,9 +1167,7 @@ void ScriptRunner::do_changeValue(QObject *object, const QString &type) const no
     }
 
     if (isWidgetSlider) {
-        bool isSliderType = true;
         auto value = utils::getFromVariant<int>(QQmlProperty::read(object, "value"));
-
         switch (*changeType) {
         case ChangeType::Up:
         case ChangeType::Down:
@@ -1325,6 +1323,8 @@ void ScriptRunner::do_selectViewItem(QObject *object, int index) const noexcept
 void ScriptRunner::do_undoCommand(QObject *object, int index) const noexcept
 {
     //! TODO: разобраться
+    Q_UNUSED(object)
+    Q_UNUSED(index)
     emit scriptWarning(QStringLiteral("In this QtAda version function 'undoCommand' is unstable, "
                                       "so it is better to use 'delegateClick' function"));
 }
