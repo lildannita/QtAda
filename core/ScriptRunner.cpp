@@ -127,10 +127,46 @@ static std::vector<std::pair<QVariant, QVariant>> parseSelectionData(const QJSVa
     return parsedData;
 }
 
-ScriptRunner::ScriptRunner(const RunSettings &settings, QObject *parent) noexcept
-    : QObject{ parent }
-    , runSettings_{ settings }
+void ScriptRunner::startScript() noexcept
 {
+    assert(this->thread() != qApp->thread());
+
+    const auto &scriptPath = runSettings_.scriptPath;
+    assert(!scriptPath.isEmpty());
+
+    QFile script(scriptPath);
+    assert(script.exists());
+
+    const auto opened = script.open(QIODevice::ReadOnly);
+    assert(opened == true);
+
+    QTextStream stream(&script);
+    const auto scriptContent = stream.readAll();
+    script.close();
+
+    if (scriptContent.trimmed().isEmpty()) {
+        emit scriptError(QStringLiteral("{    ERROR    } Script is empty!").arg(scriptPath));
+        finishThread(false);
+        return;
+    }
+
+    engine_ = new QJSEngine(this);
+    auto qtAdaJsObj = engine_->newQObject(this);
+    engine_->globalObject().setProperty("QtAda", qtAdaJsObj);
+    const auto runResult = engine_->evaluate(scriptContent);
+
+    if (runResult.isError()) {
+        emit scriptError(QStringLiteral("{    ERROR    } %1\n"
+                                        "{ LINE NUMBER } %2\n"
+                                        "{    STACK    }\n%3\n")
+                             .arg(runResult.property("message").toString())
+                             .arg(runResult.property("lineNumber").toInt())
+                             .arg(runResult.property("stack").toString()));
+        finishThread(false);
+    }
+    else {
+        finishThread(true);
+    }
 }
 
 //! TODO: большая проблема возникает из-за объектов графической оболочки -
@@ -183,53 +219,6 @@ void ScriptRunner::registerObjectReparented(QObject *obj) noexcept
         pathToObject_[newPath] = obj;
         it->second = newPath;
     }
-}
-
-void ScriptRunner::startScript() noexcept
-{
-    assert(this->thread() != qApp->thread());
-
-    const auto &scriptPath = runSettings_.scriptPath;
-    assert(!scriptPath.isEmpty());
-
-    QFile script(scriptPath);
-    assert(script.exists());
-
-    const auto opened = script.open(QIODevice::ReadOnly);
-    assert(opened == true);
-
-    QTextStream stream(&script);
-    const auto scriptContent = stream.readAll();
-    script.close();
-
-    if (scriptContent.trimmed().isEmpty()) {
-        emit scriptError(QStringLiteral("{    ERROR    } Script is empty!").arg(scriptPath));
-        finishThread(false);
-        return;
-    }
-
-    engine_ = new QJSEngine(this);
-    auto qtAdaJsObj = engine_->newQObject(this);
-    engine_->globalObject().setProperty("QtAda", qtAdaJsObj);
-    const auto runResult = engine_->evaluate(scriptContent);
-
-    if (runResult.isError()) {
-        emit scriptError(QStringLiteral("{    ERROR    } %1\n"
-                                        "{ LINE NUMBER } %2\n"
-                                        "{    STACK    }\n%3\n")
-                             .arg(runResult.property("message").toString())
-                             .arg(runResult.property("lineNumber").toInt())
-                             .arg(runResult.property("stack").toString()));
-        finishThread(false);
-    }
-    else {
-        finishThread(true);
-    }
-}
-
-void ScriptRunner::finishThread(bool isOk) noexcept
-{
-    emit aboutToClose(isOk ? 0 : 1);
 }
 
 //! TODO: Хоть эта функция вызывается только для Quick компонентов, для которых
@@ -292,6 +281,8 @@ void ScriptRunner::invokeBlockMethodWithTimeout(QObject *object, const char *met
 //! чтобы точно все "события" выполнялись по очереди. Но пока непонятно
 //! как это делать с обычными событиями, поэтому используем небольшую
 //! задержку: QThread::msleep(100);
+//!
+//! UPD: сделать по аналогии с writePropertyInGuiThread
 
 void ScriptRunner::postEvents(QObject *object, std::vector<QEvent *> events) const noexcept
 {
@@ -302,185 +293,20 @@ void ScriptRunner::postEvents(QObject *object, std::vector<QEvent *> events) con
     QThread::msleep(100);
 }
 
-QObject *ScriptRunner::findObjectByPath(const QString &path) const noexcept
+// ************** Script API **************
+void ScriptRunner::sleep(int sec)
 {
-    QElapsedTimer timer;
-    timer.start();
-
-    const auto attempts = runSettings_.retrievalAttempts;
-    assert(attempts >= MINIMUM_RETRIEVAL_ATTEMPTS);
-    const auto interval = runSettings_.retrievalInterval;
-    assert(interval >= MINIMUM_RETRIEVAL_INTERVAL);
-
-    auto it = pathToObject_.end();
-    for (int i = 0; i < attempts; i++) {
-        it = pathToObject_.find(path);
-        if (it != pathToObject_.end() && it->second != nullptr) {
-            if (runSettings_.showElapsed) {
-                auto elapsed = timer.elapsed();
-                emit scriptLog(QStringLiteral("'%1' retrieved in %2 ms").arg(path).arg(elapsed));
-            }
-            return it->second;
-        }
-        if (i != attempts - 1) {
-            QThread::msleep(interval);
-        }
-    }
-
-    assert(it == pathToObject_.end());
-    engine_->throwError(QStringLiteral("Failed to find the object at path '%1' "
-                                       "after %2 attempts with an interval of %3 ms.")
-                            .arg(path)
-                            .arg(attempts)
-                            .arg(interval));
-    return nullptr;
+    QThread::sleep(sec);
 }
 
-bool ScriptRunner::canObjectBeVisible(const QObject *object) const noexcept
+void ScriptRunner::msleep(int msec)
 {
-    static const std::set<QString> nonVisibleClasses = { "QAction", "QQuickItemView" };
-    for (const auto &className : nonVisibleClasses) {
-        if (object->inherits(className.toUtf8().constData())) {
-            return false;
-        }
-    }
-    return true;
+    QThread::msleep(msec);
 }
 
-bool ScriptRunner::objectHasAvailabilityProperties(const QObject *object,
-                                                   bool canBeVisible) const noexcept
+void ScriptRunner::usleep(int usec)
 {
-    const auto *metaObject = object->metaObject();
-    const auto nonVisible = canBeVisible ? (metaObject->indexOfProperty("visible") == -1) : false;
-    const auto nonEnabled = metaObject->indexOfProperty("enabled") == -1;
-
-    if (nonVisible || nonEnabled) {
-        QStringList missingProperties;
-        if (nonVisible) {
-            missingProperties << "'visible'";
-        }
-        if (nonEnabled) {
-            missingProperties << "'enabled'";
-        }
-        engine_->throwError(
-            QStringLiteral("This function is intended to retrieve an object while waiting "
-                           "for its visible and enabled properties, but the passed object "
-                           "does not have the following properties: %1.")
-                .arg(missingProperties.join(", ")));
-        return false;
-    }
-    return true;
-}
-
-bool ScriptRunner::checkObjectAvailability(const QObject *object, bool canBeVisible,
-                                           bool isCritical) const noexcept
-{
-    if (object == nullptr) {
-        // isCritical выставляется в false только в waitAndGetObject,
-        // и при вызове checkObjectAvailability из этой функции,
-        // указатель на объект точно должен быть != nullptr
-        assert(isCritical == true);
-        engine_->throwError(QStringLiteral("A null pointer was passed for the object."));
-        return false;
-    }
-
-    const auto visible = canBeVisible ? object->property("visible").toBool() : true;
-    const auto enabled = object->property("enabled").toBool();
-    if (visible && enabled) {
-        return true;
-    }
-    else if (!isCritical) {
-        return false;
-    }
-    else if (!visible && !enabled) {
-        engine_->throwError(QStringLiteral("The passed object is not enabled and not visible."));
-    }
-    else if (!visible) {
-        engine_->throwError(QStringLiteral("The passed object is not visible."));
-    }
-    else if (!enabled) {
-        engine_->throwError(QStringLiteral("The passed object is not enabled."));
-    }
-    return false;
-}
-
-bool ScriptRunner::checkObjectAvailability(const QObject *object, const QString &path,
-                                           bool shouldBeVisible) const noexcept
-{
-    const auto attempts = runSettings_.retrievalAttempts;
-    assert(attempts >= MINIMUM_RETRIEVAL_ATTEMPTS);
-    const auto interval = runSettings_.retrievalInterval;
-    assert(interval >= MINIMUM_RETRIEVAL_INTERVAL);
-
-    bool enabled = false;
-    bool visible = shouldBeVisible ? false : true;
-
-    //! TODO: позже нужно "встроить" это ожидание в функцию ScriptRunner::findObjectByPath
-    for (int i = 0; i < attempts && (!enabled || !visible); i++) {
-        enabled = utils::getFromVariant<bool>(QQmlProperty::read(object, "enabled"));
-        if (shouldBeVisible) {
-            visible = utils::getFromVariant<bool>(QQmlProperty::read(object, "visible"));
-        }
-        if (i != attempts - 1) {
-            QThread::msleep(interval);
-        }
-    }
-
-    if (!enabled) {
-        emit scriptWarning(
-            QStringLiteral("'%1': action on object ignored due to its disabled state").arg(path));
-        return false;
-    }
-    else if (!visible) {
-        emit scriptWarning(
-            QStringLiteral("'%1': action on object ignored due to its invisibility").arg(path));
-        return false;
-    }
-    return true;
-}
-
-void ScriptRunner::verify(const QString &path, const QString &property,
-                          const QString &value) const noexcept
-{
-    auto *object = findObjectByPath(path);
-    if (object == nullptr) {
-        return;
-    }
-
-    const auto *metaObject = object->metaObject();
-    const auto propertyIndex = metaObject->indexOfProperty(qPrintable(property));
-    if (propertyIndex == -1) {
-        engine_->throwError(QStringLiteral("Class %1 does not contain the meta-property %2.")
-                                .arg(metaObject->className(), property));
-        return;
-    }
-
-    //! TODO: Добавить возможность явного указания timeout
-
-    QString currentValue;
-    QElapsedTimer timer;
-    timer.start();
-    while (!timer.hasExpired(verifyTimeout_)) {
-        const auto metaProperty = metaObject->property(propertyIndex);
-        currentValue = tools::metaPropertyValueToString(object, metaProperty);
-
-        if (currentValue == value) {
-            if (runSettings_.showElapsed) {
-                const auto elapsed = timer.elapsed();
-                emit scriptLog(QStringLiteral("'%1' verified in %2 ms").arg(path).arg(elapsed));
-            }
-            return;
-        }
-    }
-
-    engine_->throwError(QStringLiteral("Verify Failed!\n"
-                                       "Object Path:      '%1'\n"
-                                       "Property:         '%2'\n"
-                                       "Expected Value:   '%3'\n"
-                                       "Current Value:    '%4'\n"
-                                       "Timeout:          '%5'")
-                            .arg(path, property, value, currentValue)
-                            .arg(verifyTimeout_));
+    QThread::usleep(usec);
 }
 
 bool ScriptRunner::checkTimeoutValue(int msec) const noexcept
@@ -530,6 +356,78 @@ void ScriptRunner::msetDefaultVerifyTimeout(int msec) noexcept
 void ScriptRunner::setDefaultVerifyTimeout(int sec) noexcept
 {
     msetDefaultVerifyTimeout(sec * 1000);
+}
+
+// ************** Objects API **************
+bool ScriptRunner::checkObjectPointer(const QObject *object) const noexcept
+{
+    if (object == nullptr) {
+        engine_->throwError(QStringLiteral("A null pointer was passed for the object."));
+        return false;
+    }
+    return true;
+}
+
+bool ScriptRunner::canObjectBeVisible(const QObject *object) const noexcept
+{
+    assert(object != nullptr);
+    static const std::set<QString> nonVisibleClasses = { "QAction", "QQuickItemView" };
+    for (const auto &className : nonVisibleClasses) {
+        if (object->inherits(className.toUtf8().constData())) {
+            return false;
+        }
+    }
+    return true;
+}
+
+bool ScriptRunner::objectHasAvailabilityProperties(const QObject *object,
+                                                   bool canBeVisible) const noexcept
+{
+    assert(object != nullptr);
+    const auto *metaObject = object->metaObject();
+    const auto nonVisible = canBeVisible ? (metaObject->indexOfProperty("visible") == -1) : false;
+    const auto nonEnabled = metaObject->indexOfProperty("enabled") == -1;
+
+    if (nonVisible || nonEnabled) {
+        QStringList missingProperties;
+        if (nonVisible) {
+            missingProperties << "'visible'";
+        }
+        if (nonEnabled) {
+            missingProperties << "'enabled'";
+        }
+        engine_->throwError(
+            QStringLiteral("This function is intended to retrieve an object while waiting "
+                           "for its visible and enabled properties, but the passed object "
+                           "does not have the following properties: %1.")
+                .arg(missingProperties.join(", ")));
+        return false;
+    }
+    return true;
+}
+
+bool ScriptRunner::checkObjectAvailability(const QObject *object, bool canBeVisible,
+                                           bool isCritical) const noexcept
+{
+    assert(object != nullptr);
+    const auto visible = canBeVisible ? object->property("visible").toBool() : true;
+    const auto enabled = object->property("enabled").toBool();
+    if (visible && enabled) {
+        return true;
+    }
+    else if (!isCritical) {
+        return false;
+    }
+    else if (!visible && !enabled) {
+        engine_->throwError(QStringLiteral("The passed object is not enabled and not visible."));
+    }
+    else if (!visible) {
+        engine_->throwError(QStringLiteral("The passed object is not visible."));
+    }
+    else if (!enabled) {
+        engine_->throwError(QStringLiteral("The passed object is not enabled."));
+    }
+    return false;
 }
 
 QObject *ScriptRunner::waitAndGetObject(const QString &path, std::optional<int> msec,
@@ -618,35 +516,54 @@ QObject *ScriptRunner::mwaitForCreation(const QString &path, int msec) const noe
     return waitAndGetObject(path, msec, false);
 }
 
-void ScriptRunner::sleep(int sec)
+// ************** Test API **************
+void ScriptRunner::do_verify(QObject *object, const QString &property,
+                             const QString &value) const noexcept
 {
-    QThread::sleep(sec);
-}
-
-void ScriptRunner::msleep(int msec)
-{
-    QThread::msleep(msec);
-}
-
-void ScriptRunner::usleep(int usec)
-{
-    QThread::usleep(usec);
-}
-
-void ScriptRunner::mouseClickTemplate(const QString &path, const QString &mouseButtonStr, int x,
-                                      int y, bool isDouble) const noexcept
-{
-    auto *object = findObjectByPath(path);
-    if (object == nullptr) {
+    const auto *metaObject = object->metaObject();
+    const auto propertyIndex = metaObject->indexOfProperty(qPrintable(property));
+    if (propertyIndex == -1) {
+        engine_->throwError(QStringLiteral("Class %1 does not contain the meta-property %2.")
+                                .arg(metaObject->className(), property));
         return;
     }
 
+    //! TODO: Добавить возможность явного указания timeout
+
+    const auto &path = objectToPath_.at(object);
+    QString currentValue;
+    QElapsedTimer timer;
+    timer.start();
+    while (!timer.hasExpired(verifyTimeout_)) {
+        const auto metaProperty = metaObject->property(propertyIndex);
+        currentValue = tools::metaPropertyValueToString(object, metaProperty);
+
+        if (currentValue == value) {
+            if (runSettings_.showElapsed) {
+                const auto elapsed = timer.elapsed();
+                emit scriptLog(QStringLiteral("'%1' verified in %2 ms").arg(path).arg(elapsed));
+            }
+            return;
+        }
+    }
+
+    engine_->throwError(QStringLiteral("Verify Failed!\n"
+                                       "Object Path:      '%1'\n"
+                                       "Property:         '%2'\n"
+                                       "Expected Value:   '%3'\n"
+                                       "Current Value:    '%4'\n"
+                                       "Timeout:          '%5'")
+                            .arg(path, property, value, currentValue)
+                            .arg(verifyTimeout_));
+}
+
+// ************** Actions API **************
+void ScriptRunner::mouseClickTemplate(QObject *object, const QString &mouseButtonStr, int x, int y,
+                                      bool isDouble) const noexcept
+{
     const auto mouseButton = utils::mouseButtonFromString(mouseButtonStr);
     if (!mouseButton.has_value()) {
         engine_->throwError(QStringLiteral("Unknown mouse button: '%1'").arg(mouseButtonStr));
-        return;
-    }
-    if (!checkObjectAvailability(object, path)) {
         return;
     }
 
@@ -669,16 +586,43 @@ void ScriptRunner::mouseClickTemplate(const QString &path, const QString &mouseB
     }
 }
 
-void ScriptRunner::mouseClick(const QString &path, const QString &mouseButtonStr, int x,
-                              int y) const noexcept
-{
-    mouseClickTemplate(path, mouseButtonStr, x, y, false);
-}
-
-void ScriptRunner::mouseDblClick(const QString &path, const QString &mouseButtonStr, int x,
+void ScriptRunner::do_mouseClick(QObject *object, const QString &mouseButtonStr, int x,
                                  int y) const noexcept
 {
-    mouseClickTemplate(path, mouseButtonStr, x, y, true);
+    mouseClickTemplate(object, mouseButtonStr, x, y, false);
+}
+
+void ScriptRunner::do_mouseDblClick(QObject *object, const QString &mouseButtonStr, int x,
+                                    int y) const noexcept
+{
+    mouseClickTemplate(object, mouseButtonStr, x, y, true);
+}
+
+void ScriptRunner::do_keyEvent(QObject *object, const QString &keyText) const noexcept
+{
+    //! TODO: Пока непонятно, что делать с keyEvent и нужен ли он вообще. Сейчас он
+    //! точно не важен, поэтому сделал "тестовый" вариант, но учитывая, что из-за
+    //! "модификаторов" куча других действий могут потребовать правок (с учетом
+    //! модификаторов обычные нажатия могут приводить к другим результатам).
+    emit scriptWarning(QStringLiteral("In this QtAda version function 'keyEvent' is unstable, "
+                                      "so be attentive to use it"));
+    QKeySequence keySequence(keyText);
+    const auto key = keySequence[0];
+    const auto modifiers = Qt::KeyboardModifiers(keySequence[0] & Qt::KeyboardModifierMask);
+    postEvents(object, { new QKeyEvent(QEvent::KeyPress, key, modifiers, keyText),
+                         new QKeyEvent(QEvent::KeyRelease, key, modifiers, keyText) });
+}
+
+void ScriptRunner::do_wheelEvent(QObject *object, int dx, int dy) const noexcept
+{
+    Q_UNUSED(object)
+    Q_UNUSED(dx)
+    Q_UNUSED(dy)
+    //! TODO: Не получается повторить QWheelEvent. Причем пробовал передавать
+    //! вообще все аргументы, которые касаются события - все равно события не
+    //! происходило. Сейчас оно далеко не в приоритете, поэтому откладываем.
+    emit scriptWarning(QStringLiteral("In this QtAda version function 'wheelEvent' is unstable, "
+                                      "so it is better to use 'mouseClick' if it is possible"));
 }
 
 /*
@@ -688,21 +632,13 @@ void ScriptRunner::mouseDblClick(const QString &path, const QString &mouseButton
  * Вообще для QQuickAbstractButton есть метод `toggle`, похожий на клик, и по идее это он
  * и есть, но в QML при использовании метода `toggle` не будет вызван обработчик `onClicked`.
  */
-void ScriptRunner::buttonClick(const QString &path) const noexcept
+void ScriptRunner::do_buttonClick(QObject *object) const noexcept
 {
-    auto *object = findObjectByPath(path);
-    if (object == nullptr) {
-        return;
-    }
-
     bool isWidgetButton = object->inherits("QAbstractButton");
     bool isQuickButton = object->inherits("QQuickAbstractButton");
 
     if (!isWidgetButton && !isQuickButton) {
         engine_->throwError(QStringLiteral("Passed object is not a button"));
-        return;
-    }
-    if (!checkObjectAvailability(object, path)) {
         return;
     }
 
@@ -718,21 +654,13 @@ void ScriptRunner::buttonClick(const QString &path) const noexcept
     }
 }
 
-void ScriptRunner::buttonToggle(const QString &path) const noexcept
+void ScriptRunner::do_buttonToggle(QObject *object) const noexcept
 {
-    auto *object = findObjectByPath(path);
-    if (object == nullptr) {
-        return;
-    }
-
     bool isWidgetButton = object->inherits("QAbstractButton");
     bool isQuickButton = object->inherits("QQuickAbstractButton");
 
     if (!isWidgetButton && !isQuickButton) {
         engine_->throwError(QStringLiteral("Passed object is not a button"));
-        return;
-    }
-    if (!checkObjectAvailability(object, path)) {
         return;
     }
 
@@ -749,21 +677,13 @@ void ScriptRunner::buttonToggle(const QString &path) const noexcept
  *      2) Для Press: P -> R (вне области элемента)
  * В противном случае GUI не воспримет отправляемое событие или заблокирует обработку событий.
  */
-void ScriptRunner::buttonDblClick(const QString &path) const noexcept
+void ScriptRunner::do_buttonDblClick(QObject *object) const noexcept
 {
-    auto *object = findObjectByPath(path);
-    if (object == nullptr) {
-        return;
-    }
-
     const auto isWidgetButton = object->inherits("QAbstractButton");
     const auto isQuickButton = object->inherits("QQuickAbstractButton");
 
     if (!isWidgetButton && !isQuickButton) {
         engine_->throwError(QStringLiteral("Passed object is not a button"));
-        return;
-    }
-    if (!checkObjectAvailability(object, path)) {
         return;
     }
 
@@ -784,21 +704,13 @@ void ScriptRunner::buttonDblClick(const QString &path) const noexcept
     }
 }
 
-void ScriptRunner::buttonPress(const QString &path) const noexcept
+void ScriptRunner::do_buttonPress(QObject *object) const noexcept
 {
-    auto *object = findObjectByPath(path);
-    if (object == nullptr) {
-        return;
-    }
-
     const auto isWidgetButton = object->inherits("QAbstractButton");
     const auto isQuickButton = object->inherits("QQuickAbstractButton");
 
     if (!isWidgetButton && !isQuickButton) {
         engine_->throwError(QStringLiteral("Passed object is not a button"));
-        return;
-    }
-    if (!checkObjectAvailability(object, path)) {
         return;
     }
 
@@ -817,54 +729,8 @@ void ScriptRunner::buttonPress(const QString &path) const noexcept
     }
 }
 
-void ScriptRunner::mouseAreaEventTemplate(const QString &path,
-                                          const std::vector<QEvent::Type> eventTypes) const noexcept
+void ScriptRunner::do_buttonCheck(QObject *object, bool isChecked) const noexcept
 {
-    auto *object = findObjectByPath(path);
-    if (object == nullptr) {
-        return;
-    }
-
-    if (!object->inherits("QQuickMouseArea")) {
-        engine_->throwError(QStringLiteral("Passed object is not a mouse area"));
-        return;
-    }
-    if (!checkObjectAvailability(object, path)) {
-        return;
-    }
-
-    const auto height = utils::getFromVariant<double>(QQmlProperty::read(object, "height"));
-    const auto width = utils::getFromVariant<double>(QQmlProperty::read(object, "width"));
-    const auto pos = QPoint(width / 2, height / 2);
-    std::vector<QEvent *> events;
-    for (const auto &event : eventTypes) {
-        events.push_back(simpleMouseEvent(event, pos));
-    }
-    postEvents(object, events);
-}
-
-void ScriptRunner::mouseAreaClick(const QString &path) const noexcept
-{
-    mouseAreaEventTemplate(path, { QEvent::MouseButtonPress, QEvent::MouseButtonRelease });
-}
-
-void ScriptRunner::mouseAreaDblClick(const QString &path) const noexcept
-{
-    mouseAreaEventTemplate(path, { QEvent::MouseButtonDblClick });
-}
-
-void ScriptRunner::mouseAreaPress(const QString &path) const noexcept
-{
-    mouseAreaEventTemplate(path, { QEvent::MouseButtonPress });
-}
-
-void ScriptRunner::checkButton(const QString &path, bool isChecked) const noexcept
-{
-    auto *object = findObjectByPath(path);
-    if (object == nullptr) {
-        return;
-    }
-
     const auto isWidgetButton = object->inherits("QAbstractButton");
     const auto isQuickButton = object->inherits("QQuickAbstractButton");
     if (!isWidgetButton && !isQuickButton) {
@@ -876,11 +742,8 @@ void ScriptRunner::checkButton(const QString &path, bool isChecked) const noexce
         return;
     }
 
-    if (!checkObjectAvailability(object, path)) {
-        return;
-    }
-
     if (utils::getFromVariant<bool>(QQmlProperty::read(object, "checked")) == isChecked) {
+        const auto &path = objectToPath_.at(object);
         emit scriptWarning(QStringLiteral("'%1': button already has state '%2'")
                                .arg(path, isChecked ? "true" : "false"));
     }
@@ -901,23 +764,48 @@ void ScriptRunner::checkButton(const QString &path, bool isChecked) const noexce
     }
 }
 
-void ScriptRunner::selectItemTemplate(const QString &path, int index, const QString &text,
-                                      TextIndexBehavior behavior) const noexcept
+void ScriptRunner::mouseAreaEventTemplate(QObject *object,
+                                          const std::vector<QEvent::Type> eventTypes) const noexcept
 {
-    auto *object = findObjectByPath(path);
-    if (object == nullptr) {
+    if (!object->inherits("QQuickMouseArea")) {
+        engine_->throwError(QStringLiteral("Passed object is not a mouse area"));
         return;
     }
 
+    const auto height = utils::getFromVariant<double>(QQmlProperty::read(object, "height"));
+    const auto width = utils::getFromVariant<double>(QQmlProperty::read(object, "width"));
+    const auto pos = QPoint(width / 2, height / 2);
+    std::vector<QEvent *> events;
+    for (const auto &event : eventTypes) {
+        events.push_back(simpleMouseEvent(event, pos));
+    }
+    postEvents(object, events);
+}
+
+void ScriptRunner::do_mouseAreaClick(QObject *object) const noexcept
+{
+    mouseAreaEventTemplate(object, { QEvent::MouseButtonPress, QEvent::MouseButtonRelease });
+}
+
+void ScriptRunner::do_mouseAreaDblClick(QObject *object) const noexcept
+{
+    mouseAreaEventTemplate(object, { QEvent::MouseButtonDblClick });
+}
+
+void ScriptRunner::do_mouseAreaPress(QObject *object) const noexcept
+{
+    mouseAreaEventTemplate(object, { QEvent::MouseButtonPress });
+}
+
+void ScriptRunner::selectItemTemplate(QObject *object, int index, const QString &text,
+                                      TextIndexBehavior behavior) const noexcept
+{
     const auto isWidgetComboBox = object->inherits("QComboBox");
     const auto isQuickComboBox = object->inherits("QQuickComboBox");
     const auto isQuickTumbler = object->inherits("QQuickTumbler");
 
     if (!isWidgetComboBox && !isQuickComboBox && !isQuickTumbler) {
         engine_->throwError(QStringLiteral("Passed object is not a combobox or tumbler"));
-        return;
-    }
-    if (!checkObjectAvailability(object, path)) {
         return;
     }
 
@@ -983,6 +871,7 @@ void ScriptRunner::selectItemTemplate(const QString &path, int index, const QStr
                 break;
             }
             case TextIndexBehavior::TextIndex: {
+                const auto &path = objectToPath_.at(object);
                 emit scriptWarning(QStringLiteral("'%1': item with text '%2' does not exist, "
                                                   "trying to use index '%3' instead")
                                        .arg(path, text)
@@ -1004,25 +893,109 @@ void ScriptRunner::selectItemTemplate(const QString &path, int index, const QStr
     }
 }
 
-void ScriptRunner::selectItem(const QString &path, int index) const noexcept
+void ScriptRunner::do_selectItem(QObject *object, int index) const noexcept
 {
-    selectItemTemplate(path, index, QString(), TextIndexBehavior::OnlyIndex);
+    selectItemTemplate(object, index, QString(), TextIndexBehavior::OnlyIndex);
 }
 
-void ScriptRunner::selectItem(const QString &path, const QString &text) const noexcept
+void ScriptRunner::do_selectItem(QObject *object, const QString &text) const noexcept
 {
-    selectItemTemplate(path, -1, text, TextIndexBehavior::OnlyText);
+    selectItemTemplate(object, -1, text, TextIndexBehavior::OnlyText);
 }
 
-void ScriptRunner::selectItem(const QString &path, const QString &text, int index) const noexcept
+void ScriptRunner::do_selectItem(QObject *object, const QString &text, int index) const noexcept
 {
-    selectItemTemplate(path, index, text, TextIndexBehavior::TextIndex);
+    selectItemTemplate(object, index, text, TextIndexBehavior::TextIndex);
+}
+
+void ScriptRunner::selectTabItemTemplate(QObject *object, int index, const QString &text,
+                                         TextIndexBehavior behavior) const noexcept
+{
+    if (!object->inherits("QTabBar")) {
+        engine_->throwError(QStringLiteral("Passed object is not a tab widget"));
+        return;
+    }
+
+    const auto count = utils::getFromVariant<int>(QQmlProperty::read(object, "count"));
+    if (count == 0) {
+        engine_->throwError(QStringLiteral("Passed object has no selectable items"));
+        return;
+    }
+
+    auto indexHandler = [&](int currentIndex) {
+        if (currentIndex < 0 || currentIndex >= count) {
+            engine_->throwError(
+                QStringLiteral("Index '%1' is out of range [0, %2)").arg(currentIndex).arg(count));
+            return;
+        }
+        invokeBlockMethodWithTimeout(object, "setCurrentIndex", Q_ARG(int, currentIndex));
+    };
+
+    auto indexFromText = [&] {
+        for (int i = 0; i < count; i++) {
+            QString currentText;
+            bool ok = QMetaObject::invokeMethod(object, "tabText", Qt::BlockingQueuedConnection,
+                                                Q_RETURN_ARG(QString, currentText), Q_ARG(int, i));
+            assert(ok == true);
+            if (currentText == text) {
+                return i;
+            }
+        }
+        return -1;
+    };
+
+    switch (behavior) {
+    case TextIndexBehavior::OnlyIndex: {
+        indexHandler(index);
+        break;
+    }
+    case TextIndexBehavior::OnlyText: {
+        auto textIndex = indexFromText();
+        if (textIndex == -1) {
+            engine_->throwError(QStringLiteral("Tab with text '%1' does not exist").arg(text));
+            break;
+        }
+        indexHandler(textIndex);
+        break;
+    }
+    case TextIndexBehavior::TextIndex: {
+        auto textIndex = indexFromText();
+        if (textIndex == -1) {
+            const auto &path = objectToPath_.at(object);
+            emit scriptWarning(QStringLiteral("'%1': tab with text '%2' does not exist, "
+                                              "trying to use index '%3' instead")
+                                   .arg(path, text)
+                                   .arg(index));
+            indexHandler(index);
+        }
+        else {
+            assert(textIndex < count);
+            indexHandler(textIndex);
+        }
+        break;
+    }
+    default:
+        Q_UNREACHABLE();
+    }
+}
+
+void ScriptRunner::do_selectTabItem(QObject *object, int index) const noexcept
+{
+    selectTabItemTemplate(object, index, QString(), TextIndexBehavior::OnlyIndex);
+}
+
+void ScriptRunner::do_selectTabItem(QObject *object, const QString &text) const noexcept
+{
+    selectTabItemTemplate(object, -1, text, TextIndexBehavior::OnlyText);
+}
+
+void ScriptRunner::do_selectTabItem(QObject *object, const QString &text, int index) const noexcept
+{
+    selectTabItemTemplate(object, index, text, TextIndexBehavior::TextIndex);
 }
 
 void ScriptRunner::setValueIntoQmlSpinBox(QObject *object, const QString &value) const noexcept
 {
-    assert(object != nullptr);
-
     auto standardWayToSetValue = [&] {
         bool ok = false;
         int intValue = value.toInt(&ok);
@@ -1077,8 +1050,7 @@ void ScriptRunner::setValueIntoQmlSpinBox(QObject *object, const QString &value)
     }
 }
 
-void ScriptRunner::setValueTemplate(QObject *object, const QString &path,
-                                    double value) const noexcept
+void ScriptRunner::do_setValue(QObject *object, double value) const noexcept
 {
     assert(object != nullptr);
 
@@ -1093,9 +1065,6 @@ void ScriptRunner::setValueTemplate(QObject *object, const QString &path,
     if (!isIntRequiringWidget && !isDoubleRequiringWidget && !isQuickSlider && !isQuickScrollBar
         && !isQuickSpinBox && !isQuickDial) {
         engine_->throwError(QStringLiteral("This function doesn't support such an object"));
-        return;
-    }
-    if (!checkObjectAvailability(object, path)) {
         return;
     }
 
@@ -1119,46 +1088,13 @@ void ScriptRunner::setValueTemplate(QObject *object, const QString &path,
     }
 }
 
-void ScriptRunner::setValue(const QString &path, double value) const noexcept
+void ScriptRunner::do_setValue(QObject *object, const QString &value) const noexcept
 {
-    auto *object = findObjectByPath(path);
-    if (object == nullptr) {
-        return;
-    }
-    setValueTemplate(object, path, value);
-}
-
-void ScriptRunner::setValue(const QString &path, double leftValue, double rightValue) const noexcept
-{
-    auto *object = findObjectByPath(path);
-    if (object == nullptr) {
-        return;
-    }
-
-    if (!object->inherits("QQuickRangeSlider")) {
-        engine_->throwError(QStringLiteral("Passed object is not a range slider"));
-        return;
-    }
-    if (!checkObjectAvailability(object, path)) {
-        return;
-    }
-    invokeBlockMethodWithTimeout(object, "setValues", Q_ARG(double, leftValue),
-                                 Q_ARG(double, rightValue));
-}
-
-void ScriptRunner::setValueTemplate(QObject *object, const QString &path,
-                                    const QString &value) const noexcept
-{
-    assert(object != nullptr);
-
     const auto isWidgetCalendar = object->inherits("QCalendarWidget");
     const auto isWidgetEdit = object->inherits("QDateTimeEdit");
     const auto isQuickSpinBox = object->inherits("QQuickSpinBox");
     if (!isWidgetCalendar && !isWidgetEdit && !isQuickSpinBox) {
         engine_->throwError(QStringLiteral("This function doesn't support such an object"));
-        return;
-    }
-    if (!checkObjectAvailability(object, path)) {
         return;
     }
 
@@ -1204,22 +1140,18 @@ void ScriptRunner::setValueTemplate(QObject *object, const QString &path,
     }
 }
 
-void ScriptRunner::setValue(const QString &path, const QString &value) const noexcept
+void ScriptRunner::do_setValue(QObject *object, double leftValue, double rightValue) const noexcept
 {
-    auto *object = findObjectByPath(path);
-    if (object == nullptr) {
+    if (!object->inherits("QQuickRangeSlider")) {
+        engine_->throwError(QStringLiteral("Passed object is not a range slider"));
         return;
     }
-    setValueTemplate(object, path, value);
+    invokeBlockMethodWithTimeout(object, "setValues", Q_ARG(double, leftValue),
+                                 Q_ARG(double, rightValue));
 }
 
-void ScriptRunner::changeValue(const QString &path, const QString &type) const noexcept
+void ScriptRunner::do_changeValue(QObject *object, const QString &type) const noexcept
 {
-    auto *object = findObjectByPath(path);
-    if (object == nullptr) {
-        return;
-    }
-
     const auto changeType = utils::changeTypeFromString(type);
     if (!changeType.has_value()) {
         engine_->throwError(QStringLiteral("Unknown change type: '%1'").arg(type));
@@ -1231,9 +1163,6 @@ void ScriptRunner::changeValue(const QString &path, const QString &type) const n
     const auto isQuickSpinBox = object->inherits("QQuickSpinBox");
     if (!isWidgetSlider && !isWidgetSpinBox && !isQuickSpinBox) {
         engine_->throwError(QStringLiteral("This function doesn't support such an object"));
-        return;
-    }
-    if (!checkObjectAvailability(object, path)) {
         return;
     }
 
@@ -1310,129 +1239,20 @@ void ScriptRunner::changeValue(const QString &path, const QString &type) const n
     }
 }
 
-void ScriptRunner::setDelayProgress(const QString &path, double delay) const noexcept
+void ScriptRunner::do_setDelayProgress(QObject *object, double delay) const noexcept
 {
-    auto *object = findObjectByPath(path);
-    if (object == nullptr) {
-        return;
-    }
-
     if (!object->inherits("QQuickDelayButton")) {
         engine_->throwError(QStringLiteral("Passed object is not a delay button"));
-        return;
-    }
-    if (!checkObjectAvailability(object, path)) {
         return;
     }
     writePropertyInGuiThread(object, "progress", delay);
 }
 
-void ScriptRunner::selectTabItemTemplate(const QString &path, int index, const QString &text,
-                                         TextIndexBehavior behavior) const noexcept
-{
-    auto *object = findObjectByPath(path);
-    if (object == nullptr) {
-        return;
-    }
-
-    if (!object->inherits("QTabBar")) {
-        engine_->throwError(QStringLiteral("Passed object is not a tab widget"));
-        return;
-    }
-    if (!checkObjectAvailability(object, path)) {
-        return;
-    }
-
-    const auto count = utils::getFromVariant<int>(QQmlProperty::read(object, "count"));
-    if (count == 0) {
-        engine_->throwError(QStringLiteral("Passed object has no selectable items"));
-        return;
-    }
-
-    auto indexHandler = [&](int currentIndex) {
-        if (currentIndex < 0 || currentIndex >= count) {
-            engine_->throwError(
-                QStringLiteral("Index '%1' is out of range [0, %2)").arg(currentIndex).arg(count));
-            return;
-        }
-        invokeBlockMethodWithTimeout(object, "setCurrentIndex", Q_ARG(int, currentIndex));
-    };
-
-    auto indexFromText = [&] {
-        for (int i = 0; i < count; i++) {
-            QString currentText;
-            bool ok = QMetaObject::invokeMethod(object, "tabText", Qt::BlockingQueuedConnection,
-                                                Q_RETURN_ARG(QString, currentText), Q_ARG(int, i));
-            assert(ok == true);
-            if (currentText == text) {
-                return i;
-            }
-        }
-        return -1;
-    };
-
-    switch (behavior) {
-    case TextIndexBehavior::OnlyIndex: {
-        indexHandler(index);
-        break;
-    }
-    case TextIndexBehavior::OnlyText: {
-        auto textIndex = indexFromText();
-        if (textIndex == -1) {
-            engine_->throwError(QStringLiteral("Tab with text '%1' does not exist").arg(text));
-            break;
-        }
-        indexHandler(textIndex);
-        break;
-    }
-    case TextIndexBehavior::TextIndex: {
-        auto textIndex = indexFromText();
-        if (textIndex == -1) {
-            emit scriptWarning(QStringLiteral("'%1': tab with text '%2' does not exist, "
-                                              "trying to use index '%3' instead")
-                                   .arg(path, text)
-                                   .arg(index));
-            indexHandler(index);
-        }
-        else {
-            assert(textIndex < count);
-            indexHandler(textIndex);
-        }
-        break;
-    }
-    default:
-        Q_UNREACHABLE();
-    }
-}
-
-void ScriptRunner::selectTabItem(const QString &path, int index) const noexcept
-{
-    selectTabItemTemplate(path, index, QString(), TextIndexBehavior::OnlyIndex);
-}
-
-void ScriptRunner::selectTabItem(const QString &path, const QString &text) const noexcept
-{
-    selectTabItemTemplate(path, -1, path, TextIndexBehavior::OnlyText);
-}
-
-void ScriptRunner::selectTabItem(const QString &path, const QString &text, int index) const noexcept
-{
-    selectTabItemTemplate(path, index, path, TextIndexBehavior::TextIndex);
-}
-
-void ScriptRunner::treeViewTemplate(const QString &path, const QList<int> &indexPath,
+void ScriptRunner::treeViewTemplate(QObject *object, const QList<int> &indexPath,
                                     bool isExpand) const noexcept
 {
-    auto *object = findObjectByPath(path);
-    if (object == nullptr) {
-        return;
-    }
-
     if (!object->inherits("QTreeView")) {
         engine_->throwError(QStringLiteral("Passed object is not a tree"));
-        return;
-    }
-    if (!checkObjectAvailability(object, path)) {
         return;
     }
 
@@ -1471,34 +1291,20 @@ void ScriptRunner::treeViewTemplate(const QString &path, const QList<int> &index
     }
 }
 
-void ScriptRunner::expandDelegate(const QString &path, const QList<int> &indexPath) const noexcept
+void ScriptRunner::do_expandDelegate(QObject *object, const QList<int> &indexPath) const noexcept
 {
-    treeViewTemplate(path, indexPath, true);
+    treeViewTemplate(object, indexPath, true);
 }
 
-void ScriptRunner::collapseDelegate(const QString &path, const QList<int> &indexPath) const noexcept
+void ScriptRunner::do_collapseDelegate(QObject *object, const QList<int> &indexPath) const noexcept
 {
-    treeViewTemplate(path, indexPath, false);
+    treeViewTemplate(object, indexPath, false);
 }
 
-void ScriptRunner::undoCommand(const QString &path, int index) const noexcept
+void ScriptRunner::do_selectViewItem(QObject *object, int index) const noexcept
 {
-    emit scriptWarning(QStringLiteral("In this QtAda version function 'undoCommand' is unstable, "
-                                      "so it is better to use 'delegateClick' function"));
-}
-
-void ScriptRunner::selectViewItem(const QString &path, int index) const noexcept
-{
-    auto *object = findObjectByPath(path);
-    if (object == nullptr) {
-        return;
-    }
-
     if (!object->inherits("QQuickPathView") && !object->inherits("QQuickSwipeView")) {
         engine_->throwError(QStringLiteral("Passed object is not a path or swipe view"));
-        return;
-    }
-    if (!checkObjectAvailability(object, path)) {
         return;
     }
 
@@ -1516,18 +1322,17 @@ void ScriptRunner::selectViewItem(const QString &path, int index) const noexcept
     writePropertyInGuiThread(object, "currentIndex", index);
 }
 
-void ScriptRunner::actionTemplate(const QString &path, std::optional<bool> isChecked) const noexcept
+void ScriptRunner::do_undoCommand(QObject *object, int index) const noexcept
 {
-    auto *object = findObjectByPath(path);
-    if (object == nullptr) {
-        return;
-    }
+    //! TODO: разобраться
+    emit scriptWarning(QStringLiteral("In this QtAda version function 'undoCommand' is unstable, "
+                                      "so it is better to use 'delegateClick' function"));
+}
 
+void ScriptRunner::actionTemplate(QObject *object, std::optional<bool> isChecked) const noexcept
+{
     if (!object->inherits("QAction")) {
         engine_->throwError(QStringLiteral("Passed object is not an action"));
-        return;
-    }
-    if (!checkObjectAvailability(object, path, false)) {
         return;
     }
 
@@ -1542,6 +1347,7 @@ void ScriptRunner::actionTemplate(const QString &path, std::optional<bool> isChe
     }
 
     if (utils::getFromVariant<bool>(QQmlProperty::read(object, "checked")) == *isChecked) {
+        const auto &path = objectToPath_.at(object);
         emit scriptWarning(QStringLiteral("'%1': button already has state '%2'")
                                .arg(path, *isChecked ? "true" : "false"));
     }
@@ -1550,28 +1356,20 @@ void ScriptRunner::actionTemplate(const QString &path, std::optional<bool> isChe
     }
 }
 
-void ScriptRunner::triggerAction(const QString &path) const noexcept
+void ScriptRunner::do_triggerAction(QObject *object) const noexcept
 {
-    actionTemplate(path, std::nullopt);
+    actionTemplate(object, std::nullopt);
 }
 
-void ScriptRunner::triggerAction(const QString &path, bool isChecked) const noexcept
+void ScriptRunner::do_triggerAction(QObject *object, bool isChecked) const noexcept
 {
-    actionTemplate(path, isChecked);
+    actionTemplate(object, isChecked);
 }
 
-void ScriptRunner::delegateTemplate(const QString &path, int index, bool isDouble) const noexcept
+void ScriptRunner::delegateTemplate(QObject *object, int index, bool isDouble) const noexcept
 {
-    auto *object = findObjectByPath(path);
-    if (object == nullptr) {
-        return;
-    }
-
     if (!object->inherits("QQuickItemView")) {
         engine_->throwError(QStringLiteral("Passed object is not an item view"));
-        return;
-    }
-    if (!checkObjectAvailability(object, path, false)) {
         return;
     }
 
@@ -1611,25 +1409,20 @@ void ScriptRunner::delegateTemplate(const QString &path, int index, bool isDoubl
     }
 }
 
-void ScriptRunner::delegateClick(const QString &path, int index) const noexcept
+void ScriptRunner::do_delegateClick(QObject *object, int index) const noexcept
 {
-    delegateTemplate(path, index, false);
+    delegateTemplate(object, index, false);
 }
 
-void ScriptRunner::delegateDblClick(const QString &path, int index) const noexcept
+void ScriptRunner::do_delegateDblClick(QObject *object, int index) const noexcept
 {
-    delegateTemplate(path, index, true);
+    delegateTemplate(object, index, true);
 }
 
-void ScriptRunner::delegateTemplate(const QString &path, std::optional<QList<int>> indexPath,
+void ScriptRunner::delegateTemplate(QObject *object, std::optional<QList<int>> indexPath,
                                     std::optional<std::pair<int, int>> index,
                                     bool isDouble) const noexcept
 {
-    auto *object = findObjectByPath(path);
-    if (object == nullptr) {
-        return;
-    }
-
     bool isTreeView = false;
     bool isUsualView = false;
 
@@ -1648,9 +1441,6 @@ void ScriptRunner::delegateTemplate(const QString &path, std::optional<QList<int
     if (!isTreeView && !isUsualView) {
         engine_->throwError(QStringLiteral("Passed object is not a %1")
                                 .arg(indexPath.has_value() ? "tree" : "view"));
-        return;
-    }
-    if (!checkObjectAvailability(object, path)) {
         return;
     }
 
@@ -1709,38 +1499,30 @@ void ScriptRunner::delegateTemplate(const QString &path, std::optional<QList<int
     postEvents(viewport, events);
 }
 
-void ScriptRunner::delegateClick(const QString &path, QList<int> indexPath) const noexcept
+void ScriptRunner::do_delegateClick(QObject *object, QList<int> indexPath) const noexcept
 {
-    delegateTemplate(path, indexPath, std::nullopt, false);
+    delegateTemplate(object, indexPath, std::nullopt, false);
 }
 
-void ScriptRunner::delegateDblClick(const QString &path, QList<int> indexPath) const noexcept
+void ScriptRunner::do_delegateDblClick(QObject *object, QList<int> indexPath) const noexcept
 {
-    delegateTemplate(path, indexPath, std::nullopt, true);
+    delegateTemplate(object, indexPath, std::nullopt, true);
 }
 
-void ScriptRunner::delegateClick(const QString &path, int row, int column) const noexcept
+void ScriptRunner::do_delegateClick(QObject *object, int row, int column) const noexcept
 {
-    delegateTemplate(path, std::nullopt, std::make_pair(row, column), false);
+    delegateTemplate(object, std::nullopt, std::make_pair(row, column), false);
 }
 
-void ScriptRunner::delegateDblClick(const QString &path, int row, int column) const noexcept
+void ScriptRunner::do_delegateDblClick(QObject *object, int row, int column) const noexcept
 {
-    delegateTemplate(path, std::nullopt, std::make_pair(row, column), true);
+    delegateTemplate(object, std::nullopt, std::make_pair(row, column), true);
 }
 
-void ScriptRunner::setSelection(const QString &path, const QJSValue &selectionData) const noexcept
+void ScriptRunner::do_setSelection(QObject *object, const QJSValue &selectionData) const noexcept
 {
-    auto *object = findObjectByPath(path);
-    if (object == nullptr) {
-        return;
-    }
-
     if (!object->inherits("QAbstractItemView")) {
         engine_->throwError(QStringLiteral("Passed object is not a view"));
-        return;
-    }
-    if (!checkObjectAvailability(object, path)) {
         return;
     }
 
@@ -1821,18 +1603,10 @@ void ScriptRunner::setSelection(const QString &path, const QJSValue &selectionDa
         Q_ARG(QItemSelectionModel::SelectionFlags, QItemSelectionModel::Select));
 }
 
-void ScriptRunner::clearSelection(const QString &path) const noexcept
+void ScriptRunner::do_clearSelection(QObject *object) const noexcept
 {
-    auto *object = findObjectByPath(path);
-    if (object == nullptr) {
-        return;
-    }
-
     if (!object->inherits("QAbstractItemView")) {
         engine_->throwError(QStringLiteral("Passed object is not a view"));
-        return;
-    }
-    if (!checkObjectAvailability(object, path)) {
         return;
     }
 
@@ -1846,13 +1620,8 @@ void ScriptRunner::clearSelection(const QString &path) const noexcept
     invokeBlockMethodWithTimeout(selectionModel, "clearSelection");
 }
 
-void ScriptRunner::setText(const QString &path, const QString &text) const noexcept
+void ScriptRunner::do_setText(QObject *object, const QString &text) const noexcept
 {
-    auto *object = findObjectByPath(path);
-    if (object == nullptr) {
-        return;
-    }
-
     //! TODO: Нужно тщательней проверить какие еще компоненты могут иметь "под копотом"
     //! QLineEdit, чтобы избежать ошибки "Passed object is not an text edit".
     const auto isWidgetComboBox = object->inherits("QComboBox");
@@ -1881,17 +1650,17 @@ void ScriptRunner::setText(const QString &path, const QString &text) const noexc
                             .arg(text));
                     return;
                 }
-                setValueTemplate(object, path, doubleValue);
+                do_setValue(object, doubleValue);
             }
             else {
-                setValueTemplate(object, path, text);
+                do_setValue(object, text);
             }
         }
         else if (isWidgetComboBox) {
             invokeBlockMethodWithTimeout(object, "setEditText", Q_ARG(QString, text));
         }
         else if (isQuickSpinBox) {
-            setValueTemplate(object, path, text);
+            do_setValue(object, text);
         }
         else if (isQuickComboBox) {
             writePropertyInGuiThread(object, "editText", text);
@@ -1910,9 +1679,6 @@ void ScriptRunner::setText(const QString &path, const QString &text) const noexc
 
     if (!isQuickTextEdit && !isWidgetTextEdit && !isWidgetPlainTextEdit && !isWidgetKeySeqEdit) {
         engine_->throwError(QStringLiteral("Passed object is not an text edit"));
-        return;
-    }
-    if (!checkObjectAvailability(object, path)) {
         return;
     }
 
@@ -1934,15 +1700,10 @@ void ScriptRunner::setText(const QString &path, const QString &text) const noexc
     }
 }
 
-void ScriptRunner::setTextTemplate(const QString &path, std::optional<QList<int>> indexPath,
+void ScriptRunner::setTextTemplate(QObject *object, std::optional<QList<int>> indexPath,
                                    std::optional<std::pair<int, int>> index,
                                    const QString &text) const noexcept
 {
-    auto *object = findObjectByPath(path);
-    if (object == nullptr) {
-        return;
-    }
-
     bool isTreeView = false;
     bool isUsualView = false;
 
@@ -1961,9 +1722,6 @@ void ScriptRunner::setTextTemplate(const QString &path, std::optional<QList<int>
     if (!isTreeView && !isUsualView) {
         engine_->throwError(QStringLiteral("Passed object is not a %1")
                                 .arg(indexPath.has_value() ? "tree" : "view"));
-        return;
-    }
-    if (!checkObjectAvailability(object, path)) {
         return;
     }
 
@@ -2005,24 +1763,20 @@ void ScriptRunner::setTextTemplate(const QString &path, std::optional<QList<int>
                                  Q_ARG(QVariant, QVariant(text)), Q_ARG(int, Qt::EditRole));
 }
 
-void ScriptRunner::setText(const QString &path, int row, int column,
-                           const QString &text) const noexcept
+void ScriptRunner::do_setText(QObject *object, int row, int column,
+                              const QString &text) const noexcept
 {
-    setTextTemplate(path, std::nullopt, std::make_pair(row, column), text);
+    setTextTemplate(object, std::nullopt, std::make_pair(row, column), text);
 }
 
-void ScriptRunner::setText(const QString &path, QList<int> indexPath,
-                           const QString &text) const noexcept
+void ScriptRunner::do_setText(QObject *object, QList<int> indexPath,
+                              const QString &text) const noexcept
 {
-    setTextTemplate(path, indexPath, std::nullopt, text);
+    setTextTemplate(object, indexPath, std::nullopt, text);
 }
 
-void ScriptRunner::closeDialog(const QString &path) const noexcept
+void ScriptRunner::do_closeDialog(QObject *object) const noexcept
 {
-    auto *object = findObjectByPath(path);
-    if (object == nullptr) {
-        return;
-    }
     if (!object->inherits("QDialog")) {
         engine_->throwError(QStringLiteral("Passed object is not a dialog"));
         return;
@@ -2030,13 +1784,8 @@ void ScriptRunner::closeDialog(const QString &path) const noexcept
     postEvents(object, { new QCloseEvent() });
 }
 
-void ScriptRunner::closeWindow(const QString &path) const noexcept
+void ScriptRunner::do_closeWindow(QObject *object) const noexcept
 {
-    auto *object = findObjectByPath(path);
-    if (object == nullptr) {
-        return;
-    }
-
     const auto isWidgetWindow = object->inherits("QMainWindow");
     const auto isQuickWindow = object->inherits("QQuickWindow");
     if (!isWidgetWindow && !isQuickWindow) {
@@ -2052,36 +1801,5 @@ void ScriptRunner::closeWindow(const QString &path) const noexcept
     else if (isQuickWindow) {
         postEvents(object, { new QCloseEvent() });
     }
-}
-
-void ScriptRunner::keyEvent(const QString &path, const QString &keyText) const noexcept
-{
-    auto *object = findObjectByPath(path);
-    if (object == nullptr) {
-        return;
-    }
-    if (!checkObjectAvailability(object, path)) {
-        return;
-    }
-    //! TODO: Пока непонятно, что делать с keyEvent и нужен ли он вообще. Сейчас он
-    //! точно не важен, поэтому сделал "тестовый" вариант, но учитывая, что из-за
-    //! "модификаторов" куча других действий могут потребовать правок (с учетом
-    //! модификаторов обычные нажатия могут приводить к другим результатам).
-    emit scriptWarning(QStringLiteral("In this QtAda version function 'keyEvent' is unstable, "
-                                      "so be attentive to use it"));
-    QKeySequence keySequence(keyText);
-    const auto key = keySequence[0];
-    const auto modifiers = Qt::KeyboardModifiers(keySequence[0] & Qt::KeyboardModifierMask);
-    postEvents(object, { new QKeyEvent(QEvent::KeyPress, key, modifiers, keyText),
-                         new QKeyEvent(QEvent::KeyRelease, key, modifiers, keyText) });
-}
-
-void ScriptRunner::wheelEvent(const QString &path, int dx, int dy) const noexcept
-{
-    //! TODO: Не получается повторить QWheelEvent. Причем пробовал передавать
-    //! вообще все аргументы, которые касаются события - все равно события не
-    //! происходило. Сейчас оно далеко не в приоритете, поэтому откладываем.
-    emit scriptWarning(QStringLiteral("In this QtAda version function 'wheelEvent' is unstable, "
-                                      "so it is better to use 'mouseClick' if it is possible"));
 }
 } // namespace QtAda::core
