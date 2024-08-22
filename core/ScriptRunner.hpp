@@ -139,7 +139,7 @@ private:
     bool canObjectBeVisible(const QObject *object) const noexcept;
     bool objectHasAvailabilityProperties(const QObject *object, bool canBeVisible) const noexcept;
     bool checkObjectAvailability(const QObject *object, bool canBeVisible,
-                                 bool needLog) const noexcept;
+                                 bool isCritical) const noexcept;
 
     //! TODO: избавиться
     QObject *findObjectByPath(const QString &path) const noexcept;

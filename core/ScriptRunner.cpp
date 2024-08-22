@@ -552,7 +552,7 @@ QObject *ScriptRunner::waitAndGetObject(const QString &path, std::optional<int> 
             if (runSettings_.showElapsed) {
                 auto elapsed = timer.elapsed();
                 emit scriptLog(
-                    QStringLiteral("`%1` was retrieved in %2 ms").arg(path).arg(elapsed));
+                    QStringLiteral("'%1' was retrieved in %2 ms").arg(path).arg(elapsed));
             }
 
             auto *object = it->second;
@@ -578,7 +578,7 @@ QObject *ScriptRunner::waitAndGetObject(const QString &path, std::optional<int> 
 
             engine_->throwError(
                 QStringLiteral(
-                    "Failed to wait for the object at path `%1` to become available within %2 ms.")
+                    "Failed to wait for the object at path '%1' to become available within %2 ms.")
                     .arg(path)
                     .arg(timeout));
             return nullptr;
@@ -586,7 +586,7 @@ QObject *ScriptRunner::waitAndGetObject(const QString &path, std::optional<int> 
     }
 
     assert(it == pathToObject_.end());
-    engine_->throwError(QStringLiteral("Failed to retrieve the object at path `%1` within %2 ms.")
+    engine_->throwError(QStringLiteral("Failed to retrieve the object at path '%1' within %2 ms.")
                             .arg(path)
                             .arg(timeout));
     return nullptr;
@@ -1062,17 +1062,17 @@ void ScriptRunner::setValueIntoQmlSpinBox(QObject *object, const QString &value)
                 writePropertyInGuiThread(object, "value", rawValue.toInt());
             }
             else {
-                issueWarningAndFallback("Invalid result from `valueFromText` for QML SpinBox. "
-                                        "Setting original text value...");
+                issueWarningAndFallback("Invalid result from 'valueFromText' function for QML "
+                                        "SpinBox. Setting original text value...");
             }
         }
         else {
-            issueWarningAndFallback("`valueFromText` for QML SpinBox is not callable. Setting "
-                                    "original text value...");
+            issueWarningAndFallback("'valueFromText' function for QML SpinBox is not callable. "
+                                    "Setting original text value...");
         }
     }
     else {
-        issueWarningAndFallback("Unable to retrieve `valueFromText` function for QML SpinBox. "
+        issueWarningAndFallback("Unable to retrieve 'valueFromText' function for QML SpinBox. "
                                 "Setting original text value...");
     }
 }
