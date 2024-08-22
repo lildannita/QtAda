@@ -378,24 +378,22 @@ void ScriptRunner::verify(const QString &path, const QString &property,
         return;
     }
 
-    QElapsedTimer timer;
-    timer.start();
-
     const auto *metaObject = object->metaObject();
     const auto propertyIndex = metaObject->indexOfProperty(qPrintable(property));
     if (propertyIndex == -1) {
-        engine_->throwError(QStringLiteral("Unknown meta-property name: '%1'").arg(property));
+        engine_->throwError(QStringLiteral("Class %1 does not contain the meta-property %2.")
+                                .arg(metaObject->className(), property));
         return;
     }
 
-    const auto attempts = runSettings_.verifyAttempts;
-    assert(attempts >= MINIMUM_VERIFY_ATTEMPTS);
-    const auto interval = runSettings_.verifyInterval;
-    assert(interval >= MINIMUM_VERIFY_INTERVAL);
+    //! TODO: Добавить возможность явного указания timeout
 
-    for (int i = 0; i < attempts; i++) {
+    QString currentValue;
+    QElapsedTimer timer;
+    timer.start();
+    while (!timer.hasExpired(verifyTimeout_)) {
         const auto metaProperty = metaObject->property(propertyIndex);
-        const auto currentValue = tools::metaPropertyValueToString(object, metaProperty);
+        currentValue = tools::metaPropertyValueToString(object, metaProperty);
 
         if (currentValue == value) {
             if (runSettings_.showElapsed) {
@@ -404,24 +402,16 @@ void ScriptRunner::verify(const QString &path, const QString &property,
             }
             return;
         }
-
-        if (i == attempts - 1) {
-            engine_->throwError(QStringLiteral("Verify Failed!\n"
-                                               "Object Path:      '%1'\n"
-                                               "Property:         '%2'\n"
-                                               "Expected Value:   '%3'\n"
-                                               "Current Value:    '%4'\n"
-                                               "Verify attempts:  '%5'\n"
-                                               "Verify interval:  '%6'")
-                                    .arg(path, property, value, currentValue)
-                                    .arg(attempts)
-                                    .arg(interval));
-            return;
-        }
-        else {
-            QThread::msleep(interval);
-        }
     }
+
+    engine_->throwError(QStringLiteral("Verify Failed!\n"
+                                       "Object Path:      '%1'\n"
+                                       "Property:         '%2'\n"
+                                       "Expected Value:   '%3'\n"
+                                       "Current Value:    '%4'\n"
+                                       "Timeout:          '%5'")
+                            .arg(path, property, value, currentValue)
+                            .arg(verifyTimeout_));
 }
 
 bool ScriptRunner::checkTimeoutValue(int msec) const noexcept
@@ -458,6 +448,19 @@ void ScriptRunner::msetDefaultInvokeTimeout(int msec) noexcept
 void ScriptRunner::setDefaultInvokeTimeout(int sec) noexcept
 {
     msetDefaultInvokeTimeout(sec * 1000);
+}
+
+void ScriptRunner::msetDefaultVerifyTimeout(int msec) noexcept
+{
+    if (!checkTimeoutValue(msec)) {
+        return;
+    }
+    verifyTimeout_ = msec;
+}
+
+void ScriptRunner::setDefaultVerifyTimeout(int sec) noexcept
+{
+    msetDefaultVerifyTimeout(sec * 1000);
 }
 
 QObject *ScriptRunner::waitAndGetObject(const QString &path, std::optional<int> msec,

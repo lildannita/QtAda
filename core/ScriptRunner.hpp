@@ -26,6 +26,8 @@ public:
     Q_INVOKABLE void msetDefaultWaitTimeout(int msec) noexcept;
     Q_INVOKABLE void setDefaultInvokeTimeout(int sec) noexcept;
     Q_INVOKABLE void msetDefaultInvokeTimeout(int msec) noexcept;
+    Q_INVOKABLE void setDefaultVerifyTimeout(int sec) noexcept;
+    Q_INVOKABLE void msetDefaultVerifyTimeout(int msec) noexcept;
 
     // Test API
     Q_INVOKABLE void verify(const QString &path, const QString &property,
@@ -119,6 +121,7 @@ private:
 
     int waitTimeout_ = DEFAULT_SCRIPT_TIMEOUT_MS;
     int invokeTimeout_ = DEFAULT_SCRIPT_TIMEOUT_MS;
+    int verifyTimeout_ = DEFAULT_SCRIPT_TIMEOUT_MS;
     bool checkTimeoutValue(int msec) const noexcept;
 
     void finishThread(bool isOk) noexcept;
