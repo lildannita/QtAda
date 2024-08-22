@@ -4,6 +4,7 @@
 #include <QEvent>
 
 #include "Settings.hpp"
+#include "Common.hpp"
 
 QT_BEGIN_NAMESPACE
 class QJSEngine;
@@ -16,13 +17,27 @@ class ScriptRunner final : public QObject {
 public:
     ScriptRunner(const RunSettings &settings, QObject *parent = nullptr) noexcept;
 
-    Q_INVOKABLE void verify(const QString &path, const QString &property,
-                            const QString &value) const noexcept;
-    Q_INVOKABLE void waitFor(const QString &path, int sec) const noexcept;
-    Q_INVOKABLE void mwaitFor(const QString &path, int msec) const noexcept;
+    // Script API
     Q_INVOKABLE void sleep(int sec);
     Q_INVOKABLE void msleep(int msec);
     Q_INVOKABLE void usleep(int usec);
+
+    Q_INVOKABLE void setDefaultWaitTimeout(int sec) noexcept;
+    Q_INVOKABLE void msetDefaultWaitTimeout(int msec) noexcept;
+    Q_INVOKABLE void setDefaultInvokeTimeout(int sec) noexcept;
+    Q_INVOKABLE void msetDefaultInvokeTimeout(int msec) noexcept;
+
+    // Test API
+    Q_INVOKABLE void verify(const QString &path, const QString &property,
+                            const QString &value) const noexcept;
+
+    // Actions API
+    Q_INVOKABLE QObject *getObject(const QString &path) const noexcept;
+    Q_INVOKABLE QObject *waitFor(const QString &path, int sec) const noexcept;
+    Q_INVOKABLE QObject *mwaitFor(const QString &path, int msec) const noexcept;
+    Q_INVOKABLE QObject *waitForCreation(const QString &path, int sec) const noexcept;
+    Q_INVOKABLE QObject *mwaitForCreation(const QString &path, int msec) const noexcept;
+
     Q_INVOKABLE void mouseClick(const QString &path, const QString &mouseButtonStr, int x,
                                 int y) const noexcept;
     Q_INVOKABLE void mouseDblClick(const QString &path, const QString &mouseButtonStr, int x,
@@ -102,6 +117,10 @@ private:
     const RunSettings runSettings_;
     QJSEngine *engine_ = nullptr;
 
+    int waitTimeout_ = DEFAULT_SCRIPT_TIMEOUT_MS;
+    int invokeTimeout_ = DEFAULT_SCRIPT_TIMEOUT_MS;
+    bool checkTimeoutValue(int msec) const noexcept;
+
     void finishThread(bool isOk) noexcept;
 
     void writePropertyInGuiThread(QObject *object, const QString &propertyName,
@@ -112,6 +131,8 @@ private:
                                       QGenericArgument val2 = QGenericArgument()) const noexcept;
     void postEvents(QObject *object, std::vector<QEvent *> events) const noexcept;
 
+    QObject *waitAndGetObject(const QString &path, std::optional<int> msec,
+                              bool waitForAccessibility) const noexcept;
     QObject *findObjectByPath(const QString &path) const noexcept;
     bool checkObjectAvailability(const QObject *object, const QString &path,
                                  bool shouldBeVisible = true) const noexcept;

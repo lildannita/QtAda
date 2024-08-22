@@ -23,8 +23,6 @@
 #include "utils/Tools.hpp"
 
 namespace QtAda::core {
-static constexpr int INVOKE_TIMEOUT_SEC = 3;
-
 static QMouseEvent *simpleMouseEvent(const QEvent::Type type, const QPoint &pos,
                                      const Qt::MouseButton button = Qt::LeftButton) noexcept
 {
@@ -266,7 +264,7 @@ void ScriptRunner::invokeBlockMethodWithTimeout(QObject *object, const char *met
     QTimer timer;
 
     timer.setSingleShot(true);
-    timer.start(INVOKE_TIMEOUT_SEC * 1000);
+    timer.start(invokeTimeout_);
 
     QObject::connect(&watcher, &QFutureWatcher<void>::finished, &loop, &QEventLoop::quit);
     QObject::connect(&timer, &QTimer::timeout, &loop, &QEventLoop::quit);
@@ -281,10 +279,10 @@ void ScriptRunner::invokeBlockMethodWithTimeout(QObject *object, const char *met
         assert(watcher.future().isFinished());
     }
     else {
-        emit scriptWarning(QStringLiteral("Method '%1' took too long to execute (> %2 sec), "
+        emit scriptWarning(QStringLiteral("Method '%1' took too long to execute (> %2 msec), "
                                           "stopping the wait for its completion")
                                .arg(method)
-                               .arg(INVOKE_TIMEOUT_SEC));
+                               .arg(invokeTimeout_));
     }
 }
 
@@ -426,47 +424,146 @@ void ScriptRunner::verify(const QString &path, const QString &property,
     }
 }
 
-void ScriptRunner::waitFor(const QString &path, int sec) const noexcept
+bool ScriptRunner::checkTimeoutValue(int msec) const noexcept
 {
-    mwaitFor(path, sec * 1000);
+    if (msec <= 0 || msec > MAXIMUM_SCRIPT_TIMEOUT_MS) {
+        engine_->throwError(QStringLiteral("Timeout value must be in range (0, %1].")
+                                .arg(MAXIMUM_SCRIPT_TIMEOUT_MS));
+        return false;
+    }
+    return true;
 }
 
-void ScriptRunner::mwaitFor(const QString &path, int msec) const noexcept
+void ScriptRunner::msetDefaultWaitTimeout(int msec) noexcept
 {
-    QElapsedTimer timer;
-    timer.start();
+    if (!checkTimeoutValue(msec)) {
+        return;
+    }
+    waitTimeout_ = msec;
+}
+
+void ScriptRunner::setDefaultWaitTimeout(int sec) noexcept
+{
+    msetDefaultWaitTimeout(sec * 1000);
+}
+
+void ScriptRunner::msetDefaultInvokeTimeout(int msec) noexcept
+{
+    if (!checkTimeoutValue(msec)) {
+        return;
+    }
+    invokeTimeout_ = msec;
+}
+
+void ScriptRunner::setDefaultInvokeTimeout(int sec) noexcept
+{
+    msetDefaultInvokeTimeout(sec * 1000);
+}
+
+QObject *ScriptRunner::waitAndGetObject(const QString &path, std::optional<int> msec,
+                                        bool waitForAccessibility) const noexcept
+{
+    auto timeout = waitTimeout_;
+    if (msec.has_value()) {
+        if (!checkTimeoutValue(*msec)) {
+            return nullptr;
+        }
+        timeout = *msec;
+    }
 
     auto it = pathToObject_.end();
-    while (!timer.hasExpired(msec)) {
+    QElapsedTimer timer;
+    timer.start();
+    while (!timer.hasExpired(timeout)) {
         it = pathToObject_.find(path);
         if (it != pathToObject_.end() && it->second != nullptr) {
+            if (runSettings_.showElapsed) {
+                auto elapsed = timer.elapsed();
+                emit scriptLog(
+                    QStringLiteral("`%1` was retrieved in %2 ms").arg(path).arg(elapsed));
+            }
+
             auto *object = it->second;
+            if (!waitForAccessibility) {
+                return object;
+            }
+
             const auto *metaObject = object->metaObject();
-            const auto propertyIndex = metaObject->indexOfProperty("visible");
-            if (propertyIndex == -1) {
-                engine_->throwError(
-                    QStringLiteral("This function is intended to wait for the creation"
-                                   " and visibility of an object, but the object"
-                                   " does not have a 'visible' property"));
-                return;
-            }
-            const auto visible = object->property("visible").toBool();
-            if (visible) {
-                if (runSettings_.showElapsed) {
-                    auto elapsed = timer.elapsed();
-                    emit scriptLog(
-                        QStringLiteral("'%1' retrieved in %2 ms").arg(path).arg(elapsed));
+            const auto visiblePropertyIndex = metaObject->indexOfProperty("visible");
+            const auto enabledPropertyIndex = metaObject->indexOfProperty("enabled");
+
+            if (visiblePropertyIndex == -1 || enabledPropertyIndex == -1) {
+                QStringList missingProperties;
+                if (visiblePropertyIndex == -1) {
+                    missingProperties << "`visible`";
                 }
-                return;
+                if (enabledPropertyIndex == -1) {
+                    missingProperties << "`enabled`";
+                }
+
+                engine_->throwError(
+                    QStringLiteral("This function is intended to retrieve an object while waiting "
+                                   "for its visible and enabled properties, but the object at path "
+                                   "%1 does not have the following properties: %2.")
+                        .arg(path, missingProperties.join(", ")));
+                return nullptr;
             }
+
+            while (!timer.hasExpired(timeout)) {
+                const auto visible = object->property("visible").toBool();
+                const auto enabled = object->property("enabled").toBool();
+
+                if (visible && enabled) {
+                    if (runSettings_.showElapsed) {
+                        auto elapsed = timer.elapsed();
+                        emit scriptLog(QStringLiteral("`%1` became available in %2 ms")
+                                           .arg(path)
+                                           .arg(elapsed));
+                    }
+                    return object;
+                }
+            }
+
+            engine_->throwError(
+                QStringLiteral(
+                    "Failed to wait for the object at path `%1` to become available within %2 ms.")
+                    .arg(path)
+                    .arg(timeout));
+            return nullptr;
         }
     }
 
     assert(it == pathToObject_.end());
-    engine_->throwError(QStringLiteral("Failed to wait for the object at path '%1' "
-                                       "within %2 ms.")
+    engine_->throwError(QStringLiteral("Failed to retrieve the object at path `%1` within %2 ms.")
                             .arg(path)
-                            .arg(msec));
+                            .arg(timeout));
+    return nullptr;
+}
+
+QObject *ScriptRunner::getObject(const QString &path) const noexcept
+{
+    auto it = pathToObject_.find(path);
+    return it == pathToObject_.end() ? nullptr : it->second;
+}
+
+QObject *ScriptRunner::waitFor(const QString &path, int sec) const noexcept
+{
+    return waitAndGetObject(path, sec * 1000, true);
+}
+
+QObject *ScriptRunner::mwaitFor(const QString &path, int msec) const noexcept
+{
+    return waitAndGetObject(path, msec, true);
+}
+
+QObject *ScriptRunner::waitForCreation(const QString &path, int sec) const noexcept
+{
+    return waitAndGetObject(path, sec * 1000, false);
+}
+
+QObject *ScriptRunner::mwaitForCreation(const QString &path, int msec) const noexcept
+{
+    return waitAndGetObject(path, msec, false);
 }
 
 void ScriptRunner::sleep(int sec)

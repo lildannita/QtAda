@@ -11,6 +11,9 @@ inline void setMsgHighlight(bool isHighlight) noexcept
     *noHighlight() = !isHighlight;
 }
 
+static constexpr int DEFAULT_SCRIPT_TIMEOUT_MS = 5000;
+static constexpr int MAXIMUM_SCRIPT_TIMEOUT_MS = 600000;
+
 static constexpr int DEFAULT_WAITING_TIMER_VALUE = 60;
 static constexpr int DEFAULT_INDENT_WIDTH = 4;
 static constexpr int MINIMUM_CYCLE_COUNT = 3;
