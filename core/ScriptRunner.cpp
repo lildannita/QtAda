@@ -15,7 +15,8 @@
 #include <QLineEdit>
 #include <QFuture>
 #include <QTimer>
-#include <QtConcurrent>
+#include <QtConcurrent/QtConcurrentRun>
+#include <QFutureWatcher>
 #include <QQmlEngine>
 
 #include "utils/FilterUtils.hpp"
@@ -414,10 +415,7 @@ void ScriptRunner::verify(const QString &path, const QString &property,
                                                "Current Value:    '%4'\n"
                                                "Verify attempts:  '%5'\n"
                                                "Verify interval:  '%6'")
-                                    .arg(path)
-                                    .arg(property)
-                                    .arg(value)
-                                    .arg(currentValue)
+                                    .arg(path, property, value, currentValue)
                                     .arg(attempts)
                                     .arg(interval));
             return;
@@ -735,8 +733,7 @@ void ScriptRunner::checkButton(const QString &path, bool isChecked) const noexce
 
     if (utils::getFromVariant<bool>(QQmlProperty::read(object, "checked")) == isChecked) {
         emit scriptWarning(QStringLiteral("'%1': button already has state '%2'")
-                               .arg(path)
-                               .arg(isChecked ? "true" : "false"));
+                               .arg(path, isChecked ? "true" : "false"));
     }
     else {
         //! TODO: Скорее всего toggle вообще бесполезен, так как в большинстве используется
@@ -839,8 +836,7 @@ void ScriptRunner::selectItemTemplate(const QString &path, int index, const QStr
             case TextIndexBehavior::TextIndex: {
                 emit scriptWarning(QStringLiteral("'%1': item with text '%2' does not exist, "
                                                   "trying to use index '%3' instead")
-                                       .arg(path)
-                                       .arg(text)
+                                       .arg(path, text)
                                        .arg(index));
                 indexHandler(index);
                 break;
@@ -1245,8 +1241,7 @@ void ScriptRunner::selectTabItemTemplate(const QString &path, int index, const Q
         if (textIndex == -1) {
             emit scriptWarning(QStringLiteral("'%1': tab with text '%2' does not exist, "
                                               "trying to use index '%3' instead")
-                                   .arg(path)
-                                   .arg(text)
+                                   .arg(path, text)
                                    .arg(index));
             indexHandler(index);
         }
@@ -1399,8 +1394,7 @@ void ScriptRunner::actionTemplate(const QString &path, std::optional<bool> isChe
 
     if (utils::getFromVariant<bool>(QQmlProperty::read(object, "checked")) == *isChecked) {
         emit scriptWarning(QStringLiteral("'%1': button already has state '%2'")
-                               .arg(path)
-                               .arg(*isChecked ? "true" : "false"));
+                               .arg(path, *isChecked ? "true" : "false"));
     }
     else {
         invokeBlockMethodWithTimeout(object, "toggle");
@@ -1523,7 +1517,7 @@ void ScriptRunner::delegateTemplate(const QString &path, std::optional<QList<int
     QModelIndex lastIndex;
     if (isTreeView) {
         assert(!index.has_value());
-        for (const auto &row : *indexPath) {
+        for (const auto &row : qAsConst(*indexPath)) {
             QModelIndex index;
             if (lastIndex.isValid()) {
                 index = model->index(row, 0, lastIndex);
@@ -1836,7 +1830,7 @@ void ScriptRunner::setTextTemplate(const QString &path, std::optional<QList<int>
     QModelIndex lastIndex;
     if (isTreeView) {
         assert(!index.has_value());
-        for (const auto &row : *indexPath) {
+        for (const auto &row : qAsConst(*indexPath)) {
             QModelIndex index;
             if (lastIndex.isValid()) {
                 index = model->index(row, 0, lastIndex);
