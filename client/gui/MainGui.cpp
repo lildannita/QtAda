@@ -209,14 +209,6 @@ MainGui::MainGui(const QString &projectPath, QWidget *parent)
             &MainGui::handleSettingsChange);
 
     connect(ui->runAppArgsEdit, &QLineEdit::editingFinished, this, &MainGui::handleSettingsChange);
-    connect(ui->retrievalAttemptsSpinBox, &QSpinBox::textChanged, this,
-            &MainGui::handleSettingsChange);
-    connect(ui->retrievalIntervalSpinBox, &QSpinBox::textChanged, this,
-            &MainGui::handleSettingsChange);
-    connect(ui->verifyAttemptsSpinBox, &QSpinBox::textChanged, this,
-            &MainGui::handleSettingsChange);
-    connect(ui->verifyIntervalSpinBox, &QSpinBox::textChanged, this,
-            &MainGui::handleSettingsChange);
     connect(ui->showElapsedCheckBox, &QCheckBox::stateChanged, this,
             &MainGui::handleSettingsChange);
 
@@ -1293,10 +1285,6 @@ MainGui::Settings MainGui::readCurrentSettings() const noexcept
 
     RunSettings runSettings;
     runSettings.executeArgs = ui->runAppArgsEdit->text();
-    runSettings.retrievalAttempts = ui->retrievalAttemptsSpinBox->value();
-    runSettings.retrievalInterval = ui->retrievalIntervalSpinBox->value();
-    runSettings.verifyAttempts = ui->verifyAttemptsSpinBox->value();
-    runSettings.verifyInterval = ui->verifyIntervalSpinBox->value();
     runSettings.showElapsed = ui->showElapsedCheckBox->isChecked();
 
     return { recordSettings, runSettings };
@@ -1375,10 +1363,6 @@ void MainGui::updateCurrentSettings(ConstSettings settings) noexcept
     ui->recordAppArgsEdit->setText(recordSettings.executeArgs);
 
     ui->runAppArgsEdit->setText(runSettings.executeArgs);
-    ui->retrievalAttemptsSpinBox->setValue(runSettings.retrievalAttempts);
-    ui->retrievalIntervalSpinBox->setValue(runSettings.retrievalInterval);
-    ui->verifyAttemptsSpinBox->setValue(runSettings.verifyAttempts);
-    ui->verifyIntervalSpinBox->setValue(runSettings.verifyInterval);
     ui->showElapsedCheckBox->setChecked(runSettings.showElapsed);
 
     settingsChangeHandlerBlocked_ = false;

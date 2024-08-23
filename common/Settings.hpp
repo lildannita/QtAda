@@ -54,10 +54,6 @@ struct RunSettings final {
 
     QString executeArgs = QString();
 
-    int retrievalAttempts = DEFAULT_RETRIEVAL_ATTEMPTS;
-    int retrievalInterval = DEFAULT_RETRIEVAL_INTERVAL;
-    int verifyAttempts = DEFAULT_VERIFY_ATTEMPTS;
-    int verifyInterval = DEFAULT_VERIFY_INTERVAL;
     bool showElapsed = false;
 
     std::optional<std::vector<QString>> findErrors() const noexcept;
