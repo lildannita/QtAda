@@ -16,6 +16,12 @@ public:
     static void initialize(const QString &confPath, QObject *parent) noexcept;
     static std::optional<QJsonArray> getConfArray(const QString &confPath, bool forRecord) noexcept;
 
+    static QString getObjectPath(const QObject *obj) noexcept;
+    static QString getObjectIdWithSpecifiedPath(const QObject *obj, const QString &path,
+                                                const QString &text = QString()) noexcept
+    {
+        return instance()->internalIdGetter(obj, path, text);
+    }
     static QString getObjectId(const QObject *obj, const QString &text = QString()) noexcept
     {
         assert(initialized() == true);
@@ -49,6 +55,11 @@ private:
     static QString getConfAbsolutePath(const QString &confPath, bool forRecord) noexcept;
     void pushNewConfData(const QString &id, const QString &path,
                          const QString &description) noexcept;
-    QString do_getObjectId(const QObject *obj, const QString &text) noexcept;
+
+    QString internalIdGetter(const QObject *obj, const QString &path, const QString &text) noexcept;
+    QString do_getObjectId(const QObject *obj, const QString &text) noexcept
+    {
+        return internalIdGetter(obj, getObjectPath(obj), text);
+    }
 };
 } // namespace QtAda::core

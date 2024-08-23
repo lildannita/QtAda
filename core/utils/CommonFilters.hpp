@@ -4,6 +4,7 @@
 #include <QString>
 #include <QObject>
 
+#include "ConfHandler.hpp"
 #include "FilterUtils.hpp"
 #include "Paths.hpp"
 
@@ -20,10 +21,10 @@ QString qMouseEventHandler(const GuiComponent *component, const QEvent *event,
     }
 
     const auto clickPosition = component->mapFromGlobal(mouseEvent->globalPos());
-    return QStringLiteral("%1mouse%2Click('%3', '%4', %5, %6);")
+    return QStringLiteral("%1mouse%2Click(%3, '%4', %5, %6);")
         .arg(SCRIPT_COMMAND_PREFIX)
         .arg(event->type() == QEvent::MouseButtonDblClick ? "Dbl" : "")
-        .arg(path.isEmpty() ? utils::objectPath(component) : path)
+        .arg(path.isEmpty() ? ConfHandler::getObjectId(component) : path)
         .arg(utils::mouseButtonToString(mouseEvent->button()))
         .arg(clickPosition.x())
         .arg(clickPosition.y());
@@ -55,9 +56,9 @@ QString qKeyEventHandler(const GuiComponent *component, const QEvent *event,
     }
 
     const auto eventText = keyEvent->text();
-    return QStringLiteral("%1keyEvent('%2', '%3');")
+    return QStringLiteral("%1keyEvent(%2, '%3');")
         .arg(SCRIPT_COMMAND_PREFIX)
-        .arg(path.isEmpty() ? utils::objectPath(component) : path)
+        .arg(path.isEmpty() ? ConfHandler::getObjectId(component) : path)
         .arg(eventText.isEmpty() ? utils::keyToString(keyEvent->key())
                                  : utils::escapeText(eventText));
 }
@@ -71,9 +72,9 @@ inline QString qWheelEventHandler(const QObject *obj, const QEvent *event,
     }
 
     const auto delta = wheelEvent->pixelDelta();
-    return QStringLiteral("%1wheelEvent('%2', %3, %4);")
+    return QStringLiteral("%1wheelEvent(%2, %3, %4);")
         .arg(SCRIPT_COMMAND_PREFIX)
-        .arg(path.isEmpty() ? utils::objectPath(obj) : path)
+        .arg(path.isEmpty() ? ConfHandler::getObjectId(obj) : path)
         .arg(delta.x())
         .arg(delta.y());
 }
@@ -82,9 +83,9 @@ template <typename GuiComponent>
 inline QString changeValueStatement(const GuiComponent *component, const QString &type) noexcept
 {
     CHECK_GUI_CLASS(GuiComponent);
-    return QStringLiteral("%1changeValue('%2', '%3');")
+    return QStringLiteral("%1changeValue(%2, '%3');")
         .arg(SCRIPT_COMMAND_PREFIX)
-        .arg(utils::objectPath(component))
+        .arg(ConfHandler::getObjectId(component))
         .arg(type);
 }
 
@@ -94,9 +95,9 @@ inline QString setValueStatement(const GuiComponent *component, DigitType value,
 {
     CHECK_GUI_CLASS(GuiComponent);
     static_assert(std::is_arithmetic<DigitType>::value, "Type T must be a digit");
-    return QStringLiteral("%1setValue('%2', %3);")
+    return QStringLiteral("%1setValue(%2, %3);")
         .arg(SCRIPT_COMMAND_PREFIX)
-        .arg(utils::objectPath(component))
+        .arg(ConfHandler::getObjectId(component))
         .arg(secondValue.has_value() ? QStringLiteral("%1, %2").arg(value).arg(*secondValue)
                                      : QString::number(value));
 }
@@ -104,9 +105,9 @@ template <typename GuiComponent>
 inline QString setValueStatement(const GuiComponent *component, const QString &value) noexcept
 {
     CHECK_GUI_CLASS(GuiComponent);
-    return QStringLiteral("%1setValue('%2', '%3');")
+    return QStringLiteral("%1setValue(%2, '%3');")
         .arg(SCRIPT_COMMAND_PREFIX)
-        .arg(utils::objectPath(component))
+        .arg(ConfHandler::getObjectId(component))
         .arg(value);
 }
 

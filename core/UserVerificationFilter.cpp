@@ -6,6 +6,7 @@
 #include <QFrame>
 #include <regex>
 
+#include "ConfHandler.hpp"
 #include "utils/FilterUtils.hpp"
 #include "utils/Tools.hpp"
 
@@ -106,7 +107,8 @@ UserVerificationFilter::updateFramedRootObjectModel(const QObject *object,
     rowMap["object"] = QStringLiteral("%1 (%2)")
                            .arg(objectName.isEmpty() ? tools::pointerToString(object) : objectName)
                            .arg(object->metaObject()->className());
-    rowMap["path"] = utils::objectPath(object);
+    //! TODO: заменить в этом и подобных местах "path" на "id"
+    rowMap["path"] = ConfHandler::getObjectId(object);
 
     auto *viewItem = new QStandardItem();
     viewItem->setData(QVariant::fromValue(const_cast<QObject *>(object)), Qt::UserRole);
@@ -268,7 +270,7 @@ bool UserVerificationFilter::eventFilter(QObject *obj, QEvent *event) noexcept
 
     switch (event->type()) {
     case QEvent::MouseButtonPress: {
-        if (lastPressEvent_.registerEvent(utils::objectPath(obj), event)) {
+        if (lastPressEvent_.registerEvent(ConfHandler::getObjectPath(obj), event)) {
             callHandlers(obj, false);
         }
         return true;

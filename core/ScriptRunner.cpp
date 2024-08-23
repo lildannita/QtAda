@@ -20,6 +20,7 @@
 #include <QQmlEngine>
 #include <set>
 
+#include "ConfHandler.hpp"
 #include "utils/FilterUtils.hpp"
 #include "utils/Tools.hpp"
 
@@ -197,7 +198,7 @@ void ScriptRunner::startScript() noexcept
 
 void ScriptRunner::registerObjectCreated(QObject *obj) noexcept
 {
-    const auto path = utils::objectPath(obj);
+    const auto path = ConfHandler::getObjectPath(obj);
     pathToObject_[path] = obj;
     objectToPath_[obj] = path;
 }
@@ -216,7 +217,7 @@ void ScriptRunner::registerObjectDestroyed(QObject *obj) noexcept
 
 void ScriptRunner::registerObjectReparented(QObject *obj) noexcept
 {
-    const auto newPath = utils::objectPath(obj);
+    const auto newPath = ConfHandler::getObjectPath(obj);
 
     const auto it = objectToPath_.find(obj);
     if (it == objectToPath_.end()) {

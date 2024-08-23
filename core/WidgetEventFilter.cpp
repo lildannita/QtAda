@@ -139,14 +139,14 @@ static QString qButtonsFilter(const QWidget *widget, const QMouseEvent *event,
     // Во время события Release состояние checked еще не поменяется, поэтому инвертируем значение
     const auto isChecked = !button->isChecked();
     const auto buttonText = button->text();
-    const auto buttonPath = utils::objectPath(currentWidget);
+    const auto buttonId = ConfHandler::getObjectId(currentWidget, buttonText);
 
     if (rectContains && isCheckable) {
-        return checkButtonCommand(buttonPath, isChecked,
-                                  event->type() == QEvent::MouseButtonDblClick, buttonText);
+        return checkButtonCommand(buttonId, isChecked, event->type() == QEvent::MouseButtonDblClick,
+                                  buttonText);
     }
     else {
-        return buttonEventCommand(buttonPath, event, rectContains, buttonText);
+        return buttonEventCommand(buttonId, event, rectContains, buttonText);
     }
 }
 
@@ -179,7 +179,7 @@ static QString qComboBoxFilter(const QWidget *widget, const QMouseEvent *event,
 
     if (containerRect.contains(clickPos)) {
         const auto index = comboBoxView->currentIndex().row();
-        return selectItemCommand(utils::objectPath(widget),
+        return selectItemCommand(ConfHandler::getObjectId(widget),
                                  utils::textIndexStatement(settings.textIndexBehavior, index,
                                                            comboBox->itemText(index)));
     }
@@ -421,7 +421,7 @@ static QString qTreeViewFilter(const QWidget *widget, const QMouseEvent *event,
     const auto currentItem = view->model()->data(extra.changeModelIndex);
     const auto currentItemText
         = currentItem.canConvert<QString>() ? currentItem.toString() : QString();
-    return treeViewCommand(utils::objectPath(widget),
+    return treeViewCommand(ConfHandler::getObjectId(widget),
                            extra.changeType == ExtraInfoForDelayed::TreeViewExtra::Expanded,
                            utils::treeIndexPath(extra.changeModelIndex), currentItemText);
 }
@@ -453,7 +453,7 @@ static QString qUndoViewFilter(const QWidget *widget, const QMouseEvent *event,
         const auto currentItem = model->data(model->index(index, 0));
         const auto currentItemText
             = currentItem.canConvert<QString>() ? currentItem.toString() : QString();
-        result += undoCommand(utils::objectPath(widget), index, currentItemText);
+        result += undoCommand(ConfHandler::getObjectId(widget), index, currentItemText);
     }
     assert(!result.isEmpty());
     return result;
@@ -482,7 +482,7 @@ static QString qItemViewClickFilter(const QAbstractItemView *view,
             = qobject_cast<const QTreeView *>(view) != nullptr
                   ? utils::treeIndexPath(currentIndex)
                   : QStringLiteral("%1, %2").arg(currentIndex.row()).arg(currentIndex.column());
-        return delegateClickCommand(utils::objectPath(qobject_cast<const QWidget *>(view)),
+        return delegateClickCommand(ConfHandler::getObjectId(qobject_cast<const QWidget *>(view)),
                                     indexPath, event->type() == QEvent::MouseButtonDblClick,
                                     currentItemText);
     }
@@ -549,7 +549,7 @@ static QString qItemViewFilter(const QWidget *widget, const QMouseEvent *event,
         const auto selectionMode = view->selectionMode();
         if (selectionMode == QAbstractItemView::ExtendedSelection
             || selectionMode == QAbstractItemView::ContiguousSelection) {
-            return clearSelectionCommand(utils::objectPath(widget));
+            return clearSelectionCommand(ConfHandler::getObjectId(widget));
         }
         return QString();
     }
@@ -583,12 +583,12 @@ static QString qItemViewSelectionFilter(const QWidget *widget, const QMouseEvent
 
     const auto selectedCellsData = utils::selectedCellsData(view->selectionModel());
     return selectedCellsData.isEmpty()
-               ? clearSelectionCommand(utils::objectPath(widget))
+               ? clearSelectionCommand(ConfHandler::getObjectId(widget))
                //! TODO: Бывает так, что вместо прямого пути к View-элементу, получаем
                //! путь к ../View/QHeaderView, но тем не менее при воспроизведении скрипта
                //! даже этот объект можно преобразовать к View-элементу. Однако все равно
                //! лучше убрать QHeaderView из пути, чтобы не "смущать" пользователя.
-               : setSelectionCommand(utils::objectPath(widget), selectedCellsData);
+               : setSelectionCommand(ConfHandler::getObjectId(widget), selectedCellsData);
 }
 
 static QString qMenuBarFilter(const QWidget *widget, const QMouseEvent *event,
@@ -612,8 +612,9 @@ static QString qMenuBarFilter(const QWidget *widget, const QMouseEvent *event,
         return QString();
     }
 
-    return actionCommand(utils::objectPath(qobject_cast<QObject *>(action)), action->text(),
-                         action->isSeparator(), action->menu() != nullptr,
+    const auto actionText = action->text();
+    return actionCommand(ConfHandler::getObjectId(qobject_cast<QObject *>(action), actionText),
+                         actionText, action->isSeparator(), action->menu() != nullptr,
                          action->isCheckable() ? std::make_optional(action->isChecked())
                                                : std::nullopt);
 }
@@ -637,17 +638,19 @@ static QString qMenuFilter(const QWidget *widget, const QMouseEvent *event,
     auto *action = menu->actionAt(clickPos);
 
     if (action != nullptr) {
-        return actionCommand(utils::objectPath(qobject_cast<QObject *>(action)), action->text(),
-                             action->isSeparator(), action->menu() != nullptr,
+        const auto actionText = action->text();
+        return actionCommand(ConfHandler::getObjectId(qobject_cast<QObject *>(action), actionText),
+                             actionText, action->isSeparator(), action->menu() != nullptr,
                              action->isCheckable() ? std::make_optional(action->isChecked())
                                                    : std::nullopt);
     }
     else {
         auto *menuAction = menu->menuAction();
-        return actionCommand(utils::objectPath(qobject_cast<QObject *>(menuAction)),
-                             menuAction->text(), menuAction->isSeparator(), true,
-                             menuAction->isCheckable() ? std::make_optional(menuAction->isChecked())
-                                                       : std::nullopt);
+        const auto menuActionText = menuAction->text();
+        return actionCommand(
+            ConfHandler::getObjectId(qobject_cast<QObject *>(menuAction), menuActionText),
+            menuActionText, menuAction->isSeparator(), true,
+            menuAction->isCheckable() ? std::make_optional(menuAction->isChecked()) : std::nullopt);
     }
 }
 
@@ -667,7 +670,7 @@ static QString qTabBarFilter(const QWidget *widget, const QMouseEvent *event,
     assert(tabBar != nullptr);
     const auto index = tabBar->currentIndex();
     return selectTabCommand(
-        utils::objectPath(widget),
+        ConfHandler::getObjectId(widget),
         utils::textIndexStatement(settings.textIndexBehavior, index, tabBar->tabText(index)));
 }
 
@@ -1051,7 +1054,7 @@ void WidgetEventFilter::processKeyEvent(const QString &text) noexcept
         }
     }
     flushKeyEvent(filters::setTextCommand(
-        utils::objectPath(index.isValid() ? viewWidget : keyWatchDog_.component),
+        ConfHandler::getObjectId(index.isValid() ? viewWidget : keyWatchDog_.component),
         utils::escapeText(std::move(text)), indexPath));
     keyWatchDog_.clear();
 }
@@ -1069,12 +1072,12 @@ std::optional<QString> WidgetEventFilter::handleCloseEvent(const QObject *obj,
 
     if (utils::searchSpecificComponent(widget, filters::s_widgetMetaMap.at(WidgetClass::Dialog))
         != nullptr) {
-        return filters::closeCommand(utils::objectPath(widget), true);
+        return filters::closeCommand(ConfHandler::getObjectId(widget), true);
     }
     else if (utils::searchSpecificComponent(widget,
                                             filters::s_widgetMetaMap.at(WidgetClass::Window))
              != nullptr) {
-        return filters::closeCommand(utils::objectPath(widget));
+        return filters::closeCommand(ConfHandler::getObjectId(widget));
     }
     //! TODO: Это событие для QMenu генерируется и при выборе какого-либо QAction, причем
     //! событие мыши, которое привело к закрытию QMenu, не генерируется (в отличие от

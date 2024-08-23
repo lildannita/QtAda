@@ -202,7 +202,7 @@ void ScriptWriter::handleNewMetaPropertyVerification(
     flushSavedLines();
 
     for (const auto &verification : verifications) {
-        const auto line = QStringLiteral("%1verify('%2', '%3', '%4');")
+        const auto line = QStringLiteral("%1verify(%2, '%3', '%4');")
                               .arg(SCRIPT_COMMAND_PREFIX)
                               .arg(objectPath)
                               .arg(verification.first)

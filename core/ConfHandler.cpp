@@ -170,11 +170,16 @@ ConfHandler *ConfHandler::instance() noexcept
     return s_instance.loadRelaxed();
 }
 
-QString ConfHandler::do_getObjectId(const QObject *obj, const QString &text) noexcept
+QString ConfHandler::getObjectPath(const QObject *obj) noexcept
+{
+    return objectPath(obj);
+}
+
+QString ConfHandler::internalIdGetter(const QObject *obj, const QString &path,
+                                      const QString &text) noexcept
 {
     assert(obj != nullptr);
 
-    const auto path = objectPath(obj);
     const auto className = QString(obj->metaObject()->className()).remove(s_qmlRegExp);
     auto id = tools::transliterate(text.trimmed().simplified());
     if (id.isEmpty()) {

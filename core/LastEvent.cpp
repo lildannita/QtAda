@@ -46,6 +46,10 @@ bool LastMouseEvent::registerEvent(const QString &path, const QEvent *event) noe
         }
     }
 
+    //! TODO: с момента смены логики идентификации объектов (на использование id вместо пути),
+    //! сюда будет все равно приходить путь, а не id, и нужно проверить, что это значение
+    //! не считывается из структуры и используется только для регистрации события
+
     type = mouseEvent->type();
     timestamp = now;
     globalPos = mouseEvent->globalPos();

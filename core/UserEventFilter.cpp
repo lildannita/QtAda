@@ -73,7 +73,7 @@ bool UserEventFilter::eventFilter(QObject *obj, QEvent *event) noexcept
 
         switch (event->type()) {
         case QEvent::MouseButtonPress: {
-            if (!lastPressEvent_.registerEvent(utils::objectPath(obj), event)) {
+            if (!lastPressEvent_.registerEvent(ConfHandler::getObjectId(obj), event)) {
                 break;
             }
             lastReleaseEvent_.clearEvent();
@@ -103,40 +103,40 @@ bool UserEventFilter::eventFilter(QObject *obj, QEvent *event) noexcept
             break;
         }
         case QEvent::MouseButtonRelease: {
-            const auto path = utils::objectPath(obj);
+            const auto path = ConfHandler::getObjectPath(obj);
             if (!lastReleaseEvent_.registerEvent(path, event)) {
                 break;
             }
 
+            const auto id = ConfHandler::getObjectIdWithSpecifiedPath(obj, path);
             if (doubleClickTimer_.isActive()) {
                 delayedScriptLine_
-                    = currentFilter_->handleMouseEvent(obj, event, mouseEventInfo(std::move(path)));
+                    = currentFilter_->handleMouseEvent(obj, event, mouseEventInfo(std::move(id)));
             }
             else {
                 if (doubleClickDetected_) {
                     doubleClickDetected_ = false;
                     if (lastReleaseEvent_.isContinuous(lastPressEvent_)) {
                         flushScriptLine(currentFilter_->handleMouseEvent(
-                            obj, event, mouseEventInfo(std::move(path))));
+                            obj, event, mouseEventInfo(std::move(id))));
                     }
                     else if (delayedMouseEvent_.has_value()) {
                         assert(*delayedMouseEvent_ != nullptr);
                         flushScriptLine(currentFilter_->handleMouseEvent(
-                            obj, delayedMouseEvent_->get(), mouseEventInfo(std::move(path))));
+                            obj, delayedMouseEvent_->get(), mouseEventInfo(std::move(id))));
                     }
                     clearDelayed();
                 }
                 else {
                     flushScriptLine(currentFilter_->handleMouseEvent(
-                        obj, event, mouseEventInfo(std::move(path))));
+                        obj, event, mouseEventInfo(std::move(id))));
                 }
             }
             lastPressEvent_.clearEvent();
             break;
         }
         case QEvent::MouseButtonDblClick: {
-            const auto path = utils::objectPath(obj);
-            if (!lastPressEvent_.registerEvent(path, event)) {
+            if (!lastPressEvent_.registerEvent(ConfHandler::getObjectPath(obj), event)) {
                 break;
             }
             currentFilter_->setMousePressFilter(obj, event);
@@ -147,15 +147,14 @@ bool UserEventFilter::eventFilter(QObject *obj, QEvent *event) noexcept
             break;
         }
         case QEvent::KeyPress: {
-            const auto path = utils::objectPath(obj);
-            if (lastKeyEvent_.registerEvent(utils::objectPath(obj), event)) {
+            if (lastKeyEvent_.registerEvent(ConfHandler::getObjectPath(obj), event)) {
                 currentFilter_->handleKeyEvent(obj, event);
             }
             break;
         }
         case QEvent::FocusAboutToChange: {
             //! TODO: надо ли отдельно от KeyPress рассматривать это событие?
-            if (lastFocusEvent_.registerEvent(utils::objectPath(obj), event)) {
+            if (lastFocusEvent_.registerEvent(ConfHandler::getObjectPath(obj), event)) {
                 currentFilter_->handleKeyEvent(obj, event);
             }
             break;
@@ -177,9 +176,10 @@ bool UserEventFilter::eventFilter(QObject *obj, QEvent *event) noexcept
         //! TODO: При этом событии не всегда происходит FocusAboutToChange,
         //! поэтому скорее всего придется тут вызывать:
         //! currentFilter_->handleKeyEvent(obj, event);
-        const auto path = utils::objectPath(obj);
+        const auto path = ConfHandler::getObjectPath(obj);
         if (lastWheelEvent_.registerEvent(path, event)) {
-            flushScriptLine(filters::qWheelEventHandler(obj, event, std::move(path)));
+            flushScriptLine(filters::qWheelEventHandler(
+                obj, event, ConfHandler::getObjectIdWithSpecifiedPath(obj, path)));
         }
         break;
     }
