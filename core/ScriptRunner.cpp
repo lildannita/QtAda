@@ -150,11 +150,23 @@ void ScriptRunner::startScript() noexcept
         return;
     }
 
+    //! TODO:
+    //! 1.  нужно разграничить некоторые функции и отнести их к определенному классу,
+    //!     например: verify -> Test.verify
+    //! 2.  нужно как-то обойти то, что JS может вызывать функции с неправильным
+    //!     указанием аргументов (например, может указть бОльшее число аргументов)
     engine_ = new QJSEngine(this);
-    auto qtAdaJsObj = engine_->newQObject(this);
-    engine_->globalObject().setProperty("QtAda", qtAdaJsObj);
-    const auto runResult = engine_->evaluate(scriptContent);
+    const auto *metaObject = this->metaObject();
+    auto jsScriptRunner = engine_->toScriptValue(this);
+    for (int i = metaObject->methodOffset(); i < metaObject->methodCount(); i++) {
+        auto method = metaObject->method(i);
+        if (method.access() == QMetaMethod::Public && method.methodType() == QMetaMethod::Method) {
+            const auto name = QString::fromLatin1(method.name());
+            engine_->globalObject().setProperty(name, jsScriptRunner.property(name));
+        }
+    }
 
+    const auto runResult = engine_->evaluate(scriptContent);
     if (runResult.isError()) {
         emit scriptError(QStringLiteral("{    ERROR    } %1\n"
                                         "{ LINE NUMBER } %2\n"
