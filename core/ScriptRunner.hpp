@@ -82,6 +82,22 @@ public:
     Q_INVOKABLE void setDefaultVerifyTimeout(int sec) noexcept;
     Q_INVOKABLE void msetDefaultVerifyTimeout(int msec) noexcept;
 
+    //! TODO: реализовать
+    Q_INVOKABLE QObject *startApplication(const QString &id) noexcept
+    {
+        Q_UNUSED(id)
+        return nullptr;
+    }
+    Q_INVOKABLE QObject *startApplication(const QString &id, int timeout) noexcept
+    {
+        Q_UNUSED(timeout)
+        return startApplication(id);
+    }
+    Q_INVOKABLE void setCurrentApplication(QObject *application) noexcept
+    {
+        Q_UNUSED(application)
+    }
+
     // ************** Objects API **************
     Q_INVOKABLE QObject *getObject(const QString &path) const noexcept;
     Q_INVOKABLE QObject *waitFor(const QString &path, int sec) const noexcept;
