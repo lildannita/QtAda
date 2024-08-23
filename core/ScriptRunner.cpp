@@ -7,6 +7,8 @@
 #include <QFile>
 #include <QTextStream>
 #include <QJSEngine>
+#include <QJsonArray>
+#include <QJsonObject>
 #include <QQmlProperty>
 #include <QDateTime>
 #include <QModelIndex>
@@ -157,6 +159,8 @@ void ScriptRunner::startScript() noexcept
     //! 2.  нужно как-то обойти то, что JS может вызывать функции с неправильным
     //!     указанием аргументов (например, может указть бОльшее число аргументов)
     engine_ = new QJSEngine(this);
+
+    // Установка функций
     const auto *metaObject = this->metaObject();
     auto jsScriptRunner = engine_->toScriptValue(this);
     for (int i = metaObject->methodOffset(); i < metaObject->methodCount(); i++) {
@@ -164,6 +168,28 @@ void ScriptRunner::startScript() noexcept
         if (method.access() == QMetaMethod::Public && method.methodType() == QMetaMethod::Method) {
             const auto name = QString::fromLatin1(method.name());
             engine_->globalObject().setProperty(name, jsScriptRunner.property(name));
+        }
+    }
+
+    // Установка идентификаторов объектов
+    const auto confArray = ConfHandler::getConfArray(runSettings_.confPath, false);
+    if (confArray.has_value()) {
+        std::set<QString> confIds;
+        for (const auto &confData : *confArray) {
+            QJsonObject confObj = confData.toObject();
+            const auto id = confObj["id"].toString();
+
+            if (confIds.count(id) == 1) {
+                emit scriptError(
+                    QStringLiteral("{    ERROR    } The configuration file at '%1' must contain a "
+                                   "set of unique ids, but the id '%2' is duplicated.")
+                        .arg(runSettings_.confPath, id));
+                finishThread(false);
+                return;
+            }
+
+            confIds.insert(id);
+            engine_->globalObject().setProperty(id, confObj["path"].toString());
         }
     }
 
