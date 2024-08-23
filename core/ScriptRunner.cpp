@@ -453,20 +453,26 @@ QObject *ScriptRunner::waitAndGetObject(const QString &path, std::optional<int> 
         timeout = *msec;
     }
 
+    auto showElapsed = [this, &path](qint64 retrieved, std::optional<qint64> available) {
+        if (!runSettings_.showElapsed) {
+            auto message = QStringLiteral("'%1' was retrieved in %2 ms").arg(path).arg(retrieved);
+            if (available.has_value()) {
+                message.push_back(QStringLiteral(" and became visible in %1 ms").arg(*available));
+            }
+            emit scriptLog(message);
+        }
+    };
+
     auto it = pathToObject_.end();
     QElapsedTimer timer;
     timer.start();
     while (!timer.hasExpired(timeout)) {
         it = pathToObject_.find(path);
         if (it != pathToObject_.end() && it->second != nullptr) {
-            if (runSettings_.showElapsed) {
-                auto elapsed = timer.elapsed();
-                emit scriptLog(
-                    QStringLiteral("'%1' was retrieved in %2 ms").arg(path).arg(elapsed));
-            }
-
+            const auto retrieved = timer.elapsed();
             auto *object = it->second;
             if (!waitForAccessibility) {
+                showElapsed(retrieved, std::nullopt);
                 return object;
             }
 
@@ -476,12 +482,8 @@ QObject *ScriptRunner::waitAndGetObject(const QString &path, std::optional<int> 
             }
             while (!timer.hasExpired(timeout)) {
                 if (checkObjectAvailability(object, canBeVisible, false)) {
-                    if (runSettings_.showElapsed) {
-                        auto elapsed = timer.elapsed();
-                        emit scriptLog(QStringLiteral("'%1' became available in %2 ms")
-                                           .arg(path)
-                                           .arg(elapsed));
-                    }
+                    showElapsed(retrieved,
+                                std::max(timer.elapsed() - retrieved, static_cast<qint64>(0)));
                     return object;
                 }
             }
