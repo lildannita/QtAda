@@ -60,6 +60,11 @@ std::optional<int> UserLaunchOptions::initFromArgs(const char *appPath, QStringL
         else if (arg == QLatin1String("--no-highlight")) {
             setMsgHighlight(false);
         }
+        else if ((arg == QLatin1String("-c")) || (arg == QLatin1String("--conf-path"))) {
+            const auto confPath = args.takeFirst();
+            recordSettings.confPath = confPath;
+            standartRunSettings.confPath = std::move(confPath);
+        }
         else if ((arg == QLatin1String("-r")) || (arg == QLatin1String("--record"))) {
             if (type != LaunchType::None) {
                 printMultiplyDefinitionError();
@@ -148,7 +153,7 @@ std::optional<int> UserLaunchOptions::initFromArgs(const char *appPath, QStringL
     }
     case LaunchType::Run: {
         std::vector<QString> errors;
-        for (const auto &settings : runSettings) {
+        for (const auto &settings : qAsConst(runSettings)) {
             const auto settingsErrors = settings.findErrors();
             if (settingsErrors.has_value()) {
                 errors.insert(errors.end(), settingsErrors->begin(), settingsErrors->end());

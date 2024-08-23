@@ -25,12 +25,13 @@ enum class ScriptWriteMode {
 };
 
 struct RecordSettings final {
-    QString scriptPath = QString();
+    QString scriptPath;
+    QString confPath;
 
     ScriptWriteMode scriptWriteMode = ScriptWriteMode::NewScript;
     int appendLineIndex = -1;
 
-    QString executeArgs = QString();
+    QString executeArgs;
 
     int indentWidth = DEFAULT_INDENT_WIDTH;
     int blockCommentMinimumCount = 0;
@@ -50,9 +51,10 @@ struct RecordSettings final {
 };
 
 struct RunSettings final {
-    QString scriptPath = QString();
+    QString scriptPath;
+    QString confPath;
 
-    QString executeArgs = QString();
+    QString executeArgs;
 
     bool showElapsed = false;
 

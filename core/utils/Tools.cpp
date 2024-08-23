@@ -430,4 +430,63 @@ QString metaPropertyValueToString(const QObject *obj, const QMetaProperty &prope
     }
     return variantValueToString(std::move(propertyValue));
 }
+
+QString transliterate(const QString &input) noexcept
+{
+    // Согласно ISO 9/ГОСТ 7.79—2000
+    static const std::map<QString, QString> translitMap = {
+        { "А", "A" },
+        { "Б", "B" },
+        { "В", "V" },
+        { "Г", "G" },
+        { "Д", "D" },
+        { "Е", "E" },
+        { "Ё", "YO" },
+        { "Ж", "ZH" },
+        { "З", "Z" },
+        { "И", "I" },
+        { "Й", "J" },
+        { "К", "K" },
+        { "Л", "L" },
+        { "М", "M" },
+        { "Н", "N" },
+        { "О", "O" },
+        { "П", "P" },
+        { "Р", "R" },
+        { "С", "S" },
+        { "Т", "T" },
+        { "У", "U" },
+        { "Ф", "F" },
+        { "Х", "X" },
+        { "Ц", "CZ" },
+        { "Ч", "CH" },
+        { "Ш", "SH" },
+        { "Щ", "SHH" },
+        { "Ъ", "" },
+        // По ГОСТУ здесь должно быть Y`, ...
+        { "Ы", "Y" },
+        { "Ь", "" },
+        // По ГОСТУ здесь должно быть E`, ...
+        { "Э", "E" },
+        { "Ю", "YU" },
+        { "Я", "YA" },
+        // ... но гравис не может быть использован в имени переменной
+    };
+
+    const auto upperInput = QLocale().toUpper(input);
+    QString result;
+    for (const QChar &c : upperInput) {
+        QString charStr = QString(c);
+        if (translitMap.find(charStr) != translitMap.end()) {
+            result.append(translitMap.at(charStr));
+        }
+        else if (!c.isLetter()) {
+            result.append('_');
+        }
+        else {
+            result.append(c);
+        }
+    }
+    return result;
+}
 } // namespace QtAda::core::tools

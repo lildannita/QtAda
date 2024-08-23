@@ -23,4 +23,6 @@ template <typename T> QString pointerToString(T *ptr) noexcept
 }
 
 QString metaPropertyValueToString(const QObject *obj, const QMetaProperty &property) noexcept;
+
+QString transliterate(const QString &input) noexcept;
 } // namespace QtAda::core::tools

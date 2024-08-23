@@ -40,7 +40,10 @@ static constexpr char GUI_SCRIPT_SERVICE_COLOR[] = "#71B1DA";
 inline void printUsage(const char *appPath)
 {
     const auto usage = QStringLiteral(R"(
-Usage: %1 [options] <launch type> <application> [args]
+Usage: %1 [options] <configuration> <launch type> <application> [args]
+
+Configuration:
+ -c, --conf-path <configuration path>           set path to configuration JSON file
 
 Launch type:
  -r, --record <script path>                     record test script

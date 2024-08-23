@@ -15,6 +15,7 @@ set(QTADA_CORE_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR} PARENT_SCOPE)
 
 set(core_MOC_HDRS
 # MetaObjectHandler.hpp
+  ConfHandler.hpp
   Probe.hpp
   UserEventFilter.hpp
   GuiEventFilter.hpp
@@ -34,6 +35,7 @@ set(core_HDRS
   utils/Tools.hpp)
 set(core_SRCS
 # MetaObjectHandler.cpp
+  ConfHandler.cpp
   Probe.cpp
   ProbeGuard.cpp
   UserEventFilter.cpp
