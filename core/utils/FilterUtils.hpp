@@ -6,6 +6,9 @@
 #include "Settings.hpp"
 #include "ProcessedObjects.hpp"
 
+//! TODO: remove
+#include "ConfHandler.hpp"
+
 QT_BEGIN_NAMESPACE
 class QItemSelectionModel;
 QT_END_NAMESPACE
@@ -26,13 +29,14 @@ enum class ChangeType {
 }
 
 namespace QtAda::core::utils {
-QString objectPath(const QObject *obj) noexcept;
+//! TODO: remove
+inline QString objectPath(const QObject *obj) noexcept
+{
+    return ConfHandler::getObjectId(obj);
+}
 template <typename GuiComponent> QString objectPath(const GuiComponent *component) noexcept
 {
-    CHECK_GUI_CLASS(GuiComponent);
-    auto *obj = qobject_cast<const QObject *>(component);
-    assert(obj != nullptr);
-    return objectPath(obj);
+    return ConfHandler::getObjectId(component);
 }
 
 QString escapeText(const QString &text) noexcept;

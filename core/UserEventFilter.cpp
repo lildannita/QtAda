@@ -6,6 +6,7 @@
 #include <QRegularExpression>
 #include <QEvent>
 
+#include "ConfHandler.hpp"
 #include "GuiEventFilter.hpp"
 #include "utils/CommonFilters.hpp"
 
@@ -13,6 +14,8 @@ namespace QtAda::core {
 UserEventFilter::UserEventFilter(const RecordSettings &settings, QObject *parent) noexcept
     : QObject{ parent }
 {
+    ConfHandler::initialize(settings.confPath, this);
+
     widgetFilter_ = std::make_shared<WidgetEventFilter>(settings, this);
     quickFilter_ = std::make_shared<QuickEventFilter>(settings, this);
 
