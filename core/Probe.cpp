@@ -290,10 +290,21 @@ bool Probe::eventFilter(QObject *reciever, QEvent *event)
 
     if (event->type() == AsyncCloseEvent::AsyncClose) {
         auto *asyncClose = static_cast<AsyncCloseEvent *>(event);
-        //! TODO: почему-то не работает, если ошибка в запущенном скрипте
-        //! произошла в самом начале работы приложения
-        //! QCoreApplication::exit(asyncClose->exitCode());
-        std::exit(asyncClose->exitCode());
+        //! TODO: почему-то не работает QCoreApplication::exit, если ошибка
+        //! в запущенном скрипте произошла в самом начале работы приложения,
+        //! поэтому пока что просто запускаем таймер ожидания завершения работы,
+        //! и завершаем принудительно через std::exit.
+        //! (не можем просто использовать std::exit, так как он завершает сразу,
+        //! и ресурсы нормально не освобождаются)
+        //!
+        //! Если принудительно завершаем работу практически сразу после
+        //! запуска, то программа может работать 5 секунд, пока не сработает таймаут и
+        //! не выполнится std::exit. Проблема в том, что программа все это время выводит
+        //! логи, среди которых может затеряться сообщение об ошибке, которая привела
+        //! к аварийному закрытию.
+        const auto code = asyncClose->exitCode();
+        QTimer::singleShot(5000, this, [&code] { std::exit(code); });
+        QCoreApplication::exit(asyncClose->exitCode());
         return true;
     }
 
