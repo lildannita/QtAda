@@ -60,7 +60,7 @@ std::optional<int> UserLaunchOptions::initFromArgs(const char *appPath, QStringL
         else if (arg == QLatin1String("--no-highlight")) {
             setMsgHighlight(false);
         }
-        else if ((arg == QLatin1String("-c")) || (arg == QLatin1String("--conf-path"))) {
+        else if ((arg == QLatin1String("-c")) || (arg == QLatin1String("--config-path"))) {
             const auto confPath = args.takeFirst();
             recordSettings.confPath = confPath;
             standartRunSettings.confPath = std::move(confPath);

@@ -43,7 +43,7 @@ inline void printUsage(const char *appPath)
 Usage: %1 [options] <configuration> <launch type> <application> [args]
 
 Configuration:
- -c, --conf-path <configuration path>           set path to configuration JSON file
+ -c, --config-path <configuration path>         set path to configuration JSON file
 
 Launch type:
  -r, --record <script path>                     record test script
