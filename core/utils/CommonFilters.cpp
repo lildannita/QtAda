@@ -12,7 +12,7 @@ static QString clickType(const QEvent *event, bool isReleaseInside) noexcept
 QString buttonEventCommand(const QString &path, const QEvent *event, bool isReleaseInside,
                            const QString &buttonText) noexcept
 {
-    return QStringLiteral("%1button%2('%3');%4")
+    return QStringLiteral("%1button%2(%3);%4")
         .arg(SCRIPT_COMMAND_PREFIX)
         .arg(clickType(event, isReleaseInside))
         .arg(path)
@@ -24,7 +24,7 @@ QString buttonEventCommand(const QString &path, const QEvent *event, bool isRele
 QString mouseAreaEventCommand(const QString &path, const QEvent *event,
                               bool isReleaseInside) noexcept
 {
-    return QStringLiteral("%1mouseArea%2('%3');")
+    return QStringLiteral("%1mouseArea%2(%3);")
         .arg(SCRIPT_COMMAND_PREFIX)
         .arg(clickType(event, isReleaseInside))
         .arg(path);
@@ -34,7 +34,7 @@ QString checkButtonCommand(const QString &path, bool isChecked, bool isDoubleChe
                            const QString &buttonText) noexcept
 {
     auto generate = [&path, &buttonText](bool isChecked) {
-        return QStringLiteral("%1checkButton('%2', %3);%4")
+        return QStringLiteral("%1checkButton(%2, %3);%4")
             .arg(SCRIPT_COMMAND_PREFIX)
             .arg(path)
             .arg(isChecked ? "true" : "false")
@@ -53,7 +53,7 @@ QString checkButtonCommand(const QString &path, bool isChecked, bool isDoubleChe
 
 QString selectItemCommand(const QString &path, const QString &statement) noexcept
 {
-    return QStringLiteral("%1selectItem('%2', %3);")
+    return QStringLiteral("%1selectItem(%2, %3);")
         .arg(SCRIPT_COMMAND_PREFIX)
         .arg(path)
         .arg(statement);
@@ -61,7 +61,7 @@ QString selectItemCommand(const QString &path, const QString &statement) noexcep
 
 QString setDelayProgressCommand(const QString &path, double progress) noexcept
 {
-    return QStringLiteral("%1setDelayProgress('%2', %3);")
+    return QStringLiteral("%1setDelayProgress(%2, %3);")
         .arg(SCRIPT_COMMAND_PREFIX)
         .arg(path)
         .arg(progress);
@@ -69,7 +69,7 @@ QString setDelayProgressCommand(const QString &path, double progress) noexcept
 
 QString selectTabCommand(const QString &path, const QString &statement) noexcept
 {
-    return QStringLiteral("%1selectTabItem('%2', %3);")
+    return QStringLiteral("%1selectTabItem(%2, %3);")
         .arg(SCRIPT_COMMAND_PREFIX)
         .arg(path)
         .arg(statement);
@@ -78,7 +78,7 @@ QString selectTabCommand(const QString &path, const QString &statement) noexcept
 QString treeViewCommand(const QString &path, bool isExpand, const QString &indexPath,
                         const QString &delegateText) noexcept
 {
-    return QStringLiteral("%1%2Delegate('%3', %4);%5")
+    return QStringLiteral("%1%2Delegate(%3, %4);%5")
         .arg(SCRIPT_COMMAND_PREFIX)
         .arg(isExpand ? "expand" : "collapse")
         .arg(path)
@@ -90,7 +90,7 @@ QString treeViewCommand(const QString &path, bool isExpand, const QString &index
 
 QString undoCommand(const QString &path, int index, const QString &delegateText) noexcept
 {
-    return QStringLiteral("%1undoCommand('%2', %3);%4")
+    return QStringLiteral("%1undoCommand(%2, %3);%4")
         .arg(SCRIPT_COMMAND_PREFIX)
         .arg(path)
         .arg(index)
@@ -101,7 +101,7 @@ QString undoCommand(const QString &path, int index, const QString &delegateText)
 
 QString selectViewItemCommand(const QString &path, int index) noexcept
 {
-    return QStringLiteral("%1selectViewItem('%2', %3);")
+    return QStringLiteral("%1selectViewItem(%2, %3);")
         .arg(SCRIPT_COMMAND_PREFIX)
         .arg(path)
         .arg(index);
@@ -110,7 +110,7 @@ QString selectViewItemCommand(const QString &path, int index) noexcept
 QString actionCommand(const QString &path, const QString &text, bool isSeparator, bool isMenu,
                       std::optional<bool> checked) noexcept
 {
-    return QStringLiteral("%1%2triggerAction('%3'%4);%5")
+    return QStringLiteral("%1%2triggerAction(%3%4);%5")
         .arg(isSeparator ? "// Looks like useless separator click\n// "
                          : (isMenu ? "// Looks like useless menu click\n// " : ""))
         .arg(SCRIPT_COMMAND_PREFIX)
@@ -125,7 +125,7 @@ QString actionCommand(const QString &path, const QString &text, bool isSeparator
 QString delegateClickCommand(const QString &path, const QString &statement, bool isDouble,
                              const QString &text) noexcept
 {
-    return QStringLiteral("%1delegate%2Click('%3', %4);%5")
+    return QStringLiteral("%1delegate%2Click(%3, %4);%5")
         .arg(SCRIPT_COMMAND_PREFIX)
         .arg(isDouble ? "Dbl" : "")
         .arg(path)
@@ -150,7 +150,7 @@ QString setSelectionCommand(const QString &path, const QString &selection) noexc
     //!     .arg(selection)
     //!     .arg(SCRIPT_COMMAND_PREFIX)
     //!     .arg(path);
-    return QStringLiteral("%1setSelection('%2', [%3]);")
+    return QStringLiteral("%1setSelection(%2, [%3]);")
         .arg(SCRIPT_COMMAND_PREFIX)
         .arg(path)
         .arg(selection);
@@ -158,12 +158,12 @@ QString setSelectionCommand(const QString &path, const QString &selection) noexc
 
 QString clearSelectionCommand(const QString &path) noexcept
 {
-    return QStringLiteral("%1clearSelection('%2');").arg(SCRIPT_COMMAND_PREFIX).arg(path);
+    return QStringLiteral("%1clearSelection(%2);").arg(SCRIPT_COMMAND_PREFIX).arg(path);
 }
 
 QString setTextCommand(const QString &path, const QString &text, const QString &indexPath) noexcept
 {
-    return QStringLiteral("%1setText('%2'%3, '%4');")
+    return QStringLiteral("%1setText(%2%3, '%4');")
         .arg(SCRIPT_COMMAND_PREFIX)
         .arg(path)
         .arg(indexPath.isEmpty() ? "" : QStringLiteral(", %1").arg(indexPath))
@@ -172,7 +172,7 @@ QString setTextCommand(const QString &path, const QString &text, const QString &
 
 QString closeCommand(const QString &path, bool isDialog) noexcept
 {
-    return QStringLiteral("%1close%2('%3');")
+    return QStringLiteral("%1close%2(%3);")
         .arg(SCRIPT_COMMAND_PREFIX)
         .arg(isDialog ? "Dialog" : "Window")
         .arg(path);

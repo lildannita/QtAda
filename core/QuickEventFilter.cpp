@@ -86,13 +86,12 @@ static QString qButtonsFilter(const QQuickItem *item, const QMouseEvent *event,
     }
     assert(currentItem != nullptr);
 
-    const auto buttonPath = utils::objectPath(currentItem);
     const auto buttonRect = currentItem->boundingRect();
     const auto clickPos = currentItem->mapFromGlobal(event->globalPos());
     const auto rectContains = buttonRect.contains(clickPos);
 
     if (currentClass == QuickClass::MouseArea) {
-        return mouseAreaEventCommand(buttonPath, event, rectContains);
+        return mouseAreaEventCommand(ConfHandler::getObjectId(currentItem), event, rectContains);
     }
 
     // Для RadioButton и TabButton, хоть они и checkable, нам это не важно,
@@ -104,13 +103,14 @@ static QString qButtonsFilter(const QQuickItem *item, const QMouseEvent *event,
     // Во время события Release состояние checked еще не поменяется, поэтому инвертируем значение
     const auto isChecked = !utils::getFromVariant<bool>(QQmlProperty::read(currentItem, "checked"));
     const auto buttonText = utils::getFromVariant<QString>(QQmlProperty::read(currentItem, "text"));
+    const auto buttonId = ConfHandler::getObjectId(currentItem, buttonText);
 
     if (rectContains && isCheckable) {
-        return checkButtonCommand(buttonPath, isChecked,
-                                  event->type() == QEvent::MouseButtonDblClick, buttonText);
+        return checkButtonCommand(buttonId, isChecked, event->type() == QEvent::MouseButtonDblClick,
+                                  buttonText);
     }
     else {
-        return buttonEventCommand(buttonPath, event, rectContains, buttonText);
+        return buttonEventCommand(buttonId, event, rectContains, buttonText);
     }
 }
 
@@ -131,7 +131,7 @@ static QString qDelayButtonFilter(const QQuickItem *item, const QMouseEvent *eve
     const auto clickPos = item->mapFromGlobal(event->globalPos());
     if (buttonRect.contains(clickPos)) {
         return setDelayProgressCommand(
-            utils::objectPath(item),
+            ConfHandler::getObjectId(item),
             utils::getFromVariant<double>(QQmlProperty::read(item, "progress")));
     }
 
@@ -297,7 +297,7 @@ static QString qComboBoxFilter(const QQuickItem *item, const QMouseEvent *event,
     QString textValue;
     QMetaObject::invokeMethod(const_cast<QQuickItem *>(item), "textAt",
                               Q_RETURN_ARG(QString, textValue), Q_ARG(int, *extra.changeIndex));
-    return selectItemCommand(utils::objectPath(item),
+    return selectItemCommand(ConfHandler::getObjectId(item),
                              utils::textIndexStatement(extra.recordSettings.textIndexBehavior,
                                                        *extra.changeIndex, textValue));
 }
@@ -321,13 +321,13 @@ static QString qTumblerFilter(const QQuickItem *item, const QMouseEvent *event,
     //! текстового описания элементов.
     const auto currentIndex = utils::getFromVariant<int>(QQmlProperty::read(item, "currentIndex"));
     const auto textIndexBehavior = settings.textIndexBehavior;
-    return QStringLiteral("%1%2")
-        .arg(textIndexBehavior == TextIndexBehavior::OnlyText
-                     || textIndexBehavior == TextIndexBehavior::TextIndex
-                 ? "// This QtAda version can't take text from this GUI component\n"
-                 : "")
-        .arg(selectItemCommand(utils::objectPath(item),
-                               utils::textIndexStatement(textIndexBehavior, currentIndex)));
+    return QStringLiteral("%1%2").arg(
+        textIndexBehavior == TextIndexBehavior::OnlyText
+                || textIndexBehavior == TextIndexBehavior::TextIndex
+            ? "// This QtAda version can't take text from this GUI component\n"
+            : "",
+        selectItemCommand(ConfHandler::getObjectId(item),
+                          utils::textIndexStatement(textIndexBehavior, currentIndex)));
 }
 
 static QString qItemViewFilter(const QQuickItem *item, const QMouseEvent *event,
@@ -351,7 +351,7 @@ static QString qItemViewFilter(const QQuickItem *item, const QMouseEvent *event,
         return qMouseEventHandler(item, event);
     }
 
-    return delegateClickCommand(utils::objectPath(item), QString::number(index),
+    return delegateClickCommand(ConfHandler::getObjectId(item), QString::number(index),
                                 event->type() == QEvent::MouseButtonDblClick);
 }
 
@@ -371,7 +371,7 @@ static QString qPathViewFilter(const QQuickItem *item, const QMouseEvent *event,
     const auto index = utils::getFromVariant<int>(QQmlProperty::read(item, "currentIndex"));
     const auto count = utils::getFromVariant<int>(QQmlProperty::read(item, "count"));
     assert(index < count);
-    return selectViewItemCommand(utils::objectPath(item), index);
+    return selectViewItemCommand(ConfHandler::getObjectId(item), index);
 }
 
 static QString qSwipeViewFilter(const QQuickItem *item, const QMouseEvent *event,
@@ -395,7 +395,7 @@ static QString qSwipeViewFilter(const QQuickItem *item, const QMouseEvent *event
     const auto count = utils::getFromVariant<int>(QQmlProperty::read(item, "count"));
     assert(index < count);
     return QStringLiteral("// It's better to checkout setted index.\n%1")
-        .arg(selectViewItemCommand(utils::objectPath(item), index));
+        .arg(selectViewItemCommand(ConfHandler::getObjectId(item), index));
 }
 
 static QString qTextFocusFilters(const QQuickItem *item, const QMouseEvent *event,
@@ -732,7 +732,7 @@ void QuickEventFilter::processKeyEvent(const QString &text) noexcept
     //! элемент находится в View компоненте, но так как для делегатов "трудно" получать
     //! родителя, то пока откладываем.
     flushKeyEvent(
-        filters::setTextCommand(utils::objectPath(needToUseParent ? item->parent() : item),
+        filters::setTextCommand(ConfHandler::getObjectId(needToUseParent ? item->parent() : item),
                                 utils::escapeText(std::move(text))));
     keyWatchDog_.clear();
 }
@@ -747,7 +747,7 @@ std::optional<QString> QuickEventFilter::handleCloseEvent(const QObject *obj,
 
     if (utils::metaObjectWatcher(obj->metaObject(),
                                  filters::s_quickMetaMap.at(QuickClass::Window).first)) {
-        return filters::closeCommand(utils::objectPath(obj));
+        return filters::closeCommand(ConfHandler::getObjectId(obj));
     }
     //! TODO: Временная заглушка, см. WidgetEventFilter::handleCloseEvent()
     return std::nullopt;
