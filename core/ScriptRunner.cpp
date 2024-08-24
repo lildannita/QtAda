@@ -481,7 +481,7 @@ QObject *ScriptRunner::waitAndGetObject(const QString &path, std::optional<int> 
     }
 
     auto showElapsed = [this, &path](qint64 retrieved, std::optional<qint64> available) {
-        if (!runSettings_.showElapsed) {
+        if (runSettings_.showElapsed) {
             auto message = QStringLiteral("'%1' was retrieved in %2 ms").arg(path).arg(retrieved);
             if (available.has_value()) {
                 message.push_back(QStringLiteral(" and became visible in %1 ms").arg(*available));
