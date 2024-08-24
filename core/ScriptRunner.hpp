@@ -189,6 +189,7 @@ public slots:
 private:
     std::map<const QString, QObject *> pathToObject_;
     std::map<const QObject *, QString> objectToPath_;
+    std::map<const QString, QString> pathToId_;
 
     const RunSettings runSettings_;
     QJSEngine *engine_ = nullptr;
@@ -205,6 +206,14 @@ private:
                                       QGenericArgument val1 = QGenericArgument(),
                                       QGenericArgument val2 = QGenericArgument()) const noexcept;
     void postEvents(QObject *object, std::vector<QEvent *> events) const noexcept;
+
+    QString tryToGetIdFromPath(const QString &path) const noexcept
+    {
+        if (pathToId_.count(path) > 0) {
+            return pathToId_.at(path);
+        }
+        return path;
+    }
 
     // ************** Script API **************
     int waitTimeout_ = DEFAULT_SCRIPT_TIMEOUT_MS;

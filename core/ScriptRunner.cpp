@@ -179,7 +179,8 @@ void ScriptRunner::startScript() noexcept
             QJsonObject confObj = confData.toObject();
             const auto id = confObj["id"].toString();
 
-            if (confIds.count(id) == 1) {
+            //! TODO: эту проверку лучше перенести на момент проверки Settings::findErrors
+            if (confIds.count(id) > 0) {
                 emit scriptError(
                     QStringLiteral("{    ERROR    } The configuration file at '%1' must contain a "
                                    "set of unique ids, but the id '%2' is duplicated.")
@@ -187,9 +188,11 @@ void ScriptRunner::startScript() noexcept
                 finishThread(false);
                 return;
             }
-
             confIds.insert(id);
-            engine_->globalObject().setProperty(id, confObj["path"].toString());
+
+            const auto path = confObj["path"].toString();
+            pathToId_[path] = id;
+            engine_->globalObject().setProperty(id, path);
         }
     }
 
@@ -482,7 +485,8 @@ QObject *ScriptRunner::waitAndGetObject(const QString &path, std::optional<int> 
 
     auto showElapsed = [this, &path](qint64 retrieved, std::optional<qint64> available) {
         if (runSettings_.showElapsed) {
-            auto message = QStringLiteral("'%1' was retrieved in %2 ms").arg(path).arg(retrieved);
+            const auto id = tryToGetIdFromPath(path);
+            auto message = QStringLiteral("'%1' was retrieved in %2 ms").arg(id).arg(retrieved);
             if (available.has_value()) {
                 message.push_back(QStringLiteral(" and became visible in %1 ms").arg(*available));
             }
@@ -582,7 +586,8 @@ void ScriptRunner::do_verify(QObject *object, const QString &property,
         if (currentValue == value) {
             if (runSettings_.showElapsed) {
                 const auto elapsed = timer.elapsed();
-                emit scriptLog(QStringLiteral("'%1' verified in %2 ms").arg(path).arg(elapsed));
+                const auto id = tryToGetIdFromPath(path);
+                emit scriptLog(QStringLiteral("'%1' verified in %2 ms").arg(id).arg(elapsed));
             }
             return;
         }
