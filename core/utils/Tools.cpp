@@ -55,10 +55,10 @@ static const QMetaObject *metaObjectForClass(const QByteArray &className)
     return metaObject;
 }
 
-static std::optional<QMetaEnum> getMetaEnum(const QVariant &value, const char *сanonicalTypeName,
-                                            const QMetaObject *сanonicalMetaObject = nullptr)
+static std::optional<QMetaEnum> getMetaEnum(const QVariant &value, const char *canonicalTypeName,
+                                            const QMetaObject *canonicalMetaObject = nullptr)
 {
-    QByteArray typeName(сanonicalTypeName);
+    QByteArray typeName(canonicalTypeName);
     if (typeName.isEmpty()) {
         typeName = value.typeName();
     }
@@ -75,10 +75,10 @@ static std::optional<QMetaEnum> getMetaEnum(const QVariant &value, const char *�
     // Получаем индекс перечисления "каноничным" путем
     const auto *metaObject = &ProtectedObjectSample::staticQtMetaObject;
     auto enumIndex = metaObject->indexOfEnumerator(enumTypeName);
-    if (enumIndex < 0 && сanonicalMetaObject != nullptr) {
+    if (enumIndex < 0 && canonicalMetaObject != nullptr) {
         // Если индекс не получили, но у нас есть "исходный" мета-объект,
         // пробуем получить через него
-        metaObject = сanonicalMetaObject;
+        metaObject = canonicalMetaObject;
         enumIndex = metaObject->indexOfEnumerator(enumTypeName);
     }
     if (enumIndex < 0 && (metaObject = QMetaType::metaObjectForType(QMetaType::type(typeName)))) {
@@ -92,10 +92,10 @@ static std::optional<QMetaEnum> getMetaEnum(const QVariant &value, const char *�
         enumIndex = metaObject->indexOfEnumerator(enumTypeName);
     }
 
-    if (enumIndex < 0 && сanonicalMetaObject != nullptr) {
+    if (enumIndex < 0 && canonicalMetaObject != nullptr) {
         // Если так и не получилось, то пытаемся получить из другого
         // пространства имен, вызывая эту же функцию рекурсивно
-        QByteArray classParentName(сanonicalMetaObject->className());
+        QByteArray classParentName(canonicalMetaObject->className());
         const auto separatorIndex = classParentName.lastIndexOf("::");
         if (separatorIndex > 0) {
             classParentName = classParentName.left(separatorIndex + 2) + typeName;
