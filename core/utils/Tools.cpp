@@ -55,10 +55,10 @@ static const QMetaObject *metaObjectForClass(const QByteArray &className)
     return metaObject;
 }
 
-static std::optional<QMetaEnum> getMetaEnum(const QVariant &value, const char *сanonicalTypeName,
-                                            const QMetaObject *сanonicalMetaObject = nullptr)
+static std::optional<QMetaEnum> getMetaEnum(const QVariant &value, const char *canonicalTypeName,
+                                            const QMetaObject *canonicalMetaObject = nullptr)
 {
-    QByteArray typeName(сanonicalTypeName);
+    QByteArray typeName(canonicalTypeName);
     if (typeName.isEmpty()) {
         typeName = value.typeName();
     }
@@ -75,10 +75,10 @@ static std::optional<QMetaEnum> getMetaEnum(const QVariant &value, const char *�
     // Получаем индекс перечисления "каноничным" путем
     const auto *metaObject = &ProtectedObjectSample::staticQtMetaObject;
     auto enumIndex = metaObject->indexOfEnumerator(enumTypeName);
-    if (enumIndex < 0 && сanonicalMetaObject != nullptr) {
+    if (enumIndex < 0 && canonicalMetaObject != nullptr) {
         // Если индекс не получили, но у нас есть "исходный" мета-объект,
         // пробуем получить через него
-        metaObject = сanonicalMetaObject;
+        metaObject = canonicalMetaObject;
         enumIndex = metaObject->indexOfEnumerator(enumTypeName);
     }
     if (enumIndex < 0 && (metaObject = QMetaType::metaObjectForType(QMetaType::type(typeName)))) {
@@ -92,10 +92,10 @@ static std::optional<QMetaEnum> getMetaEnum(const QVariant &value, const char *�
         enumIndex = metaObject->indexOfEnumerator(enumTypeName);
     }
 
-    if (enumIndex < 0 && сanonicalMetaObject != nullptr) {
+    if (enumIndex < 0 && canonicalMetaObject != nullptr) {
         // Если так и не получилось, то пытаемся получить из другого
         // пространства имен, вызывая эту же функцию рекурсивно
-        QByteArray classParentName(сanonicalMetaObject->className());
+        QByteArray classParentName(canonicalMetaObject->className());
         const auto separatorIndex = classParentName.lastIndexOf("::");
         if (separatorIndex > 0) {
             classParentName = classParentName.left(separatorIndex + 2) + typeName;
@@ -434,51 +434,51 @@ QString metaPropertyValueToString(const QObject *obj, const QMetaProperty &prope
 QString transliterate(const QString &input) noexcept
 {
     // Согласно ISO 9/ГОСТ 7.79—2000
-    static const std::map<QString, QString> translitMap = {
-        { "А", "A" },
-        { "Б", "B" },
-        { "В", "V" },
-        { "Г", "G" },
-        { "Д", "D" },
-        { "Е", "E" },
-        { "Ё", "YO" },
-        { "Ж", "ZH" },
-        { "З", "Z" },
-        { "И", "I" },
-        { "Й", "J" },
-        { "К", "K" },
-        { "Л", "L" },
-        { "М", "M" },
-        { "Н", "N" },
-        { "О", "O" },
-        { "П", "P" },
-        { "Р", "R" },
-        { "С", "S" },
-        { "Т", "T" },
-        { "У", "U" },
-        { "Ф", "F" },
-        { "Х", "X" },
-        { "Ц", "CZ" },
-        { "Ч", "CH" },
-        { "Ш", "SH" },
-        { "Щ", "SHH" },
-        { "Ъ", "" },
+    static const std::map<QChar, QString> translitMap = {
+        { L'А', "A" },
+        { L'Б', "B" },
+        { L'В', "V" },
+        { L'Г', "G" },
+        { L'Д', "D" },
+        { L'Е', "E" },
+        { L'Ё', "YO" },
+        { L'Ж', "ZH" },
+        { L'З', "Z" },
+        { L'И', "I" },
+        { L'Й', "J" },
+        { L'К', "K" },
+        { L'Л', "L" },
+        { L'М', "M" },
+        { L'Н', "N" },
+        { L'О', "O" },
+        { L'П', "P" },
+        { L'Р', "R" },
+        { L'С', "S" },
+        { L'Т', "T" },
+        { L'У', "U" },
+        { L'Ф', "F" },
+        { L'Х', "X" },
+        { L'Ц', "CZ" },
+        { L'Ч', "CH" },
+        { L'Ш', "SH" },
+        { L'Щ', "SHH" },
+        { L'Ъ', "" },
         // По ГОСТУ здесь должно быть Y`, ...
-        { "Ы", "Y" },
-        { "Ь", "" },
+        { L'Ы', "Y" },
+        { L'Ь', "" },
         // По ГОСТУ здесь должно быть E`, ...
-        { "Э", "E" },
-        { "Ю", "YU" },
-        { "Я", "YA" },
+        { L'Э', "E" },
+        { L'Ю', "YU" },
+        { L'Я', "YA" },
         // ... но гравис не может быть использован в имени переменной
     };
 
     const auto upperInput = QLocale().toUpper(input);
     QString result;
     for (const QChar &c : upperInput) {
-        QString charStr = QString(c);
-        if (translitMap.find(charStr) != translitMap.end()) {
-            result.append(translitMap.at(charStr));
+        const auto it = translitMap.find(c);
+        if (it != translitMap.end()) {
+            result.append(it->second);
         }
         else if (!c.isLetter()) {
             result.append('_');
