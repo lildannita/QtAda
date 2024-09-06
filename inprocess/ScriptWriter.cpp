@@ -162,13 +162,8 @@ void ScriptWriter::handleNewLine(const QString &scriptLine) noexcept
                 continue;
             }
             const auto bracketIndex = line.indexOf('(');
-            assert(bracketIndex != -1);
-            const auto pointIndex = line.indexOf('.');
-            assert(pointIndex != -1);
-            const auto startPos = pointIndex + 1;
-            const auto commandLength = bracketIndex - startPos;
-            assert(commandLength > 0);
-            emit newScriptCommandDetected(line.mid(startPos, commandLength));
+            assert(bracketIndex > 0);
+            emit newScriptCommandDetected(line.left(bracketIndex));
             break;
         }
     }
@@ -202,11 +197,8 @@ void ScriptWriter::handleNewMetaPropertyVerification(
     flushSavedLines();
 
     for (const auto &verification : verifications) {
-        const auto line = QStringLiteral("%1verify(%2, '%3', '%4');")
-                              .arg(SCRIPT_COMMAND_PREFIX)
-                              .arg(objectPath)
-                              .arg(verification.first)
-                              .arg(verification.second);
+        const auto line = QStringLiteral("verify(%1, '%2', '%3');")
+                              .arg(objectPath, verification.first, verification.second);
         flushScriptLine(std::move(line));
     }
 }
