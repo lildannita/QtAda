@@ -107,7 +107,15 @@ public:
 
     // ************** Test API **************
     GENERATE_ACTION_FUNCTION_WITH_ARGS(verify, GROUP(const QString &property, const QString &value),
-                                       GROUP(property, value))
+                                       GROUP(property, value, std::nullopt))
+    GENERATE_ACTION_FUNCTION_WITH_ARGS(waitForVerify,
+                                       GROUP(const QString &property, const QString &value,
+                                             int sec),
+                                       GROUP(property, value, sec))
+    GENERATE_ACTION_FUNCTION_WITH_ARGS(mwaitForVerify,
+                                       GROUP(const QString &property, const QString &value,
+                                             int msec),
+                                       GROUP(property, value, msec))
 
     // ************** Actions API **************
     GENERATE_ACTION_FUNCTION_WITH_ARGS(mouseClick,
@@ -231,7 +239,12 @@ private:
                               bool waitForAccessibility) const noexcept;
 
     // ************** Test API **************
-    void do_verify(QObject *object, const QString &property, const QString &value) const noexcept;
+    void do_verify(QObject *object, const QString &property, const QString &value,
+                   std::optional<int> msec) const noexcept;
+    void do_waitForVerify(QObject *object, const QString &property, const QString &value,
+                          int sec) const noexcept;
+    void do_mwaitForVerify(QObject *object, const QString &property, const QString &value,
+                           int msec) const noexcept;
 
     //! TODO: избавиться
     QObject *findObjectByPath(const QString &path) const noexcept;

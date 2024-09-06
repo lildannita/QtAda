@@ -562,9 +562,17 @@ QObject *ScriptRunner::mwaitForCreation(const QString &path, int msec) const noe
 }
 
 // ************** Test API **************
-void ScriptRunner::do_verify(QObject *object, const QString &property,
-                             const QString &value) const noexcept
+void ScriptRunner::do_verify(QObject *object, const QString &property, const QString &value,
+                             std::optional<int> msec) const noexcept
 {
+    auto timeout = verifyTimeout_;
+    if (msec.has_value()) {
+        if (!checkTimeoutValue(*msec)) {
+            return;
+        }
+        timeout = *msec;
+    }
+
     const auto *metaObject = object->metaObject();
     const auto propertyIndex = metaObject->indexOfProperty(qPrintable(property));
     if (propertyIndex == -1) {
@@ -573,13 +581,11 @@ void ScriptRunner::do_verify(QObject *object, const QString &property,
         return;
     }
 
-    //! TODO: Добавить возможность явного указания timeout
-
     const auto &path = objectToPath_.at(object);
     QString currentValue;
     QElapsedTimer timer;
     timer.start();
-    while (!timer.hasExpired(verifyTimeout_)) {
+    while (!timer.hasExpired(timeout)) {
         const auto metaProperty = metaObject->property(propertyIndex);
         currentValue = tools::metaPropertyValueToString(object, metaProperty);
 
@@ -600,7 +606,19 @@ void ScriptRunner::do_verify(QObject *object, const QString &property,
                                        "Current Value:    '%4'\n"
                                        "Timeout:          '%5'")
                             .arg(path, property, value, currentValue)
-                            .arg(verifyTimeout_));
+                            .arg(timeout));
+}
+
+void ScriptRunner::do_waitForVerify(QObject *object, const QString &property, const QString &value,
+                                    int sec) const noexcept
+{
+    do_verify(object, property, value, sec * 1000);
+}
+
+void ScriptRunner::do_mwaitForVerify(QObject *object, const QString &property, const QString &value,
+                                     int msec) const noexcept
+{
+    do_verify(object, property, value, msec);
 }
 
 // ************** Actions API **************
