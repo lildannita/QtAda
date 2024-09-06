@@ -98,6 +98,12 @@ public:
         Q_UNUSED(application)
     }
 
+    // ************** Tools API **************
+    Q_INVOKABLE QString getEnv(const QString &variable) const noexcept
+    {
+        return qgetenv(variable.toUtf8().constData());
+    }
+
     // ************** Objects API **************
     Q_INVOKABLE QObject *getObject(const QString &path) const noexcept;
     Q_INVOKABLE QObject *waitFor(const QString &path, int sec) const noexcept;
