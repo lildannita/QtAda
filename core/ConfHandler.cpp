@@ -17,6 +17,27 @@ namespace QtAda::core {
 static const auto s_qmlRegExp = QRegularExpression(
     "(?<=.)(_(QMLTYPE|QML)_\\d+)|(_QMLTYPE_\\d+_QML_\\d+)|(_QML_\\d+_QMLTYPE_\\d+)$");
 
+static std::pair<const QObject *, const QObjectList> getParentInfo(const QObject *obj) noexcept
+{
+    auto classicParent = obj->parent();
+    if (classicParent != nullptr) {
+        return { classicParent, classicParent->children() };
+    }
+
+    if (auto quickItem = qobject_cast<const QQuickItem *>(obj)) {
+        auto itemParent = quickItem->parentItem();
+        if (itemParent != nullptr) {
+            QObjectList itemChildren;
+            for (auto *child : itemParent->childItems()) {
+                itemChildren.push_back(child);
+            }
+            assert(itemChildren.contains(const_cast<QObject *>(obj)));
+            return { qobject_cast<const QObject *>(itemParent), std::move(itemChildren) };
+        }
+    }
+    return { nullptr, QObjectList() };
+}
+
 static uint metaObjectIndexInObjectList(const QObject *obj, const QObjectList &children) noexcept
 {
     assert(!children.isEmpty());
@@ -33,47 +54,21 @@ static uint metaObjectIndexInObjectList(const QObject *obj, const QObjectList &c
     Q_UNREACHABLE();
 }
 
-static uint objectIndexInObjectList(const QObject *obj, const QObjectList &children) noexcept
-{
-    assert(!children.isEmpty());
-    uint index = 0;
-    const auto objName = obj->objectName();
-    for (const QObject *item : children) {
-        if (item == obj) {
-            return index;
-        }
-        if (objName == item->objectName()) {
-            index++;
-        }
-    }
-    Q_UNREACHABLE();
-}
-
-static QString metaObjectId(const QObject *obj) noexcept
-{
-    const QString metaObjName = QString(obj->metaObject()->className()).remove(s_qmlRegExp);
-    const auto *parent = obj->parent();
-    return QString("%1_%2")
-        .arg(metaObjName)
-        .arg(parent ? metaObjectIndexInObjectList(obj, parent->children()) : 0);
-}
-
-static QString objectId(const QObject *obj) noexcept
-{
-    const auto objName = obj->objectName();
-    const auto *parent = obj->parent();
-    return QString("%1_%2").arg(objName).arg(
-        parent ? objectIndexInObjectList(obj, parent->children()) : 0);
-}
-
 static QString objectPath(const QObject *obj) noexcept
 {
     QStringList pathComponents;
+
     while (obj != nullptr) {
-        QString identifier = obj->objectName().isEmpty() ? QString("c=%1").arg(metaObjectId(obj))
-                                                         : QString("n=%1").arg(objectId(obj));
+        const auto parentInfo = getParentInfo(obj);
+
+        const auto metaObjName = QString(obj->metaObject()->className()).remove(s_qmlRegExp);
+        const auto identifier
+            = QString("c=%1_%2")
+                  .arg(metaObjName)
+                  .arg(parentInfo.first ? metaObjectIndexInObjectList(obj, parentInfo.second) : 0);
         pathComponents.prepend(identifier);
-        obj = obj->parent();
+
+        obj = parentInfo.first;
     }
     assert(!pathComponents.isEmpty());
     return pathComponents.join('/');
