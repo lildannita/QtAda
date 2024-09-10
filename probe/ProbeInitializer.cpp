@@ -32,6 +32,7 @@ void ProbeInitializer::initProbe() noexcept
 #ifdef DEBUG_RECORD
     RecordSettings settings;
     settings.scriptPath = "/tmp/record_debug.js";
+    settings.confPath = "/tmp/record_debug.json";
     Probe::initProbe(LaunchType::Record, settings, std::nullopt);
 #endif
 
