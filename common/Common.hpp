@@ -44,6 +44,7 @@ Usage: %1 [options] <configuration> <launch type> <application> [args]
 
 Configuration:
  -c, --config-path <configuration path>         set path to configuration JSON file
+ -s, --screenshots <screenshots dir>            set path to directory for saving screenshots
 
 Launch type:
  -r, --record <script path>                     record test script
@@ -53,7 +54,7 @@ Options:
  -h, --help                                     print program help and exit
  -w, --workspace                                set working directory for executable (default: current path)
  -t, --timeout                                  application launch timeout in seconds (default: %2 seconds)
- -s, --show-log                                 show application logs during test script execution
+ --show-log                                     show application logs during test script execution
  --no-highlight                                 disable highlighting of QtAda messages in the console
 
 (Record options):

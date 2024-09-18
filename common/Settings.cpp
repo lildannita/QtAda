@@ -26,18 +26,13 @@ static int countScriptLines(const QString &filePath)
     return lineCount;
 }
 
-static bool fileCanBeWritten(const QFileInfo &fileInfo) noexcept
+static bool fileInDirCanBeWritten(const QDir &dir) noexcept
 {
-    if (fileInfo.exists()) {
-        return fileInfo.isWritable() && fileInfo.isReadable();
-    }
-
-    auto dir = fileInfo.dir();
     if (!dir.isReadable()) {
         return false;
     }
 
-    QFile tmp(QStringLiteral("%1/tmp.%2").arg(fileInfo.path(), paths::PROJECT_TMP_SUFFIX));
+    QFile tmp(QStringLiteral("%1/tmp.%2").arg(dir.absolutePath(), paths::PROJECT_TMP_SUFFIX));
     if (tmp.open(QIODevice::WriteOnly)) {
         tmp.close();
         tmp.remove();
@@ -46,8 +41,16 @@ static bool fileCanBeWritten(const QFileInfo &fileInfo) noexcept
     return false;
 }
 
+static bool fileCanBeWritten(const QFileInfo &fileInfo) noexcept
+{
+    if (fileInfo.exists()) {
+        return fileInfo.isWritable() && fileInfo.isReadable();
+    }
+    return fileInDirCanBeWritten(fileInfo.dir());
+}
+
 static std::vector<QString>
-findFileErrors(const QString &scriptPath, const QString &confPath,
+findFileErrors(const QString &scriptPath, const QString &confPath, const QString &screenPath,
                std::optional<const RecordSettings *> recordSettings) noexcept
 {
     std::vector<QString> errors;
@@ -151,6 +154,38 @@ findFileErrors(const QString &scriptPath, const QString &confPath,
                 }
             }
         }
+
+        if (!screenPath.isEmpty()) {
+            QFileInfo screenInfo(screenPath);
+
+            if (screenInfo.isFile()) {
+                errors.push_back(QStringLiteral("The path '%1' specified for saving screenshots is "
+                                                "a path to a file, not a directory.")
+                                     .arg(screenPath));
+            }
+            else {
+                QDir screenDir(screenPath);
+                bool screenDirExists = screenDir.exists();
+
+                if (!screenDirExists) {
+                    if (!screenDir.mkpath(".")) {
+                        errors.push_back(
+                            QStringLiteral(
+                                "Failed to create directory for saving screenshots at '%1'.")
+                                .arg(screenPath));
+                    }
+                    else {
+                        screenDirExists = true;
+                    }
+                }
+
+                if (screenDirExists && !fileInDirCanBeWritten(screenDir)) {
+                    errors.push_back(
+                        QStringLiteral("Screenshots cannot be written to the directory at '%1'.")
+                            .arg(screenPath));
+                }
+            }
+        }
     }
 
     return errors;
@@ -158,7 +193,7 @@ findFileErrors(const QString &scriptPath, const QString &confPath,
 
 std::optional<std::vector<QString>> RecordSettings::findErrors() const noexcept
 {
-    auto errors = findFileErrors(scriptPath, confPath, this);
+    auto errors = findFileErrors(scriptPath, confPath, QString(), this);
     if (needToGenerateCycle && cycleMinimumCount < MINIMUM_CYCLE_COUNT) {
         errors.push_back(QStringLiteral("The minimum number of lines for loop generation is less "
                                         "than the required minimum of %1.")
@@ -221,7 +256,7 @@ const RecordSettings RecordSettings::fromJson(const QByteArray &data, bool forGu
 
 std::optional<std::vector<QString>> RunSettings::findErrors() const noexcept
 {
-    const auto errors = findFileErrors(scriptPath, confPath, std::nullopt);
+    const auto errors = findFileErrors(scriptPath, confPath, screenDirPath, std::nullopt);
     return errors.empty() ? std::nullopt : std::make_optional(errors);
 }
 
@@ -237,6 +272,7 @@ const QByteArray RunSettings::toJson(bool forGui) const noexcept
     obj["showElapsed"] = this->showElapsed;
 
     obj["confPath"] = this->confPath;
+    obj["screenDirPath"] = this->screenDirPath;
 
     const auto document = QJsonDocument(obj);
     return document.toJson(QJsonDocument::Indented);
@@ -256,6 +292,7 @@ const RunSettings RunSettings::fromJson(const QByteArray &data, bool forGui) noe
     settings.showElapsed = obj["showElapsed"].toBool();
 
     settings.confPath = obj["confPath"].toString();
+    settings.screenDirPath = obj["screenDirPath"].toString();
 
     return settings;
 }

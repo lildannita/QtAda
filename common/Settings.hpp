@@ -53,6 +53,7 @@ struct RecordSettings final {
 struct RunSettings final {
     QString scriptPath;
     QString confPath;
+    QString screenDirPath;
 
     QString executeArgs;
 

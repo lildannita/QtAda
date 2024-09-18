@@ -38,9 +38,9 @@ void ProbeInitializer::initProbe() noexcept
 
 #ifdef DEBUG_RUN
     RunSettings settings;
-    settings.scriptPath
-        = "/files/work/avia_planetable/qt_gui/tests/gui_scenarios/test_close_application.js";
-    settings.showElapsed = true;
+    settings.scriptPath = "/tmp/record_debug.js";
+    settings.confPath = "/tmp/record_debug.json";
+    settings.screenDirPath = "/tmp/screens";
     Probe::initProbe(LaunchType::Run, std::nullopt, settings);
 #endif
 

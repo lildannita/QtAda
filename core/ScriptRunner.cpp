@@ -5,6 +5,7 @@
 #include <QThread>
 #include <QElapsedTimer>
 #include <QFile>
+#include <QFileInfo>
 #include <QTextStream>
 #include <QJSEngine>
 #include <QJsonArray>
@@ -130,6 +131,17 @@ static std::vector<std::pair<QVariant, QVariant>> parseSelectionData(const QJSVa
     return parsedData;
 }
 
+ScriptRunner::ScriptRunner(const RunSettings &settings, QObject *parent) noexcept
+    : QObject{ parent }
+    , runSettings_{ settings }
+{
+    if (!runSettings_.screenDirPath.isEmpty()) {
+        QFileInfo scriptInfo(runSettings_.scriptPath);
+        screenshotManager_ = std::make_unique<ScreenshotManager>(runSettings_.screenDirPath,
+                                                                 scriptInfo.baseName(), this);
+    }
+}
+
 void ScriptRunner::startScript() noexcept
 {
     assert(this->thread() != qApp->thread());
@@ -198,15 +210,18 @@ void ScriptRunner::startScript() noexcept
 
     const auto runResult = engine_->evaluate(scriptContent);
     if (runResult.isError()) {
+        const auto lineNumber = runResult.property("lineNumber").toInt();
+        takeErrorScreenshot(lineNumber);
         emit scriptError(QStringLiteral("{    ERROR    } %1\n"
                                         "{ LINE NUMBER } %2\n"
                                         "{    STACK    }\n%3\n")
                              .arg(runResult.property("message").toString())
-                             .arg(runResult.property("lineNumber").toInt())
+                             .arg(lineNumber)
                              .arg(runResult.property("stack").toString()));
         finishThread(false);
     }
     else {
+        clearScreenshots();
         finishThread(true);
     }
 }

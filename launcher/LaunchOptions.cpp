@@ -65,6 +65,9 @@ std::optional<int> UserLaunchOptions::initFromArgs(const char *appPath, QStringL
             recordSettings.confPath = confPath;
             standartRunSettings.confPath = std::move(confPath);
         }
+        else if ((arg == QLatin1String("-s")) || (arg == QLatin1String("--screenshots"))) {
+            standartRunSettings.screenDirPath = args.takeFirst();
+        }
         else if ((arg == QLatin1String("-r")) || (arg == QLatin1String("--record"))) {
             if (type != LaunchType::None) {
                 printMultiplyDefinitionError();
@@ -86,7 +89,7 @@ std::optional<int> UserLaunchOptions::initFromArgs(const char *appPath, QStringL
             }
             break;
         }
-        else if ((arg == QLatin1String("-s")) || (arg == QLatin1String("--show-log"))) {
+        else if (arg == QLatin1String("--show-log")) {
             showAppLogForTestRun = true;
         }
         else if (arg == QLatin1String("--indent-width")) {

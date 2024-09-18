@@ -3,6 +3,7 @@
 #include <QObject>
 #include <QEvent>
 
+#include "ScreenshotManager.hpp"
 #include "Settings.hpp"
 #include "Common.hpp"
 
@@ -22,6 +23,8 @@ QT_END_NAMESPACE
             || !checkObjectAvailability(object, canBeVisible, true)) {                             \
             return;                                                                                \
         }                                                                                          \
+        const auto functionName = QStringLiteral(#funcName);                                       \
+        takeScreenshot(object, functionName);                                                      \
         do_##funcName(object);                                                                     \
     }                                                                                              \
     Q_INVOKABLE void funcName(const QString &path) const noexcept                                  \
@@ -30,6 +33,8 @@ QT_END_NAMESPACE
         if (object == nullptr) {                                                                   \
             return;                                                                                \
         }                                                                                          \
+        const auto functionName = QStringLiteral(#funcName);                                       \
+        takeScreenshot(object, functionName);                                                      \
         do_##funcName(object);                                                                     \
     }
 #define GROUP(...) __VA_ARGS__
@@ -44,6 +49,8 @@ QT_END_NAMESPACE
             || !checkObjectAvailability(object, canBeVisible, true)) {                             \
             return;                                                                                \
         }                                                                                          \
+        const auto functionName = QStringLiteral(#funcName);                                       \
+        takeScreenshot(object, functionName);                                                      \
         do_##funcName(object, values);                                                             \
     }                                                                                              \
     Q_INVOKABLE void funcName(const QString &path, declaration) const noexcept                     \
@@ -52,18 +59,17 @@ QT_END_NAMESPACE
         if (object == nullptr) {                                                                   \
             return;                                                                                \
         }                                                                                          \
+        const auto functionName = QStringLiteral(#funcName);                                       \
+        takeScreenshot(object, functionName);                                                      \
         do_##funcName(object, values);                                                             \
     }
 
 namespace QtAda::core {
+class ScreenshotManager;
 class ScriptRunner final : public QObject {
     Q_OBJECT
 public:
-    ScriptRunner(const RunSettings &settings, QObject *parent = nullptr) noexcept
-        : QObject{ parent }
-        , runSettings_{ settings }
-    {
-    }
+    ScriptRunner(const RunSettings &settings, QObject *parent = nullptr) noexcept;
     void handleApplicationClosing() noexcept
     {
         pathToObject_.clear();
@@ -208,6 +214,8 @@ private:
     const RunSettings runSettings_;
     QJSEngine *engine_ = nullptr;
 
+    std::unique_ptr<ScreenshotManager> screenshotManager_;
+
     void finishThread(bool isOk) noexcept
     {
         emit aboutToClose(isOk ? 0 : 1);
@@ -227,6 +235,25 @@ private:
             return pathToId_.at(path);
         }
         return path;
+    }
+
+    void takeScreenshot(const QObject *object, const QString &funcName) const noexcept
+    {
+        if (screenshotManager_ != nullptr) {
+            screenshotManager_->newScreenshot(object, funcName);
+        }
+    }
+    void takeErrorScreenshot(int lineNumber) const noexcept
+    {
+        if (screenshotManager_ != nullptr) {
+            screenshotManager_->screenshotAllWindowsByError(lineNumber);
+        }
+    }
+    void clearScreenshots() const noexcept
+    {
+        if (screenshotManager_ != nullptr) {
+            screenshotManager_->clearScreenshots();
+        }
     }
 
     // ************** Script API **************
