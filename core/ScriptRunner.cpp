@@ -1750,19 +1750,25 @@ void ScriptRunner::do_setText(QObject *object, const QString &text) const noexce
         return;
     }
 
-    const auto isQuickTextEdit
-        = object->inherits("QQuickTextEdit") || object->inherits("QQuickTextInput");
+    const auto isQuickTextInput = object->inherits("QQuickTextInput");
+    const auto isQuickTextField = isQuickTextInput || object->inherits("QQuickTextEdit");
     const auto isWidgetTextEdit = object->inherits("QTextEdit") || object->inherits("QLineEdit");
     const auto isWidgetPlainTextEdit = object->inherits("QPlainTextEdit");
     const auto isWidgetKeySeqEdit = object->inherits("QKeySequenceEdit");
 
-    if (!isQuickTextEdit && !isWidgetTextEdit && !isWidgetPlainTextEdit && !isWidgetKeySeqEdit) {
+    if (!isQuickTextField && !isWidgetTextEdit && !isWidgetPlainTextEdit && !isWidgetKeySeqEdit) {
         engine_->throwError(QStringLiteral("Passed object is not an text edit"));
         return;
     }
 
-    if (isQuickTextEdit) {
+    if (isQuickTextField) {
         writePropertyInGuiThread(object, "text", text);
+        //! TODO: а что если надо реагировать на ввод каждой буквы по-отдельности?
+        if (isQuickTextInput) {
+            invokeBlockMethodWithTimeout(object, "textEdited");
+        }
+        //! TODO: надо ли?
+        //!     invokeBlockMethodWithTimeout(object, "editingFinished");
     }
     else if (isWidgetTextEdit) {
         invokeBlockMethodWithTimeout(object, "setText", Q_ARG(QString, text));
