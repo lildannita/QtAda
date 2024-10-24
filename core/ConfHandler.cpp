@@ -14,8 +14,12 @@ namespace QtAda::core {
 //! но проблема в том, что это число - не постоянная величина (особенно это видно со
 //! "специфическими" надстройками над графической оболочкой). Поэтому при запуске скриптов
 //! могут быть проблемы. В связи с этим решено пока что убирать этот суффикс, если он есть.
-static const auto s_qmlRegExp = QRegularExpression(
-    "(?<=.)(_(QMLTYPE|QML)_\\d+)|(_QMLTYPE_\\d+_QML_\\d+)|(_QML_\\d+_QMLTYPE_\\d+)$");
+static QString getCorrectClassName(const QObject *obj) noexcept
+{
+    static const auto s_qmlRegExp = QRegularExpression(
+        "(?<=.)(_(QMLTYPE|QML)_\\d+)|(_QMLTYPE_\\d+_QML_\\d+)|(_QML_\\d+_QMLTYPE_\\d+)$");
+    return QString(obj->metaObject()->className()).remove(s_qmlRegExp);
+}
 
 static std::pair<const QObject *, const QObjectList> getParentInfo(const QObject *obj) noexcept
 {
@@ -38,16 +42,17 @@ static std::pair<const QObject *, const QObjectList> getParentInfo(const QObject
     return { nullptr, QObjectList() };
 }
 
-static uint metaObjectIndexInObjectList(const QObject *obj, const QObjectList &children) noexcept
+static uint metaObjectIndexInObjectList(const QObject *obj, const QString &className,
+                                        const QObjectList &children) noexcept
 {
     assert(!children.isEmpty());
     uint index = 0;
-    const auto className = obj->metaObject()->className();
-    for (const QObject *item : children) {
-        if (item == obj) {
+    for (const QObject *child : children) {
+        if (child == obj) {
             return index;
         }
-        if (className == item->metaObject()->className()) {
+        const auto childClassName = getCorrectClassName(child);
+        if (className == childClassName) {
             index++;
         }
     }
@@ -61,12 +66,13 @@ static QString objectPath(const QObject *obj) noexcept
     while (obj != nullptr) {
         const auto parentInfo = getParentInfo(obj);
 
-        const auto metaObjName = QString(obj->metaObject()->className()).remove(s_qmlRegExp);
-        const auto identifier
-            = QString("c=%1_%2")
-                  .arg(metaObjName)
-                  .arg(parentInfo.first ? metaObjectIndexInObjectList(obj, parentInfo.second) : 0);
-        pathComponents.prepend(identifier);
+        QString id = getCorrectClassName(obj);
+        const auto index
+            = parentInfo.first ? metaObjectIndexInObjectList(obj, id, parentInfo.second) : 0;
+        if (index > 0) {
+            id = QStringLiteral("%1_%2").arg(id).arg(index);
+        }
+        pathComponents.prepend(id);
 
         obj = parentInfo.first;
     }
@@ -175,7 +181,7 @@ QString ConfHandler::internalIdGetter(const QObject *obj, const QString &path,
 {
     assert(obj != nullptr);
 
-    const auto className = QString(obj->metaObject()->className()).remove(s_qmlRegExp);
+    const auto className = getCorrectClassName(obj);
     auto id = tools::transliterate(text.trimmed().simplified());
     if (id.isEmpty()) {
         const auto objName = obj->objectName();
@@ -197,6 +203,8 @@ QString ConfHandler::internalIdGetter(const QObject *obj, const QString &path,
         return full_id;
     }
 
+    //! TODO: нужно решить проблему, при которой один и тот же объект может
+    //! идентифицироваться по-разному: obj_1_Type, obj_2_Type и т.д.
     int index = 1;
     while (std::find_if(confData_.begin(), confData_.end(),
                         [&full_id](const ConfData &data) { return data.id == full_id; })
