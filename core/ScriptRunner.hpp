@@ -145,6 +145,7 @@ public:
                                        GROUP(property, value, msec))
 
     // ************** Actions API **************
+    GENERATE_ACTION_FUNCTION(simpleMouseClick)
     GENERATE_ACTION_FUNCTION_WITH_ARGS(mouseClick,
                                        GROUP(const QString &mouseButtonStr, int x, int y),
                                        GROUP(mouseButtonStr, x, y))
@@ -308,6 +309,7 @@ private:
     void do_mouseClick(QObject *object, const QString &mouseButtonStr, int x, int y) const noexcept;
     void do_mouseDblClick(QObject *object, const QString &mouseButtonStr, int x,
                           int y) const noexcept;
+    void do_simpleMouseClick(QObject *object) const noexcept;
     void do_keyEvent(QObject *object, const QString &keyText) const noexcept;
     void do_wheelEvent(QObject *object, int dx, int dy) const noexcept;
 

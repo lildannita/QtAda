@@ -702,6 +702,24 @@ void ScriptRunner::do_mouseDblClick(QObject *object, const QString &mouseButtonS
     mouseClickTemplate(object, mouseButtonStr, x, y, true);
 }
 
+void ScriptRunner::do_simpleMouseClick(QObject *object) const noexcept
+{
+    assert(object != nullptr);
+    auto getCenterCoordinate = [object](const char *propertyName) -> int {
+        const auto prop = object->property(propertyName);
+        if (prop.isValid()) {
+            bool ok = false;
+            const int value = prop.toInt(&ok);
+            if (ok)
+                return value / 2;
+        }
+        return 0;
+    };
+    const auto x = getCenterCoordinate("width");
+    const auto y = getCenterCoordinate("height");
+    mouseClickTemplate(object, QStringLiteral("LeftButton"), x, y, false);
+}
+
 void ScriptRunner::do_keyEvent(QObject *object, const QString &keyText) const noexcept
 {
     //! TODO: Пока непонятно, что делать с keyEvent и нужен ли он вообще. Сейчас он
