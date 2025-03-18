@@ -490,7 +490,10 @@ bool ScriptRunner::checkObjectAvailability(const QObject *object, bool canBeVisi
 {
     assert(object != nullptr);
     const auto visible = canBeVisible ? object->property("visible").toBool() : true;
-    const auto enabled = object->property("enabled").toBool();
+    //! TODO: пока отключаем проверку на enabled, нужно определиться, нужна ли вообще
+    //! нам эта проверка
+    //! const auto enabled = object->property("enabled").toBool();
+    const auto enabled = true;
     if (visible && enabled) {
         return true;
     }
