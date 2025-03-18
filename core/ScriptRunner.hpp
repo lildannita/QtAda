@@ -2,6 +2,7 @@
 
 #include <QObject>
 #include <QEvent>
+#include <QVariant>
 
 #include "ScreenshotManager.hpp"
 #include "Settings.hpp"
@@ -108,6 +109,20 @@ public:
     Q_INVOKABLE QString getEnv(const QString &variable) const noexcept
     {
         return qgetenv(variable.toUtf8().constData());
+    }
+    //! TODO: завернуть в макрос
+    Q_INVOKABLE QVariant getPropertyValue(const QString &path,
+                                          const QString &property) const noexcept
+    {
+        auto *object = waitAndGetObject(path, std::nullopt, true);
+        if (object == nullptr) {
+            return {};
+        }
+        return do_getPropertyValue(object, property);
+    }
+    Q_INVOKABLE QVariant getPropertyValue(QObject *object, const QString &property) const noexcept
+    {
+        return do_getPropertyValue(object, property);
     }
 
     // ************** Objects API **************
@@ -261,6 +276,9 @@ private:
     int invokeTimeout_ = DEFAULT_SCRIPT_TIMEOUT_MS;
     int verifyTimeout_ = DEFAULT_SCRIPT_TIMEOUT_MS;
     bool checkTimeoutValue(int msec) const noexcept;
+
+    // ************** Tools API **************
+    QVariant do_getPropertyValue(const QObject *object, const QString &property) const noexcept;
 
     // ************** Objects API **************
     bool checkObjectPointer(const QObject *object) const noexcept;

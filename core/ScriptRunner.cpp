@@ -350,6 +350,28 @@ void ScriptRunner::postEvents(QObject *object, std::vector<QEvent *> events) con
     QThread::msleep(100);
 }
 
+// ************** Tools API **************
+QVariant ScriptRunner::do_getPropertyValue(const QObject *object,
+                                           const QString &property) const noexcept
+{
+    assert(object != nullptr);
+    const auto *metaObject = object->metaObject();
+    const auto propertyByteArray = property.toUtf8();
+    const auto *propertyName = propertyByteArray.constData();
+    const auto propertyIndex = metaObject->indexOfProperty(propertyName);
+    if (propertyIndex == -1) {
+        engine_->throwError(QStringLiteral("Property '%1' not found in the object.").arg(property));
+        return {};
+    }
+    const auto metaProperty = metaObject->property(propertyIndex);
+    if (!metaProperty.isReadable()) {
+        engine_->throwError(
+            QStringLiteral("Property '%1' is not readable in the object.").arg(property));
+        return {};
+    }
+    return metaProperty.read(object);
+}
+
 // ************** Script API **************
 void ScriptRunner::sleep(int sec)
 {
