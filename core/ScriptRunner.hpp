@@ -3,6 +3,7 @@
 #include <QObject>
 #include <QEvent>
 #include <QVariant>
+#include <memory>
 
 #include "ScreenshotManager.hpp"
 #include "Settings.hpp"
