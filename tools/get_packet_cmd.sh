@@ -1,8 +1,9 @@
 #!/bin/bash
 
 PACKAGES_ARCH="qt5-base qt5-quickcontrols qt5-quickcontrols2 qt5-remoteobjects qt5-declarative cmake make gcc git python"
+PACKAGES_UBUNTU="qtbase5-dev qtbase5-private-dev qt5-qmltooling-plugins libqt5remoteobjects5-dev qtdeclarative5-dev cmake make gcc git python3"
+# TODO update:
 PACKAGES_DEBIAN="qtbase5-dev qtdeclarative5-dev cmake make gcc git python3"
-PACKAGES_UBUNTU="qt5-default qtbase5-private-dev qt5-qmltooling-plugins libqt5remoteobjects5 qtdeclarative5-dev cmake make gcc git python3"
 PACKAGES_ASTRA="qt5-default qtbase5-dev qt5-qmltooling-plugins libqt5remoteobjects5 qtdeclarative5-dev cmake make gcc git python3"
 
 # CentOS|Oracle)
