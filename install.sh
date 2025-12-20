@@ -30,8 +30,10 @@ function show_help() {
     echo "  -h, --help                  print help"
     echo "  -b, --build-dir <path>      build QtAda in the specified directory"
     echo "  -e, --build-examples        build applications with QtWidgets- and QtQuick-based GUI"
+    echo "  --only-cli                  only CLI QtAda client"
     echo "  --skip-package-install      packages will not be installed"
     echo "  --skip-symlink              symlink will not be installed"
+
 }
 
 SOURCE_DIR=$(realpath $(pwd))
@@ -39,6 +41,7 @@ BUILD_DIR="build"
 INSTALL_PACKAGES=true
 INSTALL_SYMLINK=true
 BUILD_EXAMPLES=false
+ONLY_CLI=false
 
 while [[ "$#" -gt 0 ]]; do
     case $1 in
@@ -61,6 +64,10 @@ while [[ "$#" -gt 0 ]]; do
             ;;
         -e|--build-examples)
             BUILD_EXAMPLES=true
+            shift
+            ;;
+        --only-cli)
+            ONLY_CLI=true
             shift
             ;;
         -h|--help)
@@ -119,6 +126,9 @@ fi
 CMAKE_ARGS=
 if $BUILD_EXAMPLES; then
     CMAKE_ARGS="-DBUILD_EXAMPLES=ON"
+fi
+if $ONLY_CLI; then
+    CMAKE_ARGS="-DBUILD_QTADA_CLIENT=OFF"
 fi
 
 echo_info "Building the project..."
