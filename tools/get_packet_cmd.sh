@@ -46,16 +46,16 @@ done
 if $INSTALL_PACKAGES; then
     case $OS in
         Manjaro|Arch)
-            INSTALL_CMD="sudo pacman -S --needed $PACKAGES_ARCH"
+            INSTALL_CMD="pacman -S --needed $PACKAGES_ARCH"
             ;;
         Debian)
-            INSTALL_CMD="sudo apt-get install -y $PACKAGES_DEBIAN"
+            INSTALL_CMD="apt-get install -y $PACKAGES_DEBIAN"
             ;;
         Ubuntu)
-            INSTALL_CMD="sudo apt-get install -y $PACKAGES_UBUNTU"
+            INSTALL_CMD="apt-get install -y $PACKAGES_UBUNTU"
             ;;
         Astra)
-            INSTALL_CMD="sudo apt-get install -y $PACKAGES_ASTRA"
+            INSTALL_CMD="apt-get install -y $PACKAGES_ASTRA"
             ;;
         *)
             echo "Unsupported OS: $OS"
