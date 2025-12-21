@@ -37,14 +37,61 @@ bool ProbeABI::isValid() const noexcept
     return hasQtVersion() && hasArchitecture();
 }
 
+// QString ProbeABI::probeDllPath() const noexcept
+// {
+//     const QString probePath = QDir::toNativeSeparators(QString::fromUtf8(QTADA_LIB_DIR))
+//                               + QDir::separator() + QTADA_LIB_PREFIX + QTADA_PROBE_BASENAME +
+//                               ".so";
+//     QFileInfo probeInfo(probePath);
+//     if (probeInfo.isFile() && probeInfo.isReadable()) {
+//         return probeInfo.canonicalFilePath();
+//     }
+//     return QString();
+// }
+
 QString ProbeABI::probeDllPath() const noexcept
 {
-    const QString probePath = QDir::toNativeSeparators(QString::fromUtf8(QTADA_LIB_DIR))
-                              + QDir::separator() + QTADA_LIB_PREFIX + QTADA_PROBE_BASENAME + ".so";
-    QFileInfo probeInfo(probePath);
-    if (probeInfo.isFile() && probeInfo.isReadable()) {
-        return probeInfo.canonicalFilePath();
+    const QString probeFileName = QString(QTADA_LIB_PREFIX) + QTADA_PROBE_BASENAME + ".so";
+
+    // Список путей для поиска
+    const QStringList searchPaths = {
+        QString::fromUtf8(QTADA_LIB_DIR),
+        QStringLiteral("/usr/lib"),
+        QStringLiteral("/usr/lib64"),
+        QStringLiteral("/usr/local/lib"),
+        QStringLiteral("/usr/local/lib64"),
+        QStringLiteral("/opt/qtada/lib"),
+        QStringLiteral("/lib"),
+        QStringLiteral("/lib64"),
+        QDir::homePath() + QStringLiteral("/.local/lib"),
+    };
+
+    for (const QString &basePath : searchPaths) {
+        if (basePath.isEmpty()) {
+            continue;
+        }
+
+        const QString probePath
+            = QDir::toNativeSeparators(basePath) + QDir::separator() + probeFileName;
+        QFileInfo probeInfo(probePath);
+        if (probeInfo.isFile() && probeInfo.isReadable()) {
+            return probeInfo.canonicalFilePath();
+        }
     }
+
+    const QByteArray ldPath = qgetenv("LD_LIBRARY_PATH");
+    if (!ldPath.isEmpty()) {
+        const QStringList ldPaths = QString::fromLocal8Bit(ldPath).split(':');
+        for (const QString &path : ldPaths) {
+            const QString probePath
+                = QDir::toNativeSeparators(path) + QDir::separator() + probeFileName;
+            QFileInfo probeInfo(probePath);
+            if (probeInfo.isFile() && probeInfo.isReadable()) {
+                return probeInfo.canonicalFilePath();
+            }
+        }
+    }
+
     return QString();
 }
 
